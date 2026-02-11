@@ -1,0 +1,14 @@
+{
+	"accessedAt": "2026-02-06T16:06:49.540Z",
+	"createdAt": "2026-02-06T12:59:39.136Z",
+	"hadMultipleClients": false,
+	"handledRequestCount": 32,
+	"id": "574c449d-7e61-4716-9992-e5176aaf486c",
+	"modifiedAt": "2026-02-06T16:06:49.418Z",
+	"name": "default",
+	"pendingRequestCount": 0,
+	"stats": {},
+	"totalRequestCount": 14,
+	"userId": "1",
+	"forefrontRequestIds": []
+}

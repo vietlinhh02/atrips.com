@@ -1,0 +1,766 @@
+[2026-02-05T05:40:51.142Z] [INFO] [STEP 2: Context] Executing: search_places
+[2026-02-05T05:40:52.410Z] [INFO] search_places completed in 1268ms
+[2026-02-05T05:40:52.411Z] [INFO] [TOOL] Executing: web_search
+[2026-02-05T05:40:56.289Z] [INFO] web_search completed in 3878ms
+[2026-02-05T05:42:44.149Z] [INFO] [STEP 2: Context] Executing: search_places
+[2026-02-05T05:42:45.382Z] [INFO] search_places completed in 1232ms
+[2026-02-05T05:42:45.382Z] [INFO] [TOOL] Executing: web_search
+[2026-02-05T05:42:49.300Z] [INFO] web_search completed in 3918ms
+[2026-02-05T05:42:57.485Z] [INFO] [TOOL] Executing: web_search
+[2026-02-05T05:43:10.401Z] [INFO] web_search completed in 12916ms
+[2026-02-05T05:43:48.661Z] [INFO] [STEP 2: Context] Executing: search_places
+[2026-02-05T05:43:49.687Z] [INFO] search_places completed in 1026ms
+[2026-02-05T05:43:53.041Z] [INFO] [TOOL] Executing: web_search
+[2026-02-05T05:43:56.811Z] [INFO] web_search completed in 3770ms
+[2026-02-05T06:02:19.189Z] [INFO] [TOOL] Executing: web_search
+[2026-02-05T06:02:25.138Z] [INFO] web_search completed in 5949ms
+[2026-02-05T06:04:14.542Z] [INFO] [TOOL] Executing: get_current_datetime
+[2026-02-05T06:04:14.557Z] [INFO] get_current_datetime completed in 15ms
+[2026-02-05T06:04:31.736Z] [INFO] [STEP 2: Context] Executing: get_weather
+[2026-02-05T06:04:32.652Z] [INFO] get_weather completed in 916ms
+[2026-02-05T06:04:32.653Z] [INFO] [STEP 2: Context] Executing: get_weather
+[2026-02-05T06:04:32.791Z] [INFO] get_weather completed in 138ms
+[2026-02-05T06:04:32.792Z] [INFO] [STEP 5: Draft] Executing: create_trip_plan
+[2026-02-05T06:04:32.792Z] [INFO]   Itinerary has 2 days
+[2026-02-05T06:04:34.363Z] [INFO]   Saving draft to database...
+[2026-02-05T06:04:34.375Z] [INFO]   Draft created with ID: 8c9d15a0-4140-40a2-a6c7-513813cfdb18
+[2026-02-05T06:04:34.375Z] [INFO]   User not authenticated - Draft only mode
+[2026-02-05T06:04:34.375Z] [INFO]   Draft ID returned for later application
+[2026-02-05T06:04:34.375Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T06:04:34.375Z] [INFO] create_trip_plan completed in 1583ms
+[2026-02-05T06:12:40.380Z] [INFO] [TOOL] Executing: web_search
+[2026-02-05T06:12:50.196Z] [INFO] web_search completed in 9816ms
+[2026-02-05T06:12:50.197Z] [INFO] [STEP 2: Context] Executing: search_places
+[2026-02-05T06:12:51.929Z] [INFO] search_places completed in 1732ms
+[2026-02-05T06:12:56.639Z] [INFO] [TOOL] Executing: web_search
+[2026-02-05T06:13:01.756Z] [INFO] web_search completed in 5117ms
+[2026-02-05T06:14:05.704Z] [INFO] [TOOL] Executing: search_youtube_videos
+[2026-02-05T06:14:06.597Z] [INFO] search_youtube_videos completed in 892ms
+[2026-02-05T06:14:06.597Z] [INFO] [TOOL] Executing: search_youtube_videos
+[2026-02-05T06:14:07.349Z] [INFO] search_youtube_videos completed in 752ms
+[2026-02-05T06:14:07.349Z] [INFO] [TOOL] Executing: search_youtube_videos
+[2026-02-05T06:14:07.923Z] [INFO] search_youtube_videos completed in 574ms
+[2026-02-05T06:14:45.183Z] [INFO] [TOOL] Executing: search_youtube_videos
+[2026-02-05T06:14:45.899Z] [INFO] search_youtube_videos completed in 716ms
+[2026-02-05T06:14:45.900Z] [INFO] [TOOL] Executing: search_youtube_videos
+[2026-02-05T06:14:46.505Z] [INFO] search_youtube_videos completed in 605ms
+[2026-02-05T06:14:52.705Z] [INFO] [TOOL] Executing: web_search
+[2026-02-05T06:15:02.754Z] [INFO] web_search completed in 10049ms
+[2026-02-05T06:15:02.754Z] [INFO] [TOOL] Executing: web_search
+[2026-02-05T06:15:11.375Z] [INFO] web_search completed in 8621ms
+[2026-02-05T07:43:15.455Z] [INFO] [TOOL] Executing: get_current_datetime
+[2026-02-05T07:43:15.479Z] [INFO] get_current_datetime completed in 23ms
+[2026-02-05T07:43:20.256Z] [INFO] [STEP 2: Context] Executing: get_weather
+[2026-02-05T07:43:20.663Z] [INFO] get_weather completed in 407ms
+[2026-02-05T07:43:20.663Z] [INFO] [STEP 2: Context] Executing: get_weather
+[2026-02-05T07:43:20.723Z] [INFO] get_weather completed in 60ms
+[2026-02-05T07:43:20.724Z] [INFO] [STEP 2: Context] Executing: search_places
+[2026-02-05T07:43:21.158Z] [INFO] search_places completed in 434ms
+[2026-02-05T07:43:21.158Z] [INFO] [STEP 2: Context] Executing: search_places
+[2026-02-05T07:43:21.904Z] [INFO] search_places completed in 746ms
+[2026-02-05T07:43:26.306Z] [INFO] [TOOL] Executing: optimize_itinerary
+[2026-02-05T07:43:26.307Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T07:43:26.307Z] [INFO]   │  optimize_itinerary: Algorithm Pipeline Started         │
+[2026-02-05T07:43:26.307Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T07:43:26.307Z] [INFO]      Destination: Hà Nội
+[2026-02-05T07:43:26.307Z] [INFO]      Dates: 2026-02-27 to 2026-02-28
+[2026-02-05T07:43:26.307Z] [INFO]      Style: comfort, Travelers: 2
+[2026-02-05T07:43:26.318Z] [INFO]      Found 27 places in database
+[2026-02-05T07:43:26.318Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T07:43:26.318Z] [INFO]   │           TRIP PLANNER PIPELINE STARTED                 │
+[2026-02-05T07:43:26.318Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T07:43:26.318Z] [INFO]   Trip Parameters:
+[2026-02-05T07:43:26.318Z] [INFO]      - Destination: Hà Nội
+[2026-02-05T07:43:26.318Z] [INFO]      - Duration: 2 days
+[2026-02-05T07:43:26.319Z] [INFO]      - Daily time budget: 480 min
+[2026-02-05T07:43:26.323Z] [INFO]      - Daily money budget: 1,500,000 VND
+[2026-02-05T07:43:26.323Z] [INFO]      - Travel style: comfort
+[2026-02-05T07:43:26.323Z] [INFO]      - Travelers: 2
+[2026-02-05T07:43:26.323Z] [INFO]   [Algorithm 1/4] POIRecommender - Filtering places...
+[2026-02-05T07:43:26.323Z] [INFO]      - Found 27 places in Hà Nội
+[2026-02-05T07:43:26.324Z] [INFO]      - After filtering: 27 places
+[2026-02-05T07:43:26.324Z] [INFO]      → Scoring with profile: {"interests":["culture","food","history"],"travelStyle":"comfort","prioritizeRating":true,"prioritizeDiversity":true}
+[2026-02-05T07:43:26.330Z] [INFO]      - Recommended 12 diverse places
+[2026-02-05T07:43:26.330Z] [INFO]   [Algorithm 2/4] KnapsackSelector - Optimizing selection...
+[2026-02-05T07:43:26.330Z] [INFO]      Constraints: maxTime=960min, budget=∞
+[2026-02-05T07:43:26.331Z] [INFO]      - Selected 11 places
+[2026-02-05T07:43:26.331Z] [INFO]      → Total value: N/A
+[2026-02-05T07:43:26.331Z] [INFO]      → Time utilization: NaN%
+[2026-02-05T07:43:26.331Z] [INFO]   [Algorithm 3/4] TSPSolver - Optimizing routes...
+[2026-02-05T07:43:26.332Z] [INFO]      - Route optimization complete for 2 days
+[2026-02-05T07:43:26.332Z] [INFO]   [Algorithm 4/4] TimeWindowScheduler - Scheduling...
+[2026-02-05T07:43:26.333Z] [INFO]      - Scheduled 7 activities across 2 days
+[2026-02-05T07:43:26.333Z] [INFO]   Formatting final itinerary...
+[2026-02-05T07:43:26.334Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T07:43:26.334Z] [INFO]   │           TRIP PLANNER PIPELINE COMPLETE -              │
+[2026-02-05T07:43:26.334Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T07:43:26.334Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T07:43:26.334Z] [INFO]   │  optimize_itinerary: Pipeline Complete                  │
+[2026-02-05T07:43:26.334Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T07:43:26.334Z] [INFO]      Days: 2, Places: 7
+[2026-02-05T07:43:26.334Z] [INFO] optimize_itinerary completed in 27ms
+[2026-02-05T07:44:03.901Z] [INFO] [TOOL] Executing: get_current_datetime
+[2026-02-05T07:44:03.903Z] [INFO] get_current_datetime completed in 1ms
+[2026-02-05T07:44:07.160Z] [INFO] [TOOL] Executing: optimize_itinerary
+[2026-02-05T07:44:07.160Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T07:44:07.160Z] [INFO]   │  optimize_itinerary: Algorithm Pipeline Started         │
+[2026-02-05T07:44:07.160Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T07:44:07.160Z] [INFO]      Destination: Hà Nội
+[2026-02-05T07:44:07.160Z] [INFO]      Dates: 2026-02-27 to 2026-02-28
+[2026-02-05T07:44:07.160Z] [INFO]      Style: comfort, Travelers: 2
+[2026-02-05T07:44:07.163Z] [INFO]      Found 27 places in database
+[2026-02-05T07:44:07.163Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T07:44:07.163Z] [INFO]   │           TRIP PLANNER PIPELINE STARTED                 │
+[2026-02-05T07:44:07.163Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T07:44:07.163Z] [INFO]   Trip Parameters:
+[2026-02-05T07:44:07.163Z] [INFO]      - Destination: Hà Nội
+[2026-02-05T07:44:07.163Z] [INFO]      - Duration: 2 days
+[2026-02-05T07:44:07.163Z] [INFO]      - Daily time budget: 480 min
+[2026-02-05T07:44:07.163Z] [INFO]      - Daily money budget: 1,500,000 VND
+[2026-02-05T07:44:07.163Z] [INFO]      - Travel style: comfort
+[2026-02-05T07:44:07.163Z] [INFO]      - Travelers: 2
+[2026-02-05T07:44:07.163Z] [INFO]   [Algorithm 1/4] POIRecommender - Filtering places...
+[2026-02-05T07:44:07.164Z] [INFO]      - Found 27 places in Hà Nội
+[2026-02-05T07:44:07.164Z] [INFO]      - After filtering: 27 places
+[2026-02-05T07:44:07.164Z] [INFO]      → Scoring with profile: {"interests":["văn hóa","ẩm thực","lịch sử"],"travelStyle":"comfort","prioritizeRating":true,"prioritizeDiversity":true}
+[2026-02-05T07:44:07.165Z] [INFO]      - Recommended 12 diverse places
+[2026-02-05T07:44:07.166Z] [INFO]   [Algorithm 2/4] KnapsackSelector - Optimizing selection...
+[2026-02-05T07:44:07.166Z] [INFO]      Constraints: maxTime=960min, budget=∞
+[2026-02-05T07:44:07.166Z] [INFO]      - Selected 11 places
+[2026-02-05T07:44:07.166Z] [INFO]      → Total value: N/A
+[2026-02-05T07:44:07.166Z] [INFO]      → Time utilization: NaN%
+[2026-02-05T07:44:07.166Z] [INFO]   [Algorithm 3/4] TSPSolver - Optimizing routes...
+[2026-02-05T07:44:07.166Z] [INFO]      - Route optimization complete for 2 days
+[2026-02-05T07:44:07.166Z] [INFO]   [Algorithm 4/4] TimeWindowScheduler - Scheduling...
+[2026-02-05T07:44:07.167Z] [INFO]      - Scheduled 6 activities across 2 days
+[2026-02-05T07:44:07.167Z] [INFO]   Formatting final itinerary...
+[2026-02-05T07:44:07.167Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T07:44:07.167Z] [INFO]   │           TRIP PLANNER PIPELINE COMPLETE -              │
+[2026-02-05T07:44:07.167Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T07:44:07.167Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T07:44:07.167Z] [INFO]   │  optimize_itinerary: Pipeline Complete                  │
+[2026-02-05T07:44:07.167Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T07:44:07.167Z] [INFO]      Days: 2, Places: 6
+[2026-02-05T07:44:07.167Z] [INFO] optimize_itinerary completed in 7ms
+[2026-02-05T07:44:14.349Z] [INFO] [STEP 5: Draft] Executing: create_trip_plan
+[2026-02-05T07:44:14.350Z] [INFO]   Itinerary has 2 days
+[2026-02-05T07:44:14.766Z] [INFO]   Saving draft to database...
+[2026-02-05T07:44:14.779Z] [INFO]   Draft created with ID: f5866077-79c5-469b-9352-f89e81e484a7
+[2026-02-05T07:44:14.779Z] [INFO]   User not authenticated - Draft only mode
+[2026-02-05T07:44:14.779Z] [INFO]   Draft ID returned for later application
+[2026-02-05T07:44:14.779Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T07:44:14.779Z] [INFO] create_trip_plan completed in 430ms
+[2026-02-05T08:16:50.163Z] [INFO] [TOOL] Executing: get_current_datetime
+[2026-02-05T08:16:50.176Z] [INFO] get_current_datetime completed in 13ms
+[2026-02-05T08:16:54.156Z] [INFO] [TOOL] Executing: optimize_itinerary
+[2026-02-05T08:16:54.157Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T08:16:54.157Z] [INFO]   │  optimize_itinerary: Algorithm Pipeline Started         │
+[2026-02-05T08:16:54.157Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T08:16:54.157Z] [INFO]      Destination: Hải Phòng
+[2026-02-05T08:16:54.157Z] [INFO]      Dates: 2026-02-07 to 2026-02-08
+[2026-02-05T08:16:54.157Z] [INFO]      Style: comfort, Travelers: 1
+[2026-02-05T08:16:54.161Z] [INFO]      Found 8 places in database
+[2026-02-05T08:16:54.162Z] [INFO]      Filtered out 5 places outside 50km radius
+[2026-02-05T08:16:54.162Z] [INFO]      Fetching weather data internally...
+[2026-02-05T08:16:54.165Z] [INFO]      Weather: mây đen u ám
+[2026-02-05T08:16:54.166Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T08:16:54.166Z] [INFO]   │           TRIP PLANNER PIPELINE STARTED                 │
+[2026-02-05T08:16:54.166Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T08:16:54.166Z] [INFO]   Trip Parameters:
+[2026-02-05T08:16:54.166Z] [INFO]      - Destination: Hải Phòng
+[2026-02-05T08:16:54.166Z] [INFO]      - Duration: 2 days
+[2026-02-05T08:16:54.166Z] [INFO]      - Daily time budget: 480 min
+[2026-02-05T08:16:54.170Z] [INFO]      - Daily money budget: 1,500,000 VND
+[2026-02-05T08:16:54.170Z] [INFO]      - Travel style: comfort
+[2026-02-05T08:16:54.170Z] [INFO]      - Travelers: 1
+[2026-02-05T08:16:54.170Z] [INFO]   [Algorithm 1/4] POIRecommender - Filtering places...
+[2026-02-05T08:16:54.171Z] [INFO]      - Found 3 places in Hải Phòng
+[2026-02-05T08:16:54.171Z] [INFO]      - After filtering: 3 places
+[2026-02-05T08:16:54.171Z] [INFO]      → Scoring with profile: {"interests":["food tour","culture","city exploration"],"travelStyle":"comfort","prioritizeRating":true,"prioritizeDiversity":true}
+[2026-02-05T08:16:54.172Z] [INFO]      - Recommended 3 diverse places
+[2026-02-05T08:16:54.172Z] [INFO]   [Algorithm 2/4] KnapsackSelector - Optimizing selection...
+[2026-02-05T08:16:54.172Z] [INFO]      Constraints: maxTime=960min, budget=∞
+[2026-02-05T08:16:54.173Z] [INFO]      - Selected 3 places
+[2026-02-05T08:16:54.173Z] [INFO]      → Total value: N/A
+[2026-02-05T08:16:54.173Z] [INFO]      → Time utilization: NaN%
+[2026-02-05T08:16:54.173Z] [INFO]   [Algorithm 3/4] TSPSolver - Optimizing routes...
+[2026-02-05T08:16:54.174Z] [INFO]      - Route optimization complete for 2 days
+[2026-02-05T08:16:54.174Z] [INFO]   [Algorithm 4/4] TimeWindowScheduler - Scheduling...
+[2026-02-05T08:16:54.175Z] [INFO]      - Scheduled 3 activities across 2 days
+[2026-02-05T08:16:54.175Z] [INFO]   Formatting final itinerary...
+[2026-02-05T08:16:54.176Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T08:16:54.176Z] [INFO]   │           TRIP PLANNER PIPELINE COMPLETE -              │
+[2026-02-05T08:16:54.176Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T08:16:54.176Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T08:16:54.176Z] [INFO]   │  optimize_itinerary: Pipeline Complete                  │
+[2026-02-05T08:16:54.176Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T08:16:54.176Z] [INFO]      Days: 2, Places: 3
+[2026-02-05T08:16:54.176Z] [INFO] optimize_itinerary completed in 20ms
+[2026-02-05T08:17:00.404Z] [INFO] [STEP 5: Draft] Executing: create_trip_plan
+[2026-02-05T08:17:00.404Z] [INFO]   Itinerary has 2 days
+[2026-02-05T08:17:00.819Z] [INFO]   Saving draft to database...
+[2026-02-05T08:17:00.828Z] [INFO]   Draft created with ID: 718a2261-efec-45ab-8032-4a02dfaaefa2
+[2026-02-05T08:17:00.828Z] [INFO]   User not authenticated - Draft only mode
+[2026-02-05T08:17:00.828Z] [INFO]   Draft ID returned for later application
+[2026-02-05T08:17:00.828Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T08:17:00.828Z] [INFO] create_trip_plan completed in 424ms
+[2026-02-05T08:27:31.516Z] [INFO] [TOOL] Executing: get_current_datetime
+[2026-02-05T08:27:31.530Z] [INFO] get_current_datetime completed in 14ms
+[2026-02-05T08:27:34.382Z] [INFO] [TOOL] Executing: optimize_itinerary
+[2026-02-05T08:27:34.382Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T08:27:34.383Z] [INFO]   │  optimize_itinerary: Algorithm Pipeline Started         │
+[2026-02-05T08:27:34.383Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T08:27:34.383Z] [INFO]      Destination: Hải Phòng
+[2026-02-05T08:27:34.383Z] [INFO]      Dates: 2026-02-07 to 2026-02-08
+[2026-02-05T08:27:34.383Z] [INFO]      Style: cultural, Travelers: 1
+[2026-02-05T08:27:34.390Z] [INFO]      Found 8 places in database
+[2026-02-05T08:27:34.391Z] [INFO]      Only 8/10 places needed — fetching from external APIs...
+[2026-02-05T08:27:34.399Z] [INFO]      After external search: 16 places total
+[2026-02-05T08:27:34.399Z] [INFO]      Filtered out 10 places outside 50km radius
+[2026-02-05T08:27:34.399Z] [INFO]      Fetching weather data internally...
+[2026-02-05T08:27:34.405Z] [INFO]      Weather: mây đen u ám
+[2026-02-05T08:27:34.406Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T08:27:34.407Z] [INFO]   │           TRIP PLANNER PIPELINE STARTED                 │
+[2026-02-05T08:27:34.407Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T08:27:34.408Z] [INFO]   Trip Parameters:
+[2026-02-05T08:27:34.408Z] [INFO]      - Destination: Hải Phòng
+[2026-02-05T08:27:34.408Z] [INFO]      - Duration: 2 days
+[2026-02-05T08:27:34.408Z] [INFO]      - Daily time budget: 480 min
+[2026-02-05T08:27:34.412Z] [INFO]      - Daily money budget: 800,000 VND
+[2026-02-05T08:27:34.412Z] [INFO]      - Travel style: cultural
+[2026-02-05T08:27:34.412Z] [INFO]      - Travelers: 1
+[2026-02-05T08:27:34.412Z] [INFO]   [Algorithm 1/4] POIRecommender - Filtering places...
+[2026-02-05T08:27:34.413Z] [INFO]      - Found 6 places in Hải Phòng
+[2026-02-05T08:27:34.413Z] [INFO]      - After filtering: 6 places
+[2026-02-05T08:27:34.413Z] [INFO]      → Scoring with profile: {"interests":[],"travelStyle":"cultural","prioritizeRating":true,"prioritizeDiversity":true}
+[2026-02-05T08:27:34.414Z] [INFO]      - Recommended 6 diverse places
+[2026-02-05T08:27:34.414Z] [INFO]   [Algorithm 2/4] KnapsackSelector - Optimizing selection...
+[2026-02-05T08:27:34.414Z] [INFO]      Constraints: maxTime=960min, budget=∞
+[2026-02-05T08:27:34.415Z] [INFO]      - Selected 6 places
+[2026-02-05T08:27:34.415Z] [INFO]      → Total value: N/A
+[2026-02-05T08:27:34.416Z] [INFO]      → Time utilization: NaN%
+[2026-02-05T08:27:34.416Z] [INFO]   [Algorithm 3/4] TSPSolver - Optimizing routes...
+[2026-02-05T08:27:34.417Z] [INFO]      - Route optimization complete for 2 days
+[2026-02-05T08:27:34.417Z] [INFO]   [Algorithm 4/4] TimeWindowScheduler - Scheduling...
+[2026-02-05T08:27:34.418Z] [INFO]      - Scheduled 6 activities across 2 days
+[2026-02-05T08:27:34.418Z] [INFO]   Formatting final itinerary...
+[2026-02-05T08:27:34.419Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T08:27:34.419Z] [INFO]   │           TRIP PLANNER PIPELINE COMPLETE -              │
+[2026-02-05T08:27:34.420Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T08:27:34.420Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T08:27:34.420Z] [INFO]   │  optimize_itinerary: Pipeline Complete                  │
+[2026-02-05T08:27:34.420Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T08:27:34.420Z] [INFO]      Days: 2, Places: 6
+[2026-02-05T08:27:34.420Z] [INFO] optimize_itinerary completed in 38ms
+[2026-02-05T08:27:51.059Z] [INFO] [STEP 5: Draft] Executing: create_trip_plan
+[2026-02-05T08:27:51.059Z] [INFO]   Itinerary has 2 days
+[2026-02-05T08:27:52.385Z] [INFO]   Saving draft to database...
+[2026-02-05T08:27:52.407Z] [INFO]   Draft created with ID: 45d13512-3261-41b8-b33c-d19dd7209ed2
+[2026-02-05T08:27:52.407Z] [INFO]   User not authenticated - Draft only mode
+[2026-02-05T08:27:52.407Z] [INFO]   Draft ID returned for later application
+[2026-02-05T08:27:52.407Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T08:27:52.407Z] [INFO] create_trip_plan completed in 1348ms
+[2026-02-05T08:57:54.655Z] [INFO] [TOOL] Executing: get_current_datetime
+[2026-02-05T08:57:54.671Z] [INFO] get_current_datetime completed in 16ms
+[2026-02-05T08:57:58.277Z] [INFO] [TOOL] Executing: optimize_itinerary
+[2026-02-05T08:57:58.279Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T08:57:58.279Z] [INFO]   │  optimize_itinerary: Algorithm Pipeline Started         │
+[2026-02-05T08:57:58.279Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T08:57:58.279Z] [INFO]      Destination: Hải Phòng
+[2026-02-05T08:57:58.279Z] [INFO]      Dates: 2026-02-07 to 2026-02-08
+[2026-02-05T08:57:58.279Z] [INFO]      Style: comfort, Travelers: 1
+[2026-02-05T08:57:58.279Z] [INFO]      Interests: []
+[2026-02-05T08:57:58.286Z] [INFO]      Found 8 places in database
+[2026-02-05T08:57:58.286Z] [INFO]      Only 8/10 places needed — fetching from external APIs...
+[2026-02-05T08:57:58.287Z] [INFO]      After external search: 16 places total
+[2026-02-05T08:57:58.287Z] [INFO]      [GoogleMaps] Triggering crawl (places: 16/10, nullRating: 100%)
+[2026-02-05T08:57:58.287Z] [INFO] [GoogleMaps] Crawling: "top places to visit in Hải Phòng"
+[2026-02-05T08:57:58.287Z] [INFO] [GoogleMaps] URL: https://www.google.com/maps/search/top%20places%20to%20visit%20in%20H%E1%BA%A3i%20Ph%C3%B2ng
+[2026-02-05T08:58:08.507Z] [INFO] [GoogleMaps] Extracted 20 places
+[2026-02-05T08:58:08.528Z] [INFO]      [GoogleMaps] Merged: 19 new places, 1 upgraded existing
+[2026-02-05T08:58:08.535Z] [INFO]      After Google Maps: 35 places total
+[2026-02-05T08:58:08.538Z] [INFO]      Filtered out 19 places outside 50km radius
+[2026-02-05T08:58:08.538Z] [INFO]      Fetching weather data internally...
+[2026-02-05T08:58:08.596Z] [INFO]      Weather: mây đen u ám
+[2026-02-05T08:58:08.600Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T08:58:08.600Z] [INFO]   │           TRIP PLANNER PIPELINE STARTED                 │
+[2026-02-05T08:58:08.600Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T08:58:08.601Z] [INFO]   Trip Parameters:
+[2026-02-05T08:58:08.601Z] [INFO]      - Destination: Hải Phòng
+[2026-02-05T08:58:08.601Z] [INFO]      - Duration: 2 days
+[2026-02-05T08:58:08.601Z] [INFO]      - Daily time budget: 600 min
+[2026-02-05T08:58:08.625Z] [INFO]      - Daily money budget: 1,500,000 VND
+[2026-02-05T08:58:08.631Z] [INFO]      - Travel style: comfort
+[2026-02-05T08:58:08.631Z] [INFO]      - Travelers: 1
+[2026-02-05T08:58:08.631Z] [INFO]   [Algorithm 1/4] POIRecommender - Filtering places...
+[2026-02-05T08:58:08.631Z] [INFO]      - Found 6 places in Hải Phòng
+[2026-02-05T08:58:08.631Z] [INFO]      - After filtering: 6 places
+[2026-02-05T08:58:08.631Z] [INFO]      → Scoring with profile: {"interests":[],"travelStyle":"comfort","prioritizeRating":true,"prioritizeDiversity":true,"dietaryRestrictions":[]}
+[2026-02-05T08:58:08.643Z] [INFO]      - Recommended 6 diverse places
+[2026-02-05T08:58:08.644Z] [INFO]   [Algorithm 2/4] KnapsackSelector - Optimizing selection...
+[2026-02-05T08:58:08.644Z] [INFO]      Constraints: maxTime=1200min, budget=∞
+[2026-02-05T08:58:08.654Z] [INFO]      - Selected 6 places
+[2026-02-05T08:58:08.656Z] [INFO]      → Total value: N/A
+[2026-02-05T08:58:08.657Z] [INFO]      → Time utilization: NaN%
+[2026-02-05T08:58:08.658Z] [INFO]   [Algorithm 3/4] TSPSolver - Optimizing routes...
+[2026-02-05T08:58:08.663Z] [INFO]      - Route optimization complete for 2 days
+[2026-02-05T08:58:08.664Z] [INFO]   [Algorithm 4/4] TimeWindowScheduler - Scheduling...
+[2026-02-05T08:58:08.669Z] [INFO]      - Scheduled 6 activities across 2 days
+[2026-02-05T08:58:08.671Z] [INFO]   Formatting final itinerary...
+[2026-02-05T08:58:08.673Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T08:58:08.673Z] [INFO]   │           TRIP PLANNER PIPELINE COMPLETE -              │
+[2026-02-05T08:58:08.673Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T08:58:08.673Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T08:58:08.673Z] [INFO]   │  optimize_itinerary: Pipeline Complete                  │
+[2026-02-05T08:58:08.673Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T08:58:08.674Z] [INFO]      Days: 2, Places: 6
+[2026-02-05T08:58:08.674Z] [INFO] optimize_itinerary completed in 10397ms
+[2026-02-05T08:58:08.815Z] [INFO] [GoogleMaps] Saved 20/20 places to DB
+[2026-02-05T08:58:21.724Z] [INFO] [STEP 5: Draft] Executing: create_trip_plan
+[2026-02-05T08:58:21.725Z] [INFO]   Itinerary has 2 days
+[2026-02-05T08:58:22.341Z] [INFO]   Saving draft to database...
+[2026-02-05T08:58:22.358Z] [INFO]   Draft created with ID: 230bbd66-6d9b-4d35-bbed-f7d585cac801
+[2026-02-05T08:58:22.358Z] [INFO]   User not authenticated - Draft only mode
+[2026-02-05T08:58:22.358Z] [INFO]   Draft ID returned for later application
+[2026-02-05T08:58:22.358Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T08:58:22.358Z] [INFO] create_trip_plan completed in 634ms
+[2026-02-05T09:20:24.771Z] [INFO] [TOOL] Executing: get_current_datetime
+[2026-02-05T09:20:24.790Z] [INFO] get_current_datetime completed in 18ms
+[2026-02-05T09:20:32.859Z] [INFO] [TOOL] Executing: optimize_itinerary
+[2026-02-05T09:20:32.859Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T09:20:32.859Z] [INFO]   │  optimize_itinerary: Algorithm Pipeline Started         │
+[2026-02-05T09:20:32.860Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T09:20:32.860Z] [INFO]      Destination: Hải Phòng
+[2026-02-05T09:20:32.860Z] [INFO]      Dates: 2026-02-07 to 2026-02-08
+[2026-02-05T09:20:32.860Z] [INFO]      Style: comfort, Travelers: 2
+[2026-02-05T09:20:32.860Z] [INFO]      Interests: [food tour, culture, sightseeing]
+[2026-02-05T09:20:32.867Z] [INFO]      Found 28 places in database
+[2026-02-05T09:20:32.867Z] [INFO]      [GoogleMaps] Triggering crawl (places: 28/10, nullRating: 100%)
+[2026-02-05T09:20:32.867Z] [INFO] [GoogleMaps] Crawling: "top places to visit in Hải Phòng"
+[2026-02-05T09:20:32.867Z] [INFO] [GoogleMaps] URL: https://www.google.com/maps/search/top%20places%20to%20visit%20in%20H%E1%BA%A3i%20Ph%C3%B2ng
+[2026-02-05T09:20:43.294Z] [INFO] [GoogleMaps] Extracted 20 places
+[2026-02-05T09:20:43.297Z] [INFO]      [GoogleMaps] Merged: 4 new places, 16 upgraded existing
+[2026-02-05T09:20:43.303Z] [INFO]      After Google Maps: 32 places total
+[2026-02-05T09:20:43.307Z] [INFO]      Filtered out 15 places outside 50km radius
+[2026-02-05T09:20:43.307Z] [INFO]      Fetching weather data internally...
+[2026-02-05T09:20:43.354Z] [INFO]      Weather: mây đen u ám
+[2026-02-05T09:20:43.354Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T09:20:43.355Z] [INFO]   │           TRIP PLANNER PIPELINE STARTED                 │
+[2026-02-05T09:20:43.355Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T09:20:43.355Z] [INFO]   Trip Parameters:
+[2026-02-05T09:20:43.355Z] [INFO]      - Destination: Hải Phòng
+[2026-02-05T09:20:43.355Z] [INFO]      - Duration: 2 days
+[2026-02-05T09:20:43.355Z] [INFO]      - Daily time budget: 600 min
+[2026-02-05T09:20:43.360Z] [INFO]      - Daily money budget: 1,500,000 VND
+[2026-02-05T09:20:43.360Z] [INFO]      - Travel style: comfort
+[2026-02-05T09:20:43.360Z] [INFO]      - Travelers: 2
+[2026-02-05T09:20:43.360Z] [INFO]   [Algorithm 1/4] POIRecommender - Filtering places...
+[2026-02-05T09:20:43.361Z] [INFO]      - Found 14 places in Hải Phòng
+[2026-02-05T09:20:43.361Z] [INFO]      - After filtering: 14 places
+[2026-02-05T09:20:43.361Z] [INFO]      → Scoring with profile: {"interests":["food tour","culture","sightseeing"],"travelStyle":"comfort","prioritizeRating":true,"prioritizeDiversity":true,"dietaryRestrictions":[]}
+[2026-02-05T09:20:43.364Z] [INFO]      - Recommended 14 diverse places
+[2026-02-05T09:20:43.365Z] [INFO]   [Algorithm 2/4] KnapsackSelector - Optimizing selection...
+[2026-02-05T09:20:43.365Z] [INFO]      Constraints: maxTime=1200min, budget=∞
+[2026-02-05T09:20:43.367Z] [INFO]      - Selected 13 places
+[2026-02-05T09:20:43.367Z] [INFO]      → Total value: N/A
+[2026-02-05T09:20:43.367Z] [INFO]      → Time utilization: NaN%
+[2026-02-05T09:20:43.367Z] [INFO]   [Algorithm 3/4] TSPSolver - Optimizing routes...
+[2026-02-05T09:20:43.369Z] [INFO]      - Route optimization complete for 2 days
+[2026-02-05T09:20:43.369Z] [INFO]   [Algorithm 4/4] TimeWindowScheduler - Scheduling...
+[2026-02-05T09:20:43.372Z] [INFO]      - Scheduled 8 activities across 2 days
+[2026-02-05T09:20:43.372Z] [INFO]   Formatting final itinerary...
+[2026-02-05T09:20:43.374Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T09:20:43.374Z] [INFO]   │           TRIP PLANNER PIPELINE COMPLETE -              │
+[2026-02-05T09:20:43.374Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T09:20:43.374Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T09:20:43.374Z] [INFO]   │  optimize_itinerary: Pipeline Complete                  │
+[2026-02-05T09:20:43.374Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T09:20:43.374Z] [INFO]      Days: 2, Places: 8
+[2026-02-05T09:20:43.374Z] [INFO] optimize_itinerary completed in 10515ms
+[2026-02-05T09:20:43.541Z] [INFO] [GoogleMaps] Saved 20/20 places to DB
+[2026-02-05T09:20:50.602Z] [INFO] [STEP 5: Draft] Executing: create_trip_plan
+[2026-02-05T09:20:50.603Z] [INFO]   Itinerary has 2 days
+[2026-02-05T09:20:51.293Z] [INFO]   Saving draft to database...
+[2026-02-05T09:20:51.303Z] [INFO]   Draft created with ID: fa1e7d3a-5068-4edc-a242-4f01426e3bc5
+[2026-02-05T09:20:51.304Z] [INFO]   User not authenticated - Draft only mode
+[2026-02-05T09:20:51.304Z] [INFO]   Draft ID returned for later application
+[2026-02-05T09:20:51.304Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T09:20:51.304Z] [INFO] create_trip_plan completed in 702ms
+[2026-02-05T09:56:36.716Z] [INFO] [TOOL] Executing: get_current_datetime
+[2026-02-05T09:56:36.731Z] [INFO] get_current_datetime completed in 15ms
+[2026-02-05T09:56:39.947Z] [INFO] [TOOL] Executing: optimize_itinerary
+[2026-02-05T09:56:39.949Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T09:56:39.949Z] [INFO]   │  optimize_itinerary: Algorithm Pipeline Started         │
+[2026-02-05T09:56:39.949Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T09:56:39.949Z] [INFO]      Destination: Hải Phòng
+[2026-02-05T09:56:39.949Z] [INFO]      Dates: 2026-02-07 to 2026-02-08
+[2026-02-05T09:56:39.949Z] [INFO]      Style: comfort, Travelers: 1
+[2026-02-05T09:56:39.949Z] [INFO]      Interests: [food, culture, city tour]
+[2026-02-05T09:56:39.958Z] [INFO]      Found 32 places in database
+[2026-02-05T09:56:39.959Z] [INFO]      [GoogleMaps] Triggering crawl (places: 32/10, nullRating: 100%)
+[2026-02-05T09:56:39.959Z] [INFO] [GoogleMaps] Crawling: "top places to visit in Hải Phòng"
+[2026-02-05T09:56:39.959Z] [INFO] [GoogleMaps] URL: https://www.google.com/maps/search/top%20places%20to%20visit%20in%20H%E1%BA%A3i%20Ph%C3%B2ng
+[2026-02-05T09:56:49.549Z] [INFO] [GoogleMaps] Extracted 20 places (rating: 19, coords: 20, address: 2)
+[2026-02-05T09:56:49.557Z] [INFO]      [GoogleMaps] Merged: 0 new places, 20 upgraded existing
+[2026-02-05T09:56:49.558Z] [INFO]      After Google Maps: 32 places total
+[2026-02-05T09:56:49.558Z] [INFO]      Filtered out 15 places outside 50km radius
+[2026-02-05T09:56:49.558Z] [INFO]      Fetching weather data internally...
+[2026-02-05T09:56:49.580Z] [INFO]      Weather: mây đen u ám
+[2026-02-05T09:56:49.581Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T09:56:49.581Z] [INFO]   │           TRIP PLANNER PIPELINE STARTED                 │
+[2026-02-05T09:56:49.581Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T09:56:49.585Z] [INFO]   Trip Parameters:
+[2026-02-05T09:56:49.585Z] [INFO]      - Destination: Hải Phòng
+[2026-02-05T09:56:49.585Z] [INFO]      - Duration: 2 days
+[2026-02-05T09:56:49.585Z] [INFO]      - Daily time budget: 600 min
+[2026-02-05T09:56:49.591Z] [INFO]      - Daily money budget: 1,500,000 VND
+[2026-02-05T09:56:49.591Z] [INFO]      - Travel style: comfort
+[2026-02-05T09:56:49.591Z] [INFO]      - Travelers: 1
+[2026-02-05T09:56:49.591Z] [INFO]   [Algorithm 1/4] POIRecommender - Filtering places...
+[2026-02-05T09:56:49.592Z] [INFO]      - Found 17 places in Hải Phòng
+[2026-02-05T09:56:49.592Z] [INFO]      - After filtering: 17 places
+[2026-02-05T09:56:49.592Z] [INFO]      → Scoring with profile: {"interests":["food","culture","city tour"],"travelStyle":"comfort","prioritizeRating":true,"prioritizeDiversity":true,"dietaryRestrictions":[]}
+[2026-02-05T09:56:49.597Z] [INFO]      - Recommended 17 diverse places
+[2026-02-05T09:56:49.598Z] [INFO]   [Algorithm 2/4] KnapsackSelector - Optimizing selection...
+[2026-02-05T09:56:49.599Z] [INFO]      Constraints: maxTime=1200min, budget=∞
+[2026-02-05T09:56:49.602Z] [INFO]      - Selected 14 places
+[2026-02-05T09:56:49.602Z] [INFO]      → Total value: N/A
+[2026-02-05T09:56:49.602Z] [INFO]      → Time utilization: NaN%
+[2026-02-05T09:56:49.603Z] [INFO]   [Algorithm 3/4] TSPSolver - Optimizing routes...
+[2026-02-05T09:56:49.605Z] [INFO]      - Route optimization complete for 2 days
+[2026-02-05T09:56:49.606Z] [INFO]   [Algorithm 4/4] TimeWindowScheduler - Scheduling...
+[2026-02-05T09:56:49.610Z] [INFO]      - Scheduled 9 activities across 2 days
+[2026-02-05T09:56:49.610Z] [INFO]   Formatting final itinerary...
+[2026-02-05T09:56:49.613Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T09:56:49.613Z] [INFO]   │           TRIP PLANNER PIPELINE COMPLETE -              │
+[2026-02-05T09:56:49.613Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T09:56:49.613Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T09:56:49.613Z] [INFO]   │  optimize_itinerary: Pipeline Complete                  │
+[2026-02-05T09:56:49.613Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T09:56:49.613Z] [INFO]      Days: 2, Places: 9
+[2026-02-05T09:56:49.614Z] [INFO] optimize_itinerary completed in 9666ms
+[2026-02-05T09:56:49.869Z] [INFO] [GoogleMaps] Saved 20/20 places to DB
+[2026-02-05T09:56:58.722Z] [INFO] [STEP 5: Draft] Executing: create_trip_plan
+[2026-02-05T09:56:58.722Z] [INFO]   Itinerary has 2 days
+[2026-02-05T09:56:59.363Z] [INFO]   Saving draft to database...
+[2026-02-05T09:56:59.373Z] [INFO]   Draft created with ID: 2f379cf3-2449-48da-8704-947d62a7d1ab
+[2026-02-05T09:56:59.373Z] [INFO]   User not authenticated - Draft only mode
+[2026-02-05T09:56:59.373Z] [INFO]   Draft ID returned for later application
+[2026-02-05T09:56:59.373Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T09:56:59.373Z] [INFO] create_trip_plan completed in 651ms
+[2026-02-05T10:29:26.815Z] [INFO] [TOOL] Executing: get_current_datetime
+[2026-02-05T10:29:26.816Z] [INFO] get_current_datetime completed in 1ms
+[2026-02-05T10:29:33.222Z] [INFO] [TOOL] Executing: optimize_itinerary
+[2026-02-05T10:29:33.222Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T10:29:33.222Z] [INFO]   │  optimize_itinerary: Algorithm Pipeline Started         │
+[2026-02-05T10:29:33.222Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T10:29:33.222Z] [INFO]      Destination: Hải Phòng
+[2026-02-05T10:29:33.222Z] [INFO]      Dates: 2026-02-07 to 2026-02-08
+[2026-02-05T10:29:33.222Z] [INFO]      Style: comfort, Travelers: 2
+[2026-02-05T10:29:33.222Z] [INFO]      Interests: [food tour, culture, sightseeing]
+[2026-02-05T10:29:33.229Z] [INFO]      Found 32 places in database
+[2026-02-05T10:29:33.229Z] [INFO]      Filtered out 15 places outside 50km radius
+[2026-02-05T10:29:33.229Z] [INFO]      Fetching weather data internally...
+[2026-02-05T10:29:33.234Z] [INFO]      Weather: mây đen u ám
+[2026-02-05T10:29:33.234Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T10:29:33.234Z] [INFO]   │           TRIP PLANNER PIPELINE STARTED                 │
+[2026-02-05T10:29:33.234Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T10:29:33.234Z] [INFO]   Trip Parameters:
+[2026-02-05T10:29:33.234Z] [INFO]      - Destination: Hải Phòng
+[2026-02-05T10:29:33.234Z] [INFO]      - Duration: 2 days
+[2026-02-05T10:29:33.234Z] [INFO]      - Daily time budget: 600 min
+[2026-02-05T10:29:33.235Z] [INFO]      - Daily money budget: 1,500,000 VND
+[2026-02-05T10:29:33.235Z] [INFO]      - Travel style: comfort
+[2026-02-05T10:29:33.235Z] [INFO]      - Travelers: 2
+[2026-02-05T10:29:33.235Z] [INFO]   [Algorithm 1/4] POIRecommender - Filtering places...
+[2026-02-05T10:29:33.235Z] [INFO]      - Found 17 places in Hải Phòng
+[2026-02-05T10:29:33.235Z] [INFO]      - After filtering: 17 places
+[2026-02-05T10:29:33.235Z] [INFO]      → Scoring with profile: {"interests":["food tour","culture","sightseeing"],"travelStyle":"comfort","prioritizeRating":true,"prioritizeDiversity":true,"dietaryRestrictions":[]}
+[2026-02-05T10:29:33.237Z] [INFO]      - Recommended 17 diverse places
+[2026-02-05T10:29:33.237Z] [INFO]   [Algorithm 2/4] KnapsackSelector - Optimizing selection...
+[2026-02-05T10:29:33.237Z] [INFO]      Constraints: maxTime=1200min, budget=∞
+[2026-02-05T10:29:33.237Z] [INFO]      - Selected 14 places
+[2026-02-05T10:29:33.237Z] [INFO]      → Total value: N/A
+[2026-02-05T10:29:33.237Z] [INFO]      → Time utilization: NaN%
+[2026-02-05T10:29:33.237Z] [INFO]   [Algorithm 3/4] TSPSolver - Optimizing routes...
+[2026-02-05T10:29:33.237Z] [INFO]      - Route optimization complete for 2 days
+[2026-02-05T10:29:33.237Z] [INFO]   [Algorithm 4/4] TimeWindowScheduler - Scheduling...
+[2026-02-05T10:29:33.238Z] [INFO]      - Scheduled 9 activities across 2 days
+[2026-02-05T10:29:33.238Z] [INFO]   Formatting final itinerary...
+[2026-02-05T10:29:33.238Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T10:29:33.238Z] [INFO]   │           TRIP PLANNER PIPELINE COMPLETE -              │
+[2026-02-05T10:29:33.238Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T10:29:33.238Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T10:29:33.238Z] [INFO]   │  optimize_itinerary: Pipeline Complete                  │
+[2026-02-05T10:29:33.238Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T10:29:33.238Z] [INFO]      Days: 2, Places: 9
+[2026-02-05T10:29:33.238Z] [INFO] optimize_itinerary completed in 16ms
+[2026-02-05T10:29:41.066Z] [INFO] [STEP 5: Draft] Executing: create_trip_plan
+[2026-02-05T10:29:41.066Z] [INFO]   Itinerary has 2 days
+[2026-02-05T10:29:41.675Z] [INFO]   Saving draft to database...
+[2026-02-05T10:29:41.686Z] [INFO]   Draft created with ID: da7cdf0e-b4a8-4360-9f09-62c2ec906940
+[2026-02-05T10:29:41.686Z] [INFO]   User not authenticated - Draft only mode
+[2026-02-05T10:29:41.686Z] [INFO]   Draft ID returned for later application
+[2026-02-05T10:29:41.686Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T10:29:41.686Z] [INFO] create_trip_plan completed in 620ms
+[2026-02-05T10:50:09.432Z] [INFO] [TOOL] Executing: get_current_datetime
+[2026-02-05T10:50:09.433Z] [INFO] get_current_datetime completed in 1ms
+[2026-02-05T10:50:13.138Z] [INFO] [TOOL] Executing: optimize_itinerary
+[2026-02-05T10:50:13.138Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T10:50:13.138Z] [INFO]   │  optimize_itinerary: Algorithm Pipeline Started         │
+[2026-02-05T10:50:13.138Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T10:50:13.138Z] [INFO]      Destination: Hải Phòng
+[2026-02-05T10:50:13.138Z] [INFO]      Dates: 2026-02-07 to 2026-02-08
+[2026-02-05T10:50:13.138Z] [INFO]      Style: comfort, Travelers: 2
+[2026-02-05T10:50:13.138Z] [INFO]      Interests: [food, culture, city tour]
+[2026-02-05T10:50:13.148Z] [INFO]      Found 32 places in database
+[2026-02-05T10:50:13.150Z] [INFO]      Filtered out 15 places outside 50km radius
+[2026-02-05T10:50:13.150Z] [INFO]      Fetching weather data internally...
+[2026-02-05T10:50:13.156Z] [INFO]      Weather: mây đen u ám
+[2026-02-05T10:50:13.157Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T10:50:13.157Z] [INFO]   │           TRIP PLANNER PIPELINE STARTED                 │
+[2026-02-05T10:50:13.157Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T10:50:13.157Z] [INFO]   Trip Parameters:
+[2026-02-05T10:50:13.157Z] [INFO]      - Destination: Hải Phòng
+[2026-02-05T10:50:13.157Z] [INFO]      - Duration: 2 days
+[2026-02-05T10:50:13.157Z] [INFO]      - Daily time budget: 600 min
+[2026-02-05T10:50:13.157Z] [INFO]      - Daily money budget: 1,500,000 VND
+[2026-02-05T10:50:13.157Z] [INFO]      - Travel style: comfort
+[2026-02-05T10:50:13.157Z] [INFO]      - Travelers: 2
+[2026-02-05T10:50:13.157Z] [INFO]   [Algorithm 1/4] POIRecommender - Filtering places...
+[2026-02-05T10:50:13.157Z] [INFO]      - Found 17 places in Hải Phòng
+[2026-02-05T10:50:13.158Z] [INFO]      - After filtering: 17 places
+[2026-02-05T10:50:13.158Z] [INFO]      → Scoring with profile: {"interests":["food","culture","city tour"],"travelStyle":"comfort","prioritizeRating":true,"prioritizeDiversity":true,"dietaryRestrictions":[]}
+[2026-02-05T10:50:13.159Z] [INFO]      - Recommended 17 diverse places
+[2026-02-05T10:50:13.159Z] [INFO]   [Algorithm 2/4] KnapsackSelector - Optimizing selection...
+[2026-02-05T10:50:13.159Z] [INFO]      Constraints: maxTime=1200min, budget=∞
+[2026-02-05T10:50:13.160Z] [INFO]      - Selected 14 places
+[2026-02-05T10:50:13.160Z] [INFO]      → Total value: N/A
+[2026-02-05T10:50:13.160Z] [INFO]      → Time utilization: NaN%
+[2026-02-05T10:50:13.160Z] [INFO]   [Algorithm 3/4] TSPSolver - Optimizing routes...
+[2026-02-05T10:50:13.160Z] [INFO]      - Route optimization complete for 2 days
+[2026-02-05T10:50:13.160Z] [INFO]   [Algorithm 4/4] TimeWindowScheduler - Scheduling...
+[2026-02-05T10:50:13.160Z] [INFO]      - Scheduled 9 activities across 2 days
+[2026-02-05T10:50:13.160Z] [INFO]   Formatting final itinerary...
+[2026-02-05T10:50:13.160Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T10:50:13.160Z] [INFO]   │           TRIP PLANNER PIPELINE COMPLETE -              │
+[2026-02-05T10:50:13.161Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T10:50:13.161Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T10:50:13.161Z] [INFO]   │  optimize_itinerary: Pipeline Complete                  │
+[2026-02-05T10:50:13.161Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T10:50:13.161Z] [INFO]      Days: 2, Places: 9
+[2026-02-05T10:50:13.161Z] [INFO] optimize_itinerary completed in 23ms
+[2026-02-05T10:50:23.210Z] [INFO] [STEP 5: Draft] Executing: create_trip_plan
+[2026-02-05T10:50:23.210Z] [INFO]   Itinerary has 2 days
+[2026-02-05T10:50:23.940Z] [INFO]   Saving draft to database...
+[2026-02-05T10:50:23.952Z] [INFO]   Draft created with ID: 7ca34c62-491c-4fbe-91bd-4ea1acf3820b
+[2026-02-05T10:50:23.952Z] [INFO]   User not authenticated - Draft only mode
+[2026-02-05T10:50:23.952Z] [INFO]   Draft ID returned for later application
+[2026-02-05T10:50:23.952Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T10:50:23.952Z] [INFO] create_trip_plan completed in 742ms
+[2026-02-05T10:54:52.938Z] [INFO] [TOOL] Executing: get_current_datetime
+[2026-02-05T10:54:52.939Z] [INFO] get_current_datetime completed in 1ms
+[2026-02-05T10:54:56.673Z] [INFO] [TOOL] Executing: optimize_itinerary
+[2026-02-05T10:54:56.674Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T10:54:56.674Z] [INFO]   │  optimize_itinerary: Algorithm Pipeline Started         │
+[2026-02-05T10:54:56.674Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T10:54:56.674Z] [INFO]      Destination: Hải Phòng
+[2026-02-05T10:54:56.674Z] [INFO]      Dates: 2026-02-07 to 2026-02-08
+[2026-02-05T10:54:56.674Z] [INFO]      Style: budget, Travelers: 1
+[2026-02-05T10:54:56.674Z] [INFO]      Interests: [food, local_culture, street_food]
+[2026-02-05T10:54:56.680Z] [INFO]      Found 32 places in database
+[2026-02-05T10:54:56.680Z] [INFO]      Filtered out 15 places outside 50km radius
+[2026-02-05T10:54:56.680Z] [INFO]      Fetching weather data internally...
+[2026-02-05T10:54:56.684Z] [INFO]      Weather: mây đen u ám
+[2026-02-05T10:54:56.684Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T10:54:56.684Z] [INFO]   │           TRIP PLANNER PIPELINE STARTED                 │
+[2026-02-05T10:54:56.684Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T10:54:56.684Z] [INFO]   Trip Parameters:
+[2026-02-05T10:54:56.684Z] [INFO]      - Destination: Hải Phòng
+[2026-02-05T10:54:56.685Z] [INFO]      - Duration: 2 days
+[2026-02-05T10:54:56.685Z] [INFO]      - Daily time budget: 660 min
+[2026-02-05T10:54:56.685Z] [INFO]      - Daily money budget: 500,000 VND
+[2026-02-05T10:54:56.685Z] [INFO]      - Travel style: budget
+[2026-02-05T10:54:56.685Z] [INFO]      - Travelers: 1
+[2026-02-05T10:54:56.685Z] [INFO]   [Algorithm 1/4] POIRecommender - Filtering places...
+[2026-02-05T10:54:56.685Z] [INFO]      - Found 17 places in Hải Phòng
+[2026-02-05T10:54:56.685Z] [INFO]      - After filtering: 17 places
+[2026-02-05T10:54:56.686Z] [INFO]      → Scoring with profile: {"interests":["food","local_culture","street_food"],"travelStyle":"budget","prioritizeRating":true,"prioritizeDiversity":true,"dietaryRestrictions":[]}
+[2026-02-05T10:54:56.687Z] [INFO]      - Recommended 17 diverse places
+[2026-02-05T10:54:56.688Z] [INFO]   [Algorithm 2/4] KnapsackSelector - Optimizing selection...
+[2026-02-05T10:54:56.689Z] [INFO]      Constraints: maxTime=1320min, budget=∞
+[2026-02-05T10:54:56.689Z] [INFO]      - Selected 15 places
+[2026-02-05T10:54:56.689Z] [INFO]      → Total value: N/A
+[2026-02-05T10:54:56.689Z] [INFO]      → Time utilization: NaN%
+[2026-02-05T10:54:56.690Z] [INFO]   [Algorithm 3/4] TSPSolver - Optimizing routes...
+[2026-02-05T10:54:56.690Z] [INFO]      - Route optimization complete for 2 days
+[2026-02-05T10:54:56.690Z] [INFO]   [Algorithm 4/4] TimeWindowScheduler - Scheduling...
+[2026-02-05T10:54:56.690Z] [INFO]      - Scheduled 9 activities across 2 days
+[2026-02-05T10:54:56.690Z] [INFO]   Formatting final itinerary...
+[2026-02-05T10:54:56.690Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T10:54:56.690Z] [INFO]   │           TRIP PLANNER PIPELINE COMPLETE -              │
+[2026-02-05T10:54:56.690Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T10:54:56.690Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T10:54:56.690Z] [INFO]   │  optimize_itinerary: Pipeline Complete                  │
+[2026-02-05T10:54:56.690Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T10:54:56.690Z] [INFO]      Days: 2, Places: 9
+[2026-02-05T10:54:56.691Z] [INFO] optimize_itinerary completed in 17ms
+[2026-02-05T10:55:07.152Z] [INFO] [STEP 5: Draft] Executing: create_trip_plan
+[2026-02-05T10:55:07.152Z] [INFO]   Itinerary has 2 days
+[2026-02-05T10:55:08.169Z] [INFO]   Saving draft to database...
+[2026-02-05T10:55:08.189Z] [INFO]   Draft created with ID: 9814a511-7863-4647-845f-c6edf35b4242
+[2026-02-05T10:55:08.189Z] [INFO]   User not authenticated - Draft only mode
+[2026-02-05T10:55:08.189Z] [INFO]   Draft ID returned for later application
+[2026-02-05T10:55:08.189Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T10:55:08.189Z] [INFO] create_trip_plan completed in 1037ms
+[2026-02-05T16:03:22.504Z] [INFO] [TOOL] Executing: web_search
+[2026-02-05T16:03:28.547Z] [INFO] web_search completed in 6041ms
+[2026-02-05T16:03:28.548Z] [INFO] [STEP 2: Context] Executing: get_travel_tips
+[2026-02-05T16:03:28.550Z] [INFO] get_travel_tips completed in 2ms
+[2026-02-05T16:03:34.116Z] [INFO] [TOOL] Executing: get_current_datetime
+[2026-02-05T16:03:34.134Z] [INFO] get_current_datetime completed in 17ms
+[2026-02-05T16:04:04.040Z] [INFO] [TOOL] Executing: get_current_datetime
+[2026-02-05T16:04:04.044Z] [INFO] get_current_datetime completed in 4ms
+[2026-02-05T16:06:25.156Z] [INFO] [TOOL] Executing: get_current_datetime
+[2026-02-05T16:06:25.158Z] [INFO] get_current_datetime completed in 1ms
+[2026-02-05T16:06:32.063Z] [INFO] [TOOL] Executing: optimize_itinerary
+[2026-02-05T16:06:32.065Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T16:06:32.065Z] [INFO]   │  optimize_itinerary: Algorithm Pipeline Started         │
+[2026-02-05T16:06:32.065Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T16:06:32.065Z] [INFO]      Destination: Hà Nội
+[2026-02-05T16:06:32.065Z] [INFO]      Dates: 2026-02-07 to 2026-02-08
+[2026-02-05T16:06:32.065Z] [INFO]      Style: budget, Travelers: 1
+[2026-02-05T16:06:32.065Z] [INFO]      Interests: [free attractions, street food, culture, walking tour]
+[2026-02-05T16:06:32.088Z] [INFO]      Found 27 places in database
+[2026-02-05T16:06:32.088Z] [INFO]      [GoogleMaps] Triggering crawl (places: 27/10, nullRating: 100%)
+[2026-02-05T16:06:32.089Z] [INFO] [GoogleMaps] Crawling: "top places to visit in Hà Nội"
+[2026-02-05T16:06:32.089Z] [INFO] [GoogleMaps] URL: https://www.google.com/maps/search/top%20places%20to%20visit%20in%20H%C3%A0%20N%E1%BB%99i
+[2026-02-05T16:06:45.239Z] [INFO] [GoogleMaps] Extracted 20 places (rating: 20, coords: 20, address: 9, photos: 20, reviews: 3)
+[2026-02-05T16:06:45.257Z] [INFO]      [GoogleMaps] Merged: 20 new places, 0 upgraded existing
+[2026-02-05T16:06:45.257Z] [INFO]      After Google Maps: 47 places total
+[2026-02-05T16:06:45.260Z] [INFO]      Filtered out 4 places outside 50km radius
+[2026-02-05T16:06:45.261Z] [INFO]      Fetching weather data internally...
+[2026-02-05T16:06:45.521Z] [INFO] [GoogleMaps] Saved 20/20 places to DB
+[2026-02-05T16:06:46.689Z] [INFO]      Weather: mây đen u ám
+[2026-02-05T16:06:46.690Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T16:06:46.690Z] [INFO]   │           TRIP PLANNER PIPELINE STARTED                 │
+[2026-02-05T16:06:46.690Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T16:06:46.691Z] [INFO]   Trip Parameters:
+[2026-02-05T16:06:46.691Z] [INFO]      - Destination: Hà Nội
+[2026-02-05T16:06:46.691Z] [INFO]      - Duration: 2 days
+[2026-02-05T16:06:46.691Z] [INFO]      - Daily time budget: 660 min
+[2026-02-05T16:06:46.695Z] [INFO]      - Daily money budget: 250,000 VND
+[2026-02-05T16:06:46.696Z] [INFO]      - Travel style: budget
+[2026-02-05T16:06:46.696Z] [INFO]      - Travelers: 1
+[2026-02-05T16:06:46.696Z] [INFO]   [Algorithm 1/4] POIRecommender - Filtering places...
+[2026-02-05T16:06:46.697Z] [INFO]      - Found 23 places in Hà Nội
+[2026-02-05T16:06:46.698Z] [INFO]      - After filtering: 23 places
+[2026-02-05T16:06:46.698Z] [INFO]      → Scoring with profile: {"interests":["free attractions","street food","culture","walking tour"],"travelStyle":"budget","prioritizeRating":true,"prioritizeDiversity":true,"dietaryRestrictions":[]}
+[2026-02-05T16:06:46.705Z] [INFO]      - Recommended 20 diverse places
+[2026-02-05T16:06:46.706Z] [INFO]   [Algorithm 2/4] KnapsackSelector - Optimizing selection...
+[2026-02-05T16:06:46.706Z] [INFO]      Constraints: maxTime=1320min, budget=500000
+[2026-02-05T16:06:46.709Z] [INFO]      - Selected 8 places
+[2026-02-05T16:06:46.709Z] [INFO]      → Total value: N/A
+[2026-02-05T16:06:46.709Z] [INFO]      → Time utilization: NaN%
+[2026-02-05T16:06:46.709Z] [INFO]   [Algorithm 3/4] TSPSolver - Optimizing routes...
+[2026-02-05T16:06:46.712Z] [INFO]      - Route optimization complete for 2 days
+[2026-02-05T16:06:46.712Z] [INFO]   [Algorithm 4/4] TimeWindowScheduler - Scheduling...
+[2026-02-05T16:06:46.714Z] [INFO]      - Scheduled 7 activities across 2 days
+[2026-02-05T16:06:46.714Z] [INFO]   Formatting final itinerary...
+[2026-02-05T16:06:46.716Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T16:06:46.716Z] [INFO]   │           TRIP PLANNER PIPELINE COMPLETE -              │
+[2026-02-05T16:06:46.716Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T16:06:46.716Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T16:06:46.716Z] [INFO]   │  optimize_itinerary: Pipeline Complete                  │
+[2026-02-05T16:06:46.717Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T16:06:46.717Z] [INFO]      Days: 2, Places: 7
+[2026-02-05T16:06:46.717Z] [INFO] optimize_itinerary completed in 14653ms
+[2026-02-05T16:06:46.719Z] [INFO] [STEP 2: Context] Executing: get_local_events
+[2026-02-05T16:06:58.204Z] [INFO] get_local_events completed in 11485ms
+[2026-02-05T16:07:14.575Z] [INFO] [STEP 5: Draft] Executing: create_trip_plan
+[2026-02-05T16:07:14.576Z] [INFO]   Itinerary has 2 days
+[2026-02-05T16:07:15.944Z] [INFO]   Saving draft to database...
+[2026-02-05T16:07:15.961Z] [INFO]   Draft created with ID: 5f59f875-cc0e-4d11-b3c1-d6c004c7649e
+[2026-02-05T16:07:15.964Z] [INFO]   User not authenticated - Draft only mode
+[2026-02-05T16:07:15.964Z] [INFO]   Draft ID returned for later application
+[2026-02-05T16:07:15.965Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T16:07:15.965Z] [INFO] create_trip_plan completed in 1390ms
+[2026-02-05T16:49:40.652Z] [INFO] [TOOL] Executing: get_current_datetime
+[2026-02-05T16:49:40.689Z] [INFO] get_current_datetime completed in 36ms
+[2026-02-05T16:49:49.679Z] [INFO] [TOOL] Executing: optimize_itinerary
+[2026-02-05T16:49:49.681Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T16:49:49.682Z] [INFO]   │  optimize_itinerary: Algorithm Pipeline Started         │
+[2026-02-05T16:49:49.682Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T16:49:49.682Z] [INFO]      Destination: Ninh Bình
+[2026-02-05T16:49:49.682Z] [INFO]      Dates: 2026-02-06 to 2026-02-08
+[2026-02-05T16:49:49.682Z] [INFO]      Style: budget, Travelers: 5
+[2026-02-05T16:49:49.682Z] [INFO]      Interests: [nature, culture, budget]
+[2026-02-05T16:49:49.700Z] [INFO]      Found 3 places in database
+[2026-02-05T16:49:49.701Z] [INFO]      Only 3/15 places needed — fetching from external APIs...
+[2026-02-05T16:49:49.715Z] [INFO]      After external search: 6 places total
+[2026-02-05T16:49:49.716Z] [INFO]      [GoogleMaps] Triggering crawl (places: 6/15, nullRating: 100%)
+[2026-02-05T16:49:49.719Z] [INFO] [GoogleMaps] Crawling: "top places to visit in Ninh Bình"
+[2026-02-05T16:49:49.721Z] [INFO] [GoogleMaps] URL: https://www.google.com/maps/search/top%20places%20to%20visit%20in%20Ninh%20B%C3%ACnh
+[2026-02-05T16:50:02.091Z] [INFO] [GoogleMaps] Extracted 20 places (rating: 20, coords: 20, address: 0, photos: 20, reviews: 4)
+[2026-02-05T16:50:02.100Z] [INFO]      [GoogleMaps] Pre-filtered 1 places outside 50km radius
+[2026-02-05T16:50:02.102Z] [INFO]      [GoogleMaps] Merged: 19 new places, 0 upgraded existing
+[2026-02-05T16:50:02.102Z] [INFO]      After Google Maps: 25 places total
+[2026-02-05T16:50:02.103Z] [INFO]      [GoogleMaps] Starting detail crawl for 10 top places...
+[2026-02-05T16:50:02.103Z] [INFO] [GoogleMaps] Detail crawl starting for 10 places
+[2026-02-05T16:50:02.889Z] [INFO] [GoogleMaps] Saved 20/20 places to DB
+[2026-02-05T16:50:05.807Z] [DEBUG] [GoogleMaps] Detail page: Chùa Bái Đính
+[2026-02-05T16:50:09.288Z] [DEBUG] [GoogleMaps] Detail crawled: Chùa Bái Đính (reviews: yes, photos: 5)
+[2026-02-05T16:50:14.471Z] [DEBUG] [GoogleMaps] Detail page: Phố cổ Hoa Lư
+[2026-02-05T16:50:15.923Z] [WARN] [GoogleMaps] Feed container not found, trying extraction anyway
+[2026-02-05T16:50:17.735Z] [DEBUG] [GoogleMaps] Detail crawled: Phố cổ Hoa Lư (reviews: yes, photos: 5)
+[2026-02-05T16:50:24.194Z] [DEBUG] [GoogleMaps] Detail page: Hang Múa
+[2026-02-05T16:50:28.036Z] [DEBUG] [GoogleMaps] Detail crawled: Hang Múa (reviews: yes, photos: 5)
+[2026-02-05T16:50:32.752Z] [DEBUG] [GoogleMaps] Detail page: Trang An Grottoes tour
+[2026-02-05T16:50:35.842Z] [DEBUG] [GoogleMaps] Detail crawled: Trang An Grottoes tour (reviews: yes, photos: 5)
+[2026-02-05T16:50:38.072Z] [WARN] [GoogleMaps] Feed container not found, trying extraction anyway
+[2026-02-05T16:50:38.628Z] [DEBUG] [GoogleMaps] Detail page: Tam Cốc - Bích Động
+[2026-02-05T16:50:41.639Z] [DEBUG] [GoogleMaps] Detail crawled: Tam Cốc - Bích Động (reviews: yes, photos: 5)
+[2026-02-05T16:50:44.946Z] [DEBUG] [GoogleMaps] Detail page: Khu Bảo tồn Thiên nhiên Vân Long
+[2026-02-05T16:50:48.357Z] [DEBUG] [GoogleMaps] Detail crawled: Khu Bảo tồn Thiên nhiên Vân Long (reviews: yes, photos: 5)
+[2026-02-05T16:50:51.984Z] [DEBUG] [GoogleMaps] Detail page: Phố đi bộ Ninh Bình - Walking Street
+[2026-02-05T16:50:55.046Z] [DEBUG] [GoogleMaps] Detail crawled: Phố đi bộ Ninh Bình - Walking Street (reviews: yes, photos: 5)
+[2026-02-05T16:50:56.682Z] [WARN] [GoogleMaps] Feed container not found, trying extraction anyway
+[2026-02-05T16:51:03.739Z] [INFO] [GoogleMaps] Detail crawl complete: 7/10 places enriched in 61.6s
+[2026-02-05T16:51:03.741Z] [INFO]      Fetching weather data internally...
+[2026-02-05T16:51:03.831Z] [INFO] [GoogleMaps] Saved enriched data for 7/7 places
+[2026-02-05T16:51:04.523Z] [INFO]      Weather: mây cụm
+[2026-02-05T16:51:04.523Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T16:51:04.524Z] [INFO]   │           TRIP PLANNER PIPELINE STARTED                 │
+[2026-02-05T16:51:04.524Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T16:51:04.524Z] [INFO]   Trip Parameters:
+[2026-02-05T16:51:04.524Z] [INFO]      - Destination: Ninh Bình
+[2026-02-05T16:51:04.524Z] [INFO]      - Duration: 3 days
+[2026-02-05T16:51:04.532Z] [INFO]      - Daily money budget: 1,666,667 VND
+[2026-02-05T16:51:04.532Z] [INFO]      - Travel style: budget
+[2026-02-05T16:51:04.532Z] [INFO]      - Travelers: 5
+[2026-02-05T16:51:04.533Z] [INFO]   [Step 1/3] Filtering places for destination...
+[2026-02-05T16:51:04.536Z] [INFO]      - Found 6 places in Ninh Bình
+[2026-02-05T16:51:04.537Z] [INFO]      - Total places for planning: 6
+[2026-02-05T16:51:04.538Z] [INFO]   [Step 2/3] Clustering places into 3 days by proximity...
+[2026-02-05T16:51:04.540Z] [INFO]      - Clustered 6 places across 3 days
+[2026-02-05T16:51:04.540Z] [INFO]   [Step 3/3] TSP Route Optimization...
+[2026-02-05T16:51:04.540Z] [INFO]      - Day 1: 2 places, 0 km
+[2026-02-05T16:51:04.541Z] [INFO]      - Day 2: 2 places, 0 km
+[2026-02-05T16:51:04.541Z] [INFO]      - Day 3: 2 places, 0 km
+[2026-02-05T16:51:04.542Z] [INFO]   Formatting final itinerary...
+[2026-02-05T16:51:04.544Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T16:51:04.545Z] [INFO]   │           TRIP PLANNER PIPELINE COMPLETE                │
+[2026-02-05T16:51:04.550Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T16:51:04.550Z] [INFO]   ┌─────────────────────────────────────────────────────────┐
+[2026-02-05T16:51:04.550Z] [INFO]   │  optimize_itinerary: Pipeline Complete                  │
+[2026-02-05T16:51:04.550Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T16:51:04.550Z] [INFO]      Days: 3, Places: 6
+[2026-02-05T16:51:04.553Z] [INFO] optimize_itinerary completed in 74872ms
+[2026-02-05T16:51:20.807Z] [INFO] [STEP 5: Draft] Executing: create_trip_plan
+[2026-02-05T16:51:20.810Z] [INFO]   Itinerary has 3 days
+[2026-02-05T16:51:21.494Z] [INFO]   Saving draft to database...
+[2026-02-05T16:51:21.512Z] [INFO]   Draft created with ID: 4345a4cd-8f47-404b-a292-bc0893cf3cc6
+[2026-02-05T16:51:21.515Z] [INFO]   User not authenticated - Draft only mode
+[2026-02-05T16:51:21.515Z] [INFO]   Draft ID returned for later application
+[2026-02-05T16:51:21.515Z] [INFO]   └─────────────────────────────────────────────────────────┘
+[2026-02-05T16:51:21.515Z] [INFO] create_trip_plan completed in 708ms

@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: atrips-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: atrips
+    ports:
+      - "5454:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+  redis:
+    image: redis:7-alpine
+    container_name: atrips-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+
+  searxng:
+    image: searxng/searxng:latest
+    container_name: atrips-searxng
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config/searxng:/etc/searxng:rw
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8080/
+      - SEARXNG_SECRET_KEY=${SEARXNG_SECRET_KEY:-ultrasecretkey}
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  redis_data:
