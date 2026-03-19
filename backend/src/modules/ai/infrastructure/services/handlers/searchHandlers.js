@@ -6,6 +6,7 @@
 
 import prisma from '../../../../../config/database.js';
 import cacheService from '../../../../../shared/services/CacheService.js';
+import { logger } from '../../../../../shared/services/LoggerService.js';
 import searxngService from '../SearxngService.js';
 import crawleeService from '../CrawleeService.js';
 import { isGeminiSearchEnabled } from '../../../domain/tools/index.js';
@@ -178,7 +179,7 @@ async function webSearchViaGemini(args) {
 
   for (let attempt = 0; attempt <= GEMINI_SEARCH_MAX_RETRIES; attempt++) {
     const attemptLabel = attempt > 0 ? ` (retry ${attempt})` : '';
-    console.log(`[Gemini Search] Query: "${query}"${attemptLabel}`);
+    logger.info('[Gemini Search] Query', { query: query.substring(0, 50), attempt: attempt || 0 });
     const startMs = Date.now();
 
     try {
@@ -193,7 +194,7 @@ async function webSearchViaGemini(args) {
 
       if (!response.ok) {
         const error = await response.text();
-        console.error(`[Gemini Search] Failed (${elapsedMs}ms): ${error.substring(0, 300)}`);
+        logger.error('[Gemini Search] Failed', { elapsedMs, error: error.substring(0, 300) });
         throw new Error(`Gemini search failed: ${response.status}`);
       }
 
@@ -205,7 +206,7 @@ async function webSearchViaGemini(args) {
         || data.choices?.[0]?.grounding_metadata
         || null;
 
-      console.log(`[Gemini Search] OK — ${content.length} chars in ${elapsedMs}ms, grounding: ${groundingMeta ? 'yes' : 'no'}, usage: prompt=${data.usage?.prompt_tokens}, completion=${data.usage?.completion_tokens}`);
+      logger.info('[Gemini Search] OK', { contentLength: content.length, elapsedMs, grounding: !!groundingMeta, promptTokens: data.usage?.prompt_tokens, completionTokens: data.usage?.completion_tokens });
 
       // Build results with grounding sources if available
       const results = [{
@@ -248,14 +249,14 @@ async function webSearchViaGemini(args) {
       lastError = error;
 
       if (error.name === 'TimeoutError' || error.name === 'AbortError') {
-        console.error(`[Gemini Search] Timeout after ${(elapsedMs / 1000).toFixed(1)}s for query: "${query}"${attemptLabel}`);
+        logger.error('[Gemini Search] Timeout', { elapsedSec: (elapsedMs / 1000).toFixed(1), query: query.substring(0, 50), attempt });
         // Retry on timeout
         if (attempt < GEMINI_SEARCH_MAX_RETRIES) {
-          console.log(`[Gemini Search] Retrying...`);
+          logger.info('[Gemini Search] Retrying');
           continue;
         }
       } else {
-        console.error(`[Gemini Search] Error (${elapsedMs}ms): ${error.message}${attemptLabel}`);
+        logger.error('[Gemini Search] Error', { elapsedMs, error: error.message, attempt });
         // Don't retry on non-timeout errors
         break;
       }
@@ -311,7 +312,7 @@ async function webSearch(args) {
       searchQuery = `${searchQuery} (${domainFilter})`;
     }
 
-    console.log(`[SearXNG] Search: "${searchQuery}" (limit: ${limit})`);
+    logger.info('[SearXNG] Search', { query: searchQuery.substring(0, 50), limit });
 
     // 1. Get search results from SearXNG
     const searchResults = await searxngService.search({
@@ -356,7 +357,7 @@ async function webSearch(args) {
         ...filteredResults.slice(enriched.length),
       ];
     } catch (crawlError) {
-      console.warn('Crawlee enrichment skipped:', crawlError.message);
+      logger.warn('[SearXNG] Crawlee enrichment skipped', { error: crawlError.message });
       // Continue with basic results - SearXNG snippets are usually sufficient
     }
 
@@ -389,7 +390,7 @@ async function webSearch(args) {
 
     return result;
   } catch (error) {
-    console.error('SearXNG search error:', error.message);
+    logger.error('[SearXNG] Search error', { error: error.message });
     return webSearchFallback(query, currentYear);
   }
 }
@@ -414,7 +415,7 @@ async function scrapeUrl(args) {
   }
 
   try {
-    console.log(`[ScrapeUrl] Crawling: ${url} (maxLength: ${clampedLength})`);
+    logger.info('[ScrapeUrl] Crawling', { url, maxLength: clampedLength });
 
     const data = await crawleeService.scrapeUrl(url, { maxLength: clampedLength });
 
@@ -437,7 +438,7 @@ async function scrapeUrl(args) {
 
     return result;
   } catch (error) {
-    console.error('Scrape URL error:', error.message);
+    logger.error('[ScrapeUrl] Scrape URL error', { error: error.message, url });
     return {
       success: false,
       error: `Không thể crawl URL: ${error.message}`,
@@ -490,7 +491,7 @@ async function searchPlaces(args) {
     }
 
     if (rawPlaces.length === 0) {
-      console.warn(`[searchPlaces] Mapbox returned 0 results for "${searchQuery}"`);
+      logger.warn('[searchPlaces] Mapbox returned 0 results', { query: searchQuery.substring(0, 50) });
       return searchPlacesFallback(args);
     }
 
@@ -510,7 +511,7 @@ async function searchPlaces(args) {
 
     return result;
   } catch (error) {
-    console.error('Mapbox search error:', error.message);
+    logger.error('[searchPlaces] Mapbox search error', { error: error.message });
     return searchPlacesFallback(args);
   }
 }
@@ -555,7 +556,7 @@ async function searchPlacesFromDB(args) {
       },
     });
   } catch (error) {
-    console.warn('Failed to fetch places from database:', error.message);
+    logger.warn('[searchPlaces] Failed to fetch places from database', { error: error.message });
     return [];
   }
 }
@@ -595,7 +596,7 @@ async function savePlacesToDB(places, city) {
       });
     }
   } catch (error) {
-    console.error('Error saving places to DB:', error.message);
+    logger.error('[searchPlaces] Error saving places to DB', { error: error.message });
   }
 }
 
@@ -714,11 +715,11 @@ async function searchViaMapboxSearchBox(
       }
     }
     if (places.length > 0) {
-      console.log(`[searchPlaces] Mapbox Search Box returned ${places.length} results for "${searchQuery}"`);
+      logger.info('[searchPlaces] Mapbox Search Box returned results', { count: places.length, query: searchQuery.substring(0, 50) });
     }
     return places;
   } catch (err) {
-    console.warn('[searchPlaces] Mapbox Search Box API error:', err.message);
+    logger.warn('[searchPlaces] Mapbox Search Box API error', { error: err.message });
     return [];
   }
 }
@@ -773,7 +774,7 @@ async function searchViaMapboxGeocoding(
       source: 'mapbox',
     }));
   } catch (err) {
-    console.warn('[searchPlaces] Mapbox Geocoding v5 error:', err.message);
+    logger.warn('[searchPlaces] Mapbox Geocoding v5 error', { error: err.message });
     return [];
   }
 }

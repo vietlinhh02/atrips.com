@@ -16,6 +16,7 @@ import {
   TOOL_CACHE_CONFIG,
   TOOL_RATE_LIMITS,
 } from './toolGuards.js';
+import { logger } from '../../../../shared/services/LoggerService.js';
 
 const toolCache = new ToolCache();
 const rateLimiter = new SlidingWindowLimiter();
@@ -43,7 +44,7 @@ function buildGuardedLangChainTool(name, description, parameters, executionConte
           name, identifier, rateConfig.limit, rateConfig.windowMs,
         );
         if (!allowed) {
-          console.warn(`[RateLimit] ${name} exceeded for ${identifier}`);
+          logger.warn('[RateLimit] Tool rate limit exceeded', { tool: name, userId: identifier });
           return JSON.stringify({
             success: false,
             error: `Rate limit exceeded for ${name}. Please wait.`,
@@ -60,7 +61,7 @@ function buildGuardedLangChainTool(name, description, parameters, executionConte
           if (cacheKey) {
             const cached = toolCache.get(name, cacheKey);
             if (cached) {
-              console.log(`[ToolCache] HIT ${name}:${cacheKey.substring(0, 20)}`);
+              logger.info('[ToolCache] HIT', { tool: name, cacheKey: cacheKey.substring(0, 20) });
               const result = { ...cached, _fromToolCache: true };
               return JSON.stringify(simplifier ? simplifier(result) : result);
             }

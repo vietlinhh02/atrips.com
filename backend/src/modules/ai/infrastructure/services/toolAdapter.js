@@ -12,6 +12,7 @@ import { getToolsForContext } from '../../domain/tools/index.js';
 import toolExecutor from './ToolExecutor.js';
 import { sanitizeToolInput, ToolCache, SlidingWindowLimiter, MODEL_OUTPUT_SIMPLIFIERS, TOOL_CACHE_CONFIG, TOOL_RATE_LIMITS } from './toolGuards.js';
 import { TOOL_ERROR_CODES } from './toolErrors.js';
+import { logger } from '../../../../shared/services/LoggerService.js';
 
 // Shared instances (singleton per process)
 const toolCache = new ToolCache();
@@ -105,7 +106,7 @@ function buildGuardedTool(name, description, parameters, executionContext) {
         const identifier = userId || 'anonymous';
         const allowed = rateLimiter.check(name, identifier, rateConfig.limit, rateConfig.windowMs);
         if (!allowed) {
-          console.warn(`[RateLimit] ${name} exceeded for ${identifier}`);
+          logger.warn('[RateLimit] Tool rate limit exceeded', { tool: name, userId: identifier });
           return {
             success: false,
             error: `Rate limit exceeded for ${name}. Please wait before trying again.`,
@@ -122,7 +123,7 @@ function buildGuardedTool(name, description, parameters, executionContext) {
           if (cacheKey) {
             const cached = toolCache.get(name, cacheKey);
             if (cached) {
-              console.log(`[ToolCache] HIT ${name}:${cacheKey.substring(0, 20)}`);
+              logger.info('[ToolCache] HIT', { tool: name, cacheKey: cacheKey.substring(0, 20) });
               return { ...cached, _fromToolCache: true };
             }
           }

@@ -4,6 +4,7 @@
  */
 
 import { createClient } from 'redis';
+import { logger } from './LoggerService.js';
 
 class CacheService {
   constructor() {
@@ -11,7 +12,14 @@ class CacheService {
     this.isConnected = false;
     this.memoryCache = new Map();
     this.memoryCacheTTL = new Map();
+    this.memoryAccessTime = new Map();
     this.initialized = false;
+    this.MAX_MEMORY_ENTRIES = 500;
+
+    this.cleanupInterval = setInterval(() => {
+      this.cleanupMemoryCache();
+    }, 5 * 60 * 1000);
+    this.cleanupInterval.unref();
   }
 
   /**
@@ -23,7 +31,7 @@ class CacheService {
     const redisUrl = process.env.REDIS_URL;
 
     if (!redisUrl) {
-      console.log('REDIS_URL not set, using in-memory cache');
+      logger.info('[Cache] REDIS_URL not set, using in-memory cache');
       this.initialized = true;
       return;
     }
@@ -32,25 +40,25 @@ class CacheService {
       this.client = createClient({ url: redisUrl });
 
       this.client.on('error', (err) => {
-        console.error('Redis Client Error:', err.message);
+        logger.error('[Cache] Redis Client Error', { error: err.message });
         this.isConnected = false;
       });
 
       this.client.on('connect', () => {
-        console.log('Redis connected');
+        logger.info('[Cache] Redis connected');
         this.isConnected = true;
       });
 
       this.client.on('disconnect', () => {
-        console.log('Redis disconnected');
+        logger.info('[Cache] Redis disconnected');
         this.isConnected = false;
       });
 
       await this.client.connect();
       this.initialized = true;
     } catch (error) {
-      console.error('Failed to connect to Redis:', error.message);
-      console.log('Falling back to in-memory cache');
+      logger.error('[Cache] Failed to connect to Redis', { error: error.message });
+      logger.info('[Cache] Falling back to in-memory cache');
       this.initialized = true;
     }
   }
@@ -95,11 +103,17 @@ class CacheService {
       if (ttl && Date.now() > ttl) {
         this.memoryCache.delete(key);
         this.memoryCacheTTL.delete(key);
+        this.memoryAccessTime.delete(key);
         return null;
       }
-      return this.memoryCache.get(key) || null;
+      const cached = this.memoryCache.get(key);
+      if (cached !== undefined) {
+        this.memoryAccessTime.set(key, Date.now());
+        return cached;
+      }
+      return null;
     } catch (error) {
-      console.error('Cache get error:', error.message);
+      logger.error('[Cache] Get error', { error: error.message });
       return null;
     }
   }
@@ -122,15 +136,15 @@ class CacheService {
       // Fallback to memory cache
       this.memoryCache.set(key, value);
       this.memoryCacheTTL.set(key, Date.now() + (ttlSeconds * 1000));
+      this.memoryAccessTime.set(key, Date.now());
 
-      // Clean up old entries periodically
-      if (this.memoryCache.size > 1000) {
+      if (this.memoryCache.size > this.MAX_MEMORY_ENTRIES) {
         this.cleanupMemoryCache();
       }
 
       return true;
     } catch (error) {
-      console.error('Cache set error:', error.message);
+      logger.error('[Cache] Set error', { error: error.message });
       return false;
     }
   }
@@ -147,9 +161,10 @@ class CacheService {
 
       this.memoryCache.delete(key);
       this.memoryCacheTTL.delete(key);
+      this.memoryAccessTime.delete(key);
       return true;
     } catch (error) {
-      console.error('Cache delete error:', error.message);
+      logger.error('[Cache] Delete error', { error: error.message });
       return false;
     }
   }
@@ -176,13 +191,14 @@ class CacheService {
         if (regex.test(key)) {
           this.memoryCache.delete(key);
           this.memoryCacheTTL.delete(key);
+          this.memoryAccessTime.delete(key);
           deletedCount++;
         }
       }
 
       return { deleted: deletedCount };
     } catch (error) {
-      console.error('Cache delPattern error:', error.message);
+      logger.error('[Cache] DelPattern error', { error: error.message });
       return { deleted: 0, error: error.message };
     }
   }
@@ -200,11 +216,16 @@ class CacheService {
       if (ttl && Date.now() > ttl) {
         this.memoryCache.delete(key);
         this.memoryCacheTTL.delete(key);
+        this.memoryAccessTime.delete(key);
         return false;
       }
-      return this.memoryCache.has(key);
+      const has = this.memoryCache.has(key);
+      if (has) {
+        this.memoryAccessTime.set(key, Date.now());
+      }
+      return has;
     } catch (error) {
-      console.error('Cache exists error:', error.message);
+      logger.error('[Cache] Exists error', { error: error.message });
       return false;
     }
   }
@@ -238,22 +259,56 @@ class CacheService {
   }
 
   /**
-   * Cleanup expired entries from memory cache
+   * Cleanup expired entries and apply LRU eviction
+   * when entries exceed MAX_MEMORY_ENTRIES.
    */
   cleanupMemoryCache() {
     const now = Date.now();
+    const sizeBefore = this.memoryCache.size;
+    let expiredCount = 0;
+
     for (const [key, ttl] of this.memoryCacheTTL.entries()) {
       if (now > ttl) {
         this.memoryCache.delete(key);
         this.memoryCacheTTL.delete(key);
+        this.memoryAccessTime.delete(key);
+        expiredCount++;
       }
     }
+
+    let evictedCount = 0;
+    if (this.memoryCache.size > this.MAX_MEMORY_ENTRIES) {
+      const entries = [...this.memoryAccessTime.entries()]
+        .sort((a, b) => a[1] - b[1]);
+      const toEvict = Math.ceil(entries.length * 0.25);
+      for (let i = 0; i < toEvict; i++) {
+        this.memoryCache.delete(entries[i][0]);
+        this.memoryCacheTTL.delete(entries[i][0]);
+        this.memoryAccessTime.delete(entries[i][0]);
+        evictedCount++;
+      }
+    }
+
+    if (expiredCount > 0 || evictedCount > 0) {
+      logger.info('[Cache] Cleanup', { expired: expiredCount, evicted: evictedCount, before: sizeBefore, after: this.memoryCache.size });
+    }
+  }
+
+  /**
+   * Return in-memory cache stats.
+   */
+  getMemoryStats() {
+    return {
+      entries: this.memoryCache.size,
+      maxEntries: this.MAX_MEMORY_ENTRIES,
+    };
   }
 
   /**
    * Close Redis connection
    */
   async close() {
+    clearInterval(this.cleanupInterval);
     if (this.client && this.isConnected) {
       await this.client.quit();
       this.isConnected = false;

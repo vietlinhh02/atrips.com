@@ -9,6 +9,7 @@
 
 import { CheerioCrawler, PlaywrightCrawler, log as crawleeLog, Configuration } from 'crawlee';
 import cacheService from '../../../../shared/services/CacheService.js';
+import { logger } from '../../../../shared/services/LoggerService.js';
 
 // ─── Global config ─────────────────────────────────────────────────────
 
@@ -264,12 +265,12 @@ function scrapeWithPlaywright(url, extractors, timeoutMs = PLAYWRIGHT_TIMEOUT_MS
  */
 async function scrapeOnce(url, extractors) {
   if (needsBrowser(url)) {
-    console.log(`[Playwright] ${url}`);
+    logger.info('[Playwright] Scraping URL', { url });
     try {
       return await scrapeWithPlaywright(url, extractors);
     } catch (err) {
       // Cheerio fallback with shorter timeout (last resort, may also be blocked)
-      console.warn(`[Playwright] Failed (${err.message}), Cheerio fallback: ${url}`);
+      logger.warn('[Playwright] Failed, Cheerio fallback', { error: err.message, url });
       try {
         const data = await scrapeWithCheerio(url, extractors, CHEERIO_FALLBACK_TIMEOUT_MS);
         data.crawler = 'cheerio-fallback';
@@ -296,7 +297,7 @@ class CrawleeService {
 
     const jsCount = toScrape.filter(r => needsBrowser(r.url)).length;
     const staticCount = toScrape.length - jsCount;
-    console.log(`[Crawlee] Enriching ${toScrape.length} results (${staticCount} cheerio, ${jsCount} playwright)`);
+    logger.info('[Crawlee] Enriching results', { total: toScrape.length, cheerio: staticCount, playwright: jsCount });
 
     const extractors = {
       title: $ => $('title').text().trim() || $('h1').first().text().trim(),
@@ -337,7 +338,7 @@ class CrawleeService {
     const cached = await cacheService.get(cacheKey);
     if (cached) return { ...cached, source: 'cache' };
 
-    console.log(`[Crawlee] Deep scrape: ${url} (maxLength: ${maxLength})`);
+    logger.info('[Crawlee] Deep scrape', { url, maxLength });
 
     const extractors = {
       title: $ => $('title').text().trim() || $('h1').first().text().trim(),
@@ -375,7 +376,7 @@ class CrawleeService {
         const data = await scrapeOnce(url, extractors);
         return { url, type, ...data };
       } catch (error) {
-        console.warn(`Scrape failed ${url}:`, error.message);
+        logger.warn('[Crawlee] Scrape failed', { url, error: error.message });
         return null;
       }
     });
