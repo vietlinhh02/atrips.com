@@ -22,7 +22,7 @@ export class UpdateProfileUseCase {
     }
 
     // Filter allowed fields for profile update
-    const allowedFields = ['name', 'displayName', 'avatarUrl', 'bio', 'phone'];
+    const allowedFields = ['name', 'displayName', 'avatarUrl', 'coverImageUrl', 'bio', 'phone'];
     const filteredUpdates = {};
 
     for (const field of allowedFields) {
@@ -59,12 +59,25 @@ export class UpdateProfileUseCase {
       if (filteredUpdates.avatarUrl.length > 0) {
         try {
           const avatarUrl = new URL(filteredUpdates.avatarUrl);
-          // Validate URL protocol (only allow http/https)
           if (!['http:', 'https:'].includes(avatarUrl.protocol)) {
             throw AppError.badRequest('Avatar URL must use HTTP or HTTPS protocol');
           }
         } catch (error) {
           throw AppError.badRequest('Invalid avatar URL: ' + error.message);
+        }
+      }
+    }
+
+    // Validate cover image URL
+    if (filteredUpdates.coverImageUrl !== undefined && filteredUpdates.coverImageUrl !== null) {
+      if (filteredUpdates.coverImageUrl.length > 0) {
+        try {
+          const coverUrl = new URL(filteredUpdates.coverImageUrl);
+          if (!['http:', 'https:'].includes(coverUrl.protocol)) {
+            throw AppError.badRequest('Cover image URL must use HTTP or HTTPS protocol');
+          }
+        } catch (error) {
+          throw AppError.badRequest('Invalid cover image URL: ' + error.message);
         }
       }
     }

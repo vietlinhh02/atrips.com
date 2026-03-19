@@ -41,6 +41,7 @@ export const getPublicProfile = asyncHandler(async (req, res) => {
         name: true,
         displayName: true,
         avatarUrl: true,
+        coverImageUrl: true,
         bio: true,
         createdAt: true,
         travel_profiles: {
@@ -88,6 +89,7 @@ export const getPublicProfile = asyncHandler(async (req, res) => {
       name: user.name,
       displayName: user.displayName || user.name,
       avatarUrl: user.avatarUrl,
+      coverImageUrl: user.coverImageUrl || null,
       bio: user.bio,
       createdAt: user.createdAt,
       tier: user.subscriptions?.tier || 'FREE',
