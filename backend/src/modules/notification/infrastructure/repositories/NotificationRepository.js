@@ -15,7 +15,8 @@ class NotificationRepository {
 
     const where = { userId };
     if (type) {
-      where.type = type;
+      const types = type.split(',').map((t) => t.trim());
+      where.type = types.length === 1 ? types[0] : { in: types };
     }
     if (isRead !== undefined) {
       where.isRead = isRead;
