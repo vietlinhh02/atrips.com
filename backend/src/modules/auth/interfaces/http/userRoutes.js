@@ -6,7 +6,10 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
 import userController from './userController.js';
-import { authenticate } from '../../../../shared/middleware/authenticate.js';
+import {
+  authenticate,
+  optionalAuth,
+} from '../../../../shared/middleware/authenticate.js';
 
 const router = Router();
 
@@ -90,11 +93,14 @@ const updatePreferencesValidation = [
 ];
 
 /**
- * Routes
- * All routes require authentication
+ * Public routes (no auth required, optionalAuth for
+ * detecting if viewer is the profile owner)
  */
+router.get('/:userId/public', optionalAuth, userController.getPublicProfile);
 
-// Apply authentication middleware to all routes
+/**
+ * Authenticated routes
+ */
 router.use(authenticate);
 
 // Profile routes

@@ -26,6 +26,81 @@ const CACHE_KEYS = {
 };
 
 /**
+ * @route GET /api/users/:userId/public
+ * @desc Get a user's public profile by ID
+ * @access Public (optionalAuth)
+ */
+export const getPublicProfile = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+
+  const [user, publicTrips] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId, isActive: true, deletedAt: null },
+      select: {
+        id: true,
+        name: true,
+        displayName: true,
+        avatarUrl: true,
+        bio: true,
+        createdAt: true,
+        travel_profiles: {
+          select: {
+            location: true,
+            travelerTypes: true,
+            personaTitle: true,
+          },
+        },
+        subscriptions: {
+          select: { tier: true },
+        },
+      },
+    }),
+    prisma.trips.findMany({
+      where: {
+        ownerId: userId,
+        visibility: 'PUBLIC',
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        startDate: true,
+        endDate: true,
+        coverImageUrl: true,
+        status: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 12,
+    }),
+  ]);
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: 'User not found',
+    });
+  }
+
+  return sendSuccess(res, {
+    user: {
+      id: user.id,
+      name: user.name,
+      displayName: user.displayName || user.name,
+      avatarUrl: user.avatarUrl,
+      bio: user.bio,
+      createdAt: user.createdAt,
+      tier: user.subscriptions?.tier || 'FREE',
+      location: user.travel_profiles?.location || null,
+      travelerTypes: user.travel_profiles?.travelerTypes || [],
+      personaTitle: user.travel_profiles?.personaTitle || null,
+      tripsCount: publicTrips.length,
+    },
+    trips: publicTrips,
+  }, 'Public profile retrieved');
+});
+
+/**
  * @route GET /api/users/me
  * @desc Get current user profile
  * @access Private
@@ -231,6 +306,7 @@ async function invalidateUserCaches(userId) {
 }
 
 export default {
+  getPublicProfile,
   getProfile,
   updateProfile,
   getPreferences,
