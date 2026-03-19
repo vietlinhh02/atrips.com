@@ -43,7 +43,6 @@ import weatherRoutes from './modules/weather/interfaces/http/weatherRoutes.js';
 import gamificationRoutes from './modules/gamification/interfaces/http/gamificationRoutes.js';
 import flightRoutes from './modules/flight/interfaces/http/flightRoutes.js';
 import eventRoutes from './modules/event/interfaces/http/eventRoutes.js';
-import followRoutes from './modules/follow/interfaces/http/followRoutes.js';
 
 /**
  * Create and configure Express application
@@ -254,9 +253,6 @@ function createApp() {
 
   // Event routes
   app.use('/api/events', eventRoutes);
-
-  // Follow routes (routes include /users/:userId/... prefix)
-  app.use('/api', followRoutes);
 
   // Root endpoint
   app.get('/', (req, res) => {
