@@ -4,6 +4,7 @@
  */
 
 import express from 'express';
+import compression from 'compression';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
@@ -86,6 +87,17 @@ function createApp() {
       'X-Request-Id',
       'X-Response-Time',
     ],
+  }));
+
+  // Gzip compression (skip SSE streams)
+  app.use(compression({
+    threshold: 1024,
+    filter(req, res) {
+      if (res.getHeader('Content-Type') === 'text/event-stream') {
+        return false;
+      }
+      return compression.filter(req, res);
+    },
   }));
 
   // Rate limiting
