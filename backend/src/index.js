@@ -19,6 +19,7 @@ import r2StorageService from './modules/image/infrastructure/services/R2StorageS
 import imageQueueService from './modules/image/infrastructure/services/ImageQueueService.js';
 import { processImageIngestJob } from './modules/image/infrastructure/services/ImageIngestWorker.js';
 import { errorHandler, notFoundHandler } from './shared/middleware/errorHandler.js';
+import { requestMetrics } from './shared/middleware/requestMetrics.js';
 import googleAuthUseCase from './modules/auth/application/useCases/GoogleAuthUseCase.js';
 
 // Import routes
@@ -72,8 +73,19 @@ function createApp() {
     origin: config.frontendUrl,
     credentials: true, // Allow cookies
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    exposedHeaders: ['X-Total-Count', 'X-Page', 'X-Limit'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'X-Request-Id',
+    ],
+    exposedHeaders: [
+      'X-Total-Count',
+      'X-Page',
+      'X-Limit',
+      'X-Request-Id',
+      'X-Response-Time',
+    ],
   }));
 
   // Rate limiting
@@ -109,6 +121,9 @@ function createApp() {
   app.use('/api/auth/login', authLimiter);
   app.use('/api/auth/register', authLimiter);
   app.use('/api/auth/forgot-password', authLimiter);
+
+  // Request timing and correlation ID
+  app.use(requestMetrics);
 
   // Body parsing
   app.use(express.json({ limit: '10mb' }));
