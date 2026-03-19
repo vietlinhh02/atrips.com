@@ -37,27 +37,4 @@ export async function connectDatabase() {
   }
 }
 
-/**
- * Disconnect from database
- */
-export async function disconnectDatabase() {
-  await prisma.$disconnect();
-  console.log('Database disconnected');
-}
-
-/**
- * Graceful shutdown handler
- */
-export function setupDatabaseShutdown() {
-  const signals = ['SIGINT', 'SIGTERM', 'SIGQUIT'];
-
-  signals.forEach((signal) => {
-    process.on(signal, async () => {
-      console.log(`\nReceived ${signal}, closing database connection...`);
-      await disconnectDatabase();
-      process.exit(0);
-    });
-  });
-}
-
 export default prisma;

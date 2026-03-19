@@ -11,9 +11,10 @@ import rateLimit from 'express-rate-limit';
 import passport from 'passport';
 
 import config from './config/index.js';
-import { connectDatabase, setupDatabaseShutdown } from './config/database.js';
+import { connectDatabase, prisma } from './config/database.js';
 import { configureGoogleStrategy } from './config/passport.js';
 import cacheService from './shared/services/CacheService.js';
+import { logger } from './shared/services/LoggerService.js';
 import r2StorageService from './modules/image/infrastructure/services/R2StorageService.js';
 import imageQueueService from './modules/image/infrastructure/services/ImageQueueService.js';
 import { processImageIngestJob } from './modules/image/infrastructure/services/ImageIngestWorker.js';
@@ -122,14 +123,52 @@ function createApp() {
   // Configure Google OAuth strategy
   configureGoogleStrategy(googleAuthUseCase.buildVerifyCallback());
 
-  // Health check endpoint
+  // Liveness probe — proves the process is alive
   app.get('/health', (req, res) => {
     res.json({
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
+      status: 'ok',
       uptime: process.uptime(),
-      environment: config.nodeEnv,
+      timestamp: new Date().toISOString(),
     });
+  });
+
+  // Readiness probe — checks critical dependencies
+  app.get('/ready', async (req, res) => {
+    const checks = { database: 'ok', cache: 'ok' };
+    let allOk = true;
+
+    const withTimeout = (promise, ms) => {
+      const timer = new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error('timeout')),
+          ms
+        )
+      );
+      return Promise.race([promise, timer]);
+    };
+
+    try {
+      await withTimeout(
+        prisma.$queryRawUnsafe('SELECT 1'),
+        3000
+      );
+    } catch {
+      checks.database = 'error';
+      allOk = false;
+    }
+
+    try {
+      await withTimeout(
+        cacheService.get('health-check'),
+        3000
+      );
+    } catch {
+      checks.cache = 'error';
+      allOk = false;
+    }
+
+    const status = allOk ? 'ready' : 'not_ready';
+    res.status(allOk ? 200 : 503).json({ status, checks });
   });
 
   // API routes
@@ -188,15 +227,12 @@ async function startServer() {
       imageQueueService.init(processImageIngestJob);
     }
 
-    // Setup graceful shutdown
-    setupDatabaseShutdown();
-
     // Create app
     const app = createApp();
 
     // Start listening
     const server = app.listen(config.port, () => {
-      console.log(`
+      logger.info(`
   ================================================
     ATrips Backend Server
   ================================================
@@ -207,19 +243,37 @@ async function startServer() {
       `);
     });
 
-    // Graceful shutdown for server
-    const signals = ['SIGINT', 'SIGTERM', 'SIGQUIT'];
-    signals.forEach((signal) => {
-      process.on(signal, async () => {
-        console.log(`\nReceived ${signal}, shutting down gracefully...`);
-        server.close(async () => {
-          console.log('HTTP server closed');
+    // Consolidated graceful shutdown
+    function gracefulShutdown(signal) {
+      logger.info(
+        `[Shutdown] ${signal} received, shutting down gracefully`
+      );
+      server.close(async () => {
+        logger.info('[Shutdown] HTTP server closed');
+        try {
           await imageQueueService.close();
+          logger.info('[Shutdown] Image queue closed');
+        } catch { /* ignore */ }
+        try {
+          await prisma.$disconnect();
+          logger.info('[Shutdown] Database disconnected');
+        } catch { /* ignore */ }
+        try {
           await cacheService.close();
-          console.log('Cache service closed');
-        });
+          logger.info('[Shutdown] Cache closed');
+        } catch { /* ignore */ }
+        process.exit(0);
       });
-    });
+
+      // Force exit after 10 seconds
+      setTimeout(() => {
+        logger.warn('[Shutdown] Forced exit after timeout');
+        process.exit(1);
+      }, 10_000).unref();
+    }
+
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
     return server;
   } catch (error) {
