@@ -6,6 +6,7 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
 import userController from './userController.js';
+import followController from '../../../follow/interfaces/http/followController.js';
 import {
   authenticate,
   optionalAuth,
@@ -118,10 +119,19 @@ const updatePreferencesValidation = [
  */
 router.get('/:userId/public', optionalAuth, userController.getPublicProfile);
 
+// Public follow routes
+router.get('/:userId/followers', followController.getFollowers);
+router.get('/:userId/following', followController.getFollowing);
+
 /**
  * Authenticated routes
  */
 router.use(authenticate);
+
+// Follow routes (authenticated)
+router.post('/:userId/follow', followController.followUser);
+router.delete('/:userId/follow', followController.unfollowUser);
+router.get('/:userId/follow-status', followController.getFollowStatus);
 
 // Profile routes
 router.get('/me', userController.getProfile);
