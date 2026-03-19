@@ -42,6 +42,26 @@ const updateProfileValidation = [
         throw new Error(error.message || 'Invalid avatar URL');
       }
     }),
+  body('coverImageUrl')
+    .optional({ nullable: true })
+    .custom((value) => {
+      if (value === null || value === '') return true;
+      try {
+        const url = new URL(value);
+        if (!['http:', 'https:'].includes(url.protocol)) {
+          throw new Error(
+            'Cover image URL must use HTTP or HTTPS protocol'
+          );
+        }
+        return true;
+      } catch (error) {
+        throw new Error(error.message || 'Invalid cover image URL');
+      }
+    }),
+  body('coverImageOffsetY')
+    .optional()
+    .isInt({ min: 0, max: 100 })
+    .withMessage('Cover image offset must be between 0 and 100'),
   body('bio')
     .optional()
     .isLength({ max: 500 })

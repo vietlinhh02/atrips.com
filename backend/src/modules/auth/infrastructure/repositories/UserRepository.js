@@ -383,6 +383,8 @@ export class UserRepository {
         name: true,
         displayName: true,
         avatarUrl: true,
+        coverImageUrl: true,
+        coverImageOffsetY: true,
         bio: true,
         emailVerified: true,
         createdAt: true,

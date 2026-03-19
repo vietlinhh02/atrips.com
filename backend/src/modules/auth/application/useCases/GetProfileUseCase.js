@@ -27,6 +27,7 @@ export class GetProfileUseCase {
         displayName: profile.displayName || profile.name,
         avatarUrl: profile.avatarUrl,
         coverImageUrl: profile.coverImageUrl || null,
+        coverImageOffsetY: profile.coverImageOffsetY ?? 50,
         bio: profile.bio,
         emailVerified: profile.emailVerified,
         createdAt: profile.createdAt,

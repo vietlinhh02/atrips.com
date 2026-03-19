@@ -22,7 +22,7 @@ export class UpdateProfileUseCase {
     }
 
     // Filter allowed fields for profile update
-    const allowedFields = ['name', 'displayName', 'avatarUrl', 'coverImageUrl', 'bio', 'phone'];
+    const allowedFields = ['name', 'displayName', 'avatarUrl', 'coverImageUrl', 'coverImageOffsetY', 'bio', 'phone'];
     const filteredUpdates = {};
 
     for (const field of allowedFields) {

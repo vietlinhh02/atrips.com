@@ -1331,6 +1331,7 @@ model User {
   displayName                          String?
   avatarUrl                            String?
   coverImageUrl                        String?
+  coverImageOffsetY                    Int                        @default(50)
   bio                                  String?
   phone                                String?
   phoneVerified                        Boolean                    @default(false)
