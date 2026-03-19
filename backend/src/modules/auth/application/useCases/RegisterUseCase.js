@@ -7,8 +7,8 @@ import { AppError } from '../../../../shared/errors/AppError.js';
 import { Email } from '../../domain/valueObjects/Email.js';
 import userRepository from '../../infrastructure/repositories/UserRepository.js';
 import authService from '../services/AuthService.js';
-import { sendVerificationEmail, sendWelcomeEmail } from '../../../../shared/utils/email.js';
 import config from '../../../../config/index.js';
+import novuService from '../../../notification/application/NovuService.js';
 
 export class RegisterUseCase {
   /**
@@ -51,19 +51,26 @@ export class RegisterUseCase {
       email: user.email,
     });
 
-    // Send emails based on configuration
-    try {
-      if (config.features.emailVerificationRequired) {
-        // Send verification email
-        const verificationToken = await authService.createEmailVerificationToken(user.email);
-        await sendVerificationEmail(user.email, verificationToken, user.name);
-      } else {
-        // Send welcome email
-        await sendWelcomeEmail(user.email, user.name);
-      }
-    } catch (emailError) {
-      // Log error but don't fail registration
-      console.error('Failed to send registration email:', emailError);
+    // Sync subscriber to Novu then send email via Novu
+    await novuService.initSubscriber({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      displayName: user.displayName,
+    });
+
+    if (config.features.emailVerificationRequired) {
+      const verificationToken = await authService.createEmailVerificationToken(user.email);
+      const verificationUrl = `${config.frontendUrl}/verify-email?token=${verificationToken}`;
+      novuService.trigger('email-verification', user.id, {
+        name: user.name || 'there',
+        verificationUrl,
+      });
+    } else {
+      novuService.trigger('welcome-email', user.id, {
+        name: user.name || 'there',
+        frontendUrl: config.frontendUrl,
+      });
     }
 
     return {

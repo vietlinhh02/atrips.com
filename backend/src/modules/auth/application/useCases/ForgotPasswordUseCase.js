@@ -6,7 +6,8 @@
 import { Email } from '../../domain/valueObjects/Email.js';
 import userRepository from '../../infrastructure/repositories/UserRepository.js';
 import authService from '../services/AuthService.js';
-import { sendPasswordResetEmail } from '../../../../shared/utils/email.js';
+import config from '../../../../config/index.js';
+import novuService from '../../../notification/application/NovuService.js';
 
 export class ForgotPasswordUseCase {
   /**
@@ -39,13 +40,20 @@ export class ForgotPasswordUseCase {
     }
 
     try {
-      // Create password reset token
       const token = await authService.createPasswordResetToken(emailVO.value);
+      const resetUrl = `${config.frontendUrl}/reset-password?token=${token}`;
 
-      // Send password reset email
-      await sendPasswordResetEmail(emailVO.value, token, user.name);
+      // Ensure subscriber exists in Novu then send via Novu
+      await novuService.initSubscriber({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+      });
+      novuService.trigger('password-reset', user.id, {
+        name: user.name || 'there',
+        resetUrl,
+      });
     } catch (error) {
-      // Log error but still return success to prevent enumeration
       console.error('Failed to send password reset email:', error);
     }
 

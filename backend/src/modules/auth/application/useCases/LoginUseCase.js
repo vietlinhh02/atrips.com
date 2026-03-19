@@ -8,6 +8,7 @@ import { Email } from '../../domain/valueObjects/Email.js';
 import userRepository from '../../infrastructure/repositories/UserRepository.js';
 import authService from '../services/AuthService.js';
 import config from '../../../../config/index.js';
+import novuService from '../../../notification/application/NovuService.js';
 
 export class LoginUseCase {
   /**
@@ -77,6 +78,15 @@ export class LoginUseCase {
       createdAt: userRecord.createdAt,
       updatedAt: userRecord.updatedAt,
     };
+
+    // Sync subscriber to Novu (upsert)
+    novuService.initSubscriber({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+    });
 
     return {
       user,
