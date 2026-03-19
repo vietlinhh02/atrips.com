@@ -21,6 +21,7 @@
     "@langchain/google-genai": "^2.1.25",
     "@langchain/langgraph": "^1.2.2",
     "@langchain/openai": "^1.2.13",
+    "@novu/api": "^3.14.2",
     "@prisma/client": "^6.1.0",
     "axios": "^1.13.3",
     "bcryptjs": "^3.0.3",
