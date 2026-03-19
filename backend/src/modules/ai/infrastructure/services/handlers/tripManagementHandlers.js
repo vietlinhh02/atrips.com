@@ -395,6 +395,15 @@ async function applyDraftToTrip(args) {
       existingTripId,
     });
 
+    if (!result?.trip) {
+      console.error('Apply draft: use case returned no trip', result);
+      return {
+        success: false,
+        error: 'No trip returned from draft application',
+        message: 'Không thể tạo chuyến đi từ draft. Vui lòng thử lại.',
+      };
+    }
+
     return {
       success: true,
       trip: {
@@ -407,7 +416,7 @@ async function applyDraftToTrip(args) {
       message: `Đã tạo chuyến đi "${result.trip.title}" thành công từ draft!`,
     };
   } catch (error) {
-    console.error('Apply draft error:', error.message);
+    console.error('Apply draft error:', error.message, error.stack);
     return {
       success: false,
       error: error.message,

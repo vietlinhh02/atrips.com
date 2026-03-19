@@ -127,8 +127,26 @@ class ToolExecutor {
   }
 
   /**
+   * Execute a tool call with scoped context injection.
+   * Sets userId, conversationId, and userProfile before execution.
+   * Preferred over separate setUserContext/setConversationContext/setUserProfile calls
+   * because it co-locates context setting with execution.
+   *
+   * @param {string} toolName
+   * @param {Object} args
+   * @param {Object} context - { userId, conversationId, userProfile }
+   * @returns {Promise<{ success: boolean, data?: any, error?: string }>}
+   */
+  async executeWithContext(toolName, args, context = {}) {
+    if (context.userId) this.currentUserId = context.userId;
+    if (context.conversationId !== undefined) this.currentConversationId = context.conversationId;
+    if (context.userProfile !== undefined) this.currentUserProfile = context.userProfile;
+    return this.execute(toolName, args);
+  }
+
+  /**
    * Execute a tool call
-   * 
+   *
    * FLOW: Step 2 - Context Enrichment Tools
    *       Step 5 - Draft Storage (create_trip_plan)
    */
@@ -192,6 +210,19 @@ class ToolExecutor {
       const startTime = Date.now();
       const result = await handler(args);
       const duration = Date.now() - startTime;
+
+      // Handlers may return { success: false, error } without throwing.
+      // Normalize this as a failed tool execution so callers don't get
+      // misleading outer success=true envelopes.
+      if (result?.success === false) {
+        logger.warn(`${toolName} failed in ${duration}ms`, { error: result.error || 'Unknown tool error' });
+        return {
+          success: false,
+          error: result.error || `${toolName} failed`,
+          data: result,
+        };
+      }
+
       logger.info(`${toolName} completed in ${duration}ms`);
       return {
         success: true,

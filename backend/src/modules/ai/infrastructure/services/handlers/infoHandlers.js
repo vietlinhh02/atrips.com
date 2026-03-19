@@ -548,13 +548,16 @@ async function getTravelTips(args) {
 
   let destinationTips = [];
   try {
-    const dbTips = await prisma.travel_tips.findMany({
-      where: {
-        destination: { contains: destination, mode: 'insensitive' },
-      },
-      take: 10,
-    });
-    destinationTips = dbTips.map(t => ({ topic: t.topic, tip: t.content }));
+    // Optional table: some deployments do not include travel_tips in Prisma schema.
+    if (destination && prisma.travel_tips?.findMany) {
+      const dbTips = await prisma.travel_tips.findMany({
+        where: {
+          destination: { contains: destination, mode: 'insensitive' },
+        },
+        take: 10,
+      });
+      destinationTips = dbTips.map(t => ({ topic: t.topic, tip: t.content }));
+    }
   } catch (error) {
     console.debug('Failed to fetch destination-specific tips:', error.message);
   }
@@ -733,13 +736,12 @@ async function saveWeatherToDB(weatherData, coords = null) {
 
 function getWeatherFallback(location, date) {
   return {
+    success: false,
     source: 'fallback',
     location,
     date: date || new Date().toISOString().split('T')[0],
-    temperature: { min: 22, max: 32, current: 28 },
-    humidity: 75,
-    condition: 'Dữ liệu tham khảo',
-    note: 'Vui lòng cấu hình OPENWEATHER_API_KEY để có dữ liệu thời tiết chính xác',
+    error: 'Không thể lấy dữ liệu thời tiết',
+    note: 'DO NOT hallucinate weather data. The OpenWeather API might be missing.',
   };
 }
 
@@ -765,15 +767,13 @@ function mapModeToMapbox(mode) {
 
 function calculateDistanceFallback(origin, destination, mode) {
   return {
+    success: false,
     source: 'fallback',
     origin,
     destination,
     mode,
-    distance: '~',
-    distanceUnit: 'km',
-    duration: '~',
-    durationUnit: 'phút',
-    note: 'Vui lòng cấu hình MAPBOX_ACCESS_TOKEN để có khoảng cách chính xác',
+    error: 'Không thể tính toán khoảng cách',
+    note: 'DO NOT hallucinate distance and DO NOT assume they are close. Ask user or state that transit time is unknown.',
   };
 }
 

@@ -28,7 +28,7 @@ export class TripRepository {
 
     const cached = await cacheService.get(cacheKey);
     if (cached) {
-      if (userId && cached.owner_id !== userId) {
+      if (userId && cached.ownerId !== userId) {
         const isMember = await this.#checkMembership(tripId, userId);
         if (!isMember && cached.visibility === 'PRIVATE') {
           throw AppError.forbidden('You do not have access to this trip');
@@ -37,7 +37,7 @@ export class TripRepository {
       return Trip.fromPersistence(cached);
     }
 
-    const record = await prisma.trip.findUnique({
+    const record = await prisma.trips.findUnique({
       where: { id: tripId },
     });
 
@@ -45,7 +45,7 @@ export class TripRepository {
       return null;
     }
 
-    if (userId && record.owner_id !== userId) {
+    if (userId && record.ownerId !== userId) {
       const isMember = await this.#checkMembership(tripId, userId);
       if (!isMember && record.visibility === 'PRIVATE') {
         throw AppError.forbidden('You do not have access to this trip');
@@ -69,11 +69,11 @@ export class TripRepository {
 
     const where = {
       OR: [
-        { owner_id: userId },
+        { ownerId: userId },
         {
           trip_members: {
             some: {
-              user_id: userId,
+              userId: userId,
             },
           },
         },
@@ -85,11 +85,11 @@ export class TripRepository {
     }
 
     const [trips, total] = await Promise.all([
-      prisma.trip.findMany({
+      prisma.trips.findMany({
         where,
         skip,
         take: limit,
-        orderBy: { created_at: 'desc' },
+        orderBy: { createdAt: 'desc' },
         include: {
           _count: {
             select: {
@@ -99,7 +99,7 @@ export class TripRepository {
           },
         },
       }),
-      prisma.trip.count({ where }),
+      prisma.trips.count({ where }),
     ]);
 
     const result = {
@@ -121,25 +121,33 @@ export class TripRepository {
       await this.verifyTripOwnership(tripId, userId);
     }
 
-    const trip = await prisma.trip.findUnique({
+    const trip = await prisma.trips.findUnique({
       where: { id: tripId },
       include: {
         itinerary_days: {
           orderBy: { date: 'asc' },
           include: {
             activities: {
-              orderBy: { order_index: 'asc' },
+              orderBy: { orderIndex: 'asc' },
+              include: {
+                image_assets: {
+                  select: { id: true, status: true, variants: true, sourceUrl: true },
+                },
+              },
             },
           },
         },
+        coverImageAsset: {
+          select: { id: true, status: true, variants: true, sourceUrl: true },
+        },
         trip_members: {
           include: {
-            user: {
+            User: {
               select: {
                 id: true,
                 name: true,
-                display_name: true,
-                avatar_url: true,
+                displayName: true,
+                avatarUrl: true,
               },
             },
           },
@@ -166,16 +174,16 @@ export class TripRepository {
       return cached;
     }
 
-    const trip = await prisma.trip.findUnique({
+    const trip = await prisma.trips.findUnique({
       where: { id: tripId },
       select: {
         id: true,
         title: true,
-        start_date: true,
-        end_date: true,
+        startDate: true,
+        endDate: true,
         status: true,
-        travelers_count: true,
-        cover_image_url: true,
+        travelersCount: true,
+        coverImageUrl: true,
         visibility: true,
       },
     });
@@ -189,22 +197,22 @@ export class TripRepository {
 
   async createTrip(tripData, ownerId) {
     const data = {
-      owner_id: ownerId,
+      ownerId: ownerId,
       title: tripData.title,
       description: tripData.description,
-      start_date: new Date(tripData.startDate),
-      end_date: new Date(tripData.endDate),
-      travelers_count: tripData.travelersCount || 1,
-      budget_total: tripData.budgetTotal,
-      budget_currency: tripData.budgetCurrency || 'VND',
+      startDate: new Date(tripData.startDate),
+      endDate: new Date(tripData.endDate),
+      travelersCount: tripData.travelersCount || 1,
+      budgetTotal: tripData.budgetTotal,
+      budgetCurrency: tripData.budgetCurrency || 'VND',
       status: tripData.status || 'DRAFT',
       visibility: tripData.visibility || 'PRIVATE',
-      cover_image_url: tripData.coverImageUrl,
+      coverImageUrl: tripData.coverImageUrl,
       overview: tripData.overview || null, // Phase 1: Trip overview
       metadata: tripData.metadata || null, // Phase 1: Tips, budget breakdown, etc.
     };
 
-    const trip = await prisma.trip.create({
+    const trip = await prisma.trips.create({
       data,
     });
 
@@ -218,18 +226,16 @@ export class TripRepository {
     const data = {};
     if (updates.title !== undefined) data.title = updates.title;
     if (updates.description !== undefined) data.description = updates.description;
-    if (updates.startDate !== undefined) data.start_date = new Date(updates.startDate);
-    if (updates.endDate !== undefined) data.end_date = new Date(updates.endDate);
-    if (updates.travelersCount !== undefined) data.travelers_count = updates.travelersCount;
-    if (updates.budgetTotal !== undefined) data.budget_total = updates.budgetTotal;
-    if (updates.budgetCurrency !== undefined) data.budget_currency = updates.budgetCurrency;
+    if (updates.startDate !== undefined) data.startDate = new Date(updates.startDate);
+    if (updates.endDate !== undefined) data.endDate = new Date(updates.endDate);
+    if (updates.travelersCount !== undefined) data.travelersCount = updates.travelersCount;
+    if (updates.budgetTotal !== undefined) data.budgetTotal = updates.budgetTotal;
+    if (updates.budgetCurrency !== undefined) data.budgetCurrency = updates.budgetCurrency;
     if (updates.status !== undefined) data.status = updates.status;
     if (updates.visibility !== undefined) data.visibility = updates.visibility;
-    if (updates.coverImageUrl !== undefined) data.cover_image_url = updates.coverImageUrl;
+    if (updates.coverImageUrl !== undefined) data.coverImageUrl = updates.coverImageUrl;
 
-    data.updated_at = new Date();
-
-    const trip = await prisma.trip.update({
+    const trip = await prisma.trips.update({
       where: { id: tripId },
       data,
     });
@@ -241,7 +247,7 @@ export class TripRepository {
   async deleteTrip(tripId, userId) {
     await this.verifyTripOwnership(tripId, userId);
 
-    await prisma.trip.delete({
+    await prisma.trips.delete({
       where: { id: tripId },
     });
 
@@ -249,16 +255,16 @@ export class TripRepository {
   }
 
   async verifyTripOwnership(tripId, userId) {
-    const trip = await prisma.trip.findUnique({
+    const trip = await prisma.trips.findUnique({
       where: { id: tripId },
-      select: { owner_id: true },
+      select: { ownerId: true },
     });
 
     if (!trip) {
       throw AppError.notFound('Trip not found');
     }
 
-    if (trip.owner_id !== userId) {
+    if (trip.ownerId !== userId) {
       const isMember = await this.#checkMembership(tripId, userId);
       if (!isMember) {
         throw AppError.forbidden('You do not have permission to modify this trip');
@@ -272,9 +278,9 @@ export class TripRepository {
    * Verify user has read access to trip (owner or member or viewer)
    */
   async verifyTripAccess(tripId, userId) {
-    const trip = await prisma.trip.findUnique({
+    const trip = await prisma.trips.findUnique({
       where: { id: tripId },
-      select: { owner_id: true, visibility: true },
+      select: { ownerId: true, visibility: true },
     });
 
     if (!trip) {
@@ -287,7 +293,7 @@ export class TripRepository {
     }
 
     // Owner always has access
-    if (trip.owner_id === userId) {
+    if (trip.ownerId === userId) {
       return true;
     }
 
@@ -301,15 +307,15 @@ export class TripRepository {
   }
 
   async getTripMembers(tripId) {
-    return prisma.tripMember.findMany({
-      where: { trip_id: tripId },
+    return prisma.trip_members.findMany({
+      where: { tripId: tripId },
       include: {
-        user: {
+        User: {
           select: {
             id: true,
             name: true,
-            display_name: true,
-            avatar_url: true,
+            displayName: true,
+            avatarUrl: true,
             email: true,
           },
         },
@@ -318,11 +324,11 @@ export class TripRepository {
   }
 
   async #checkMembership(tripId, userId) {
-    const member = await prisma.tripMember.findUnique({
+    const member = await prisma.trip_members.findUnique({
       where: {
-        trip_id_user_id: {
-          trip_id: tripId,
-          user_id: userId,
+        tripId_userId: {
+          tripId: tripId,
+          userId: userId,
         },
       },
     });
@@ -332,11 +338,11 @@ export class TripRepository {
   async #invalidateCache(tripId, userId) {
     await cacheService.del(CACHE_KEYS.TRIP_DETAIL(tripId));
     await cacheService.del(CACHE_KEYS.TRIP_SUMMARY(tripId));
-    await cacheService.deletePattern(CACHE_KEYS.USER_TRIPS(userId));
+    await cacheService.delPattern(CACHE_KEYS.USER_TRIPS(userId));
   }
 
   async #invalidateUserCache(userId) {
-    await cacheService.deletePattern(CACHE_KEYS.USER_TRIPS(userId));
+    await cacheService.delPattern(CACHE_KEYS.USER_TRIPS(userId));
   }
 }
 

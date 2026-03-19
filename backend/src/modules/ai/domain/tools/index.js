@@ -3,10 +3,26 @@
  * Central export for all AI tool definitions
  */
 
-import { SEARCH_TOOLS, SEARCH_TOOL_NAMES, SEARCH_TOOL_HANDLERS } from './searchTools.js';
+import { SEARCH_TOOLS, SEARCH_TOOL_NAMES, SEARCH_TOOL_HANDLERS, GEMINI_GOOGLE_SEARCH_TOOL, TOOLS_REPLACED_BY_GEMINI_SEARCH } from './searchTools.js';
 import { PLANNING_TOOLS, PLANNING_TOOL_NAMES, PLANNING_TOOL_HANDLERS } from './planningTools.js';
 import { TRIP_MANAGEMENT_TOOLS, TRIP_MANAGEMENT_TOOL_NAMES, TRIP_MANAGEMENT_TOOL_HANDLERS } from './tripManagementTools.js';
 import { SOCIAL_MEDIA_TOOLS, SOCIAL_MEDIA_TOOL_NAMES, SOCIAL_MEDIA_TOOL_HANDLERS } from './socialMediaTools.js';
+
+/**
+ * Check if Gemini native Google Search is enabled
+ */
+export function isGeminiSearchEnabled() {
+  return process.env.GEMINI_SEARCH_ENABLED === 'true';
+}
+
+/**
+ * Apply Gemini Search transform to tools array.
+ * Gemini API không hỗ trợ google_search grounding + function calling
+ * trong cùng 1 request. Khi Gemini Search enabled, chỉ gửi google_search.
+ */
+export function applyGeminiSearchTools() {
+  return [GEMINI_GOOGLE_SEARCH_TOOL];
+}
 
 /**
  * All tool definitions combined
@@ -183,4 +199,6 @@ export default {
   getToolNamesByCategory,
   toolRequiresAuth,
   getAuthRequiredTools,
+  isGeminiSearchEnabled,
+  applyGeminiSearchTools,
 };

@@ -189,7 +189,7 @@ function scrapeWithPlaywright(url, extractors, timeoutMs = PLAYWRIGHT_TIMEOUT_MS
       maxConcurrency: 1,
       maxRequestRetries: 2,
       requestHandlerTimeoutSecs: PLAYWRIGHT_HANDLER_SECS,
-      navigationTimeoutSecs: 15,
+      navigationTimeoutSecs: 20,
       headless: true,
       useSessionPool: false,
       browserPoolOptions: {

@@ -6,30 +6,45 @@
 import prisma from '../../../../config/database.js';
 import cacheService from '../../../../shared/services/CacheService.js';
 
+/**
+ * Convert time string "HH:MM" or "HH:MM:SS" to a Date object for Prisma @db.Time fields.
+ */
+function parseTime(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(String(value))) {
+    return new Date(`1970-01-01T${value}:00.000Z`);
+  }
+  const parsed = new Date(value);
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
+
 export class ActivityRepository {
   async create(activityData) {
     const data = {
-      itinerary_day_id: activityData.itineraryDayId,
+      itineraryDayId: activityData.itineraryDayId,
       name: activityData.name,
       type: activityData.type || 'OTHER',
       description: activityData.description,
-      start_time: activityData.startTime,
-      end_time: activityData.endTime,
+      startTime: parseTime(activityData.startTime),
+      endTime: parseTime(activityData.endTime),
       duration: activityData.duration,
-      place_id: activityData.placeId,
-      place_name: activityData.placeName,
-      custom_address: activityData.customAddress,
+      placeId: activityData.placeId,
+      customAddress: activityData.customAddress,
       latitude: activityData.latitude,
       longitude: activityData.longitude,
-      estimated_cost: activityData.estimatedCost,
-      actual_cost: activityData.actualCost,
+      estimatedCost: activityData.estimatedCost,
+      currency: activityData.currency || 'VND',
+      bookingUrl: activityData.bookingUrl || null,
+      bookingConfirmation: activityData.bookingConfirmation || null,
       notes: activityData.notes,
-      order_index: activityData.orderIndex || 0,
-      transport_from_previous: activityData.transportFromPrevious || null, // Phase 1
-      created_by_id: activityData.createdById,
+      orderIndex: activityData.orderIndex || 0,
+      transportFromPrevious: activityData.transportFromPrevious || null,
+      createdById: activityData.createdById,
+      imageAssetId: activityData.imageAssetId || null,
     };
 
-    const activity = await prisma.activity.create({
+    const activity = await prisma.activities.create({
       data,
     });
 
@@ -43,57 +58,58 @@ export class ActivityRepository {
     if (updates.name !== undefined) data.name = updates.name;
     if (updates.type !== undefined) data.type = updates.type;
     if (updates.description !== undefined) data.description = updates.description;
-    if (updates.startTime !== undefined) data.start_time = updates.startTime;
-    if (updates.endTime !== undefined) data.end_time = updates.endTime;
+    if (updates.startTime !== undefined) data.startTime = parseTime(updates.startTime);
+    if (updates.endTime !== undefined) data.endTime = parseTime(updates.endTime);
     if (updates.duration !== undefined) data.duration = updates.duration;
-    if (updates.placeId !== undefined) data.place_id = updates.placeId;
-    if (updates.placeName !== undefined) data.place_name = updates.placeName;
-    if (updates.customAddress !== undefined) data.custom_address = updates.customAddress;
+    if (updates.placeId !== undefined) data.placeId = updates.placeId;
+    if (updates.customAddress !== undefined) data.customAddress = updates.customAddress;
     if (updates.latitude !== undefined) data.latitude = updates.latitude;
     if (updates.longitude !== undefined) data.longitude = updates.longitude;
-    if (updates.estimatedCost !== undefined) data.estimated_cost = updates.estimatedCost;
-    if (updates.actualCost !== undefined) data.actual_cost = updates.actualCost;
+    if (updates.estimatedCost !== undefined) data.estimatedCost = updates.estimatedCost;
+    if (updates.currency !== undefined) data.currency = updates.currency;
+    if (updates.bookingUrl !== undefined) data.bookingUrl = updates.bookingUrl;
+    if (updates.bookingConfirmation !== undefined) data.bookingConfirmation = updates.bookingConfirmation;
     if (updates.notes !== undefined) data.notes = updates.notes;
-    if (updates.orderIndex !== undefined) data.order_index = updates.orderIndex;
+    if (updates.orderIndex !== undefined) data.orderIndex = updates.orderIndex;
+    if (updates.transportFromPrevious !== undefined) data.transportFromPrevious = updates.transportFromPrevious;
+    if (updates.imageAssetId !== undefined) data.imageAssetId = updates.imageAssetId;
 
-    data.updated_at = new Date();
-
-    const activity = await prisma.activity.update({
+    const activity = await prisma.activities.update({
       where: { id: activityId },
       data,
     });
 
-    await this.#invalidateCache(activity.itinerary_day_id);
+    await this.#invalidateCache(activity.itineraryDayId);
 
     return activity;
   }
 
   async delete(activityId) {
-    const activity = await prisma.activity.findUnique({
+    const activity = await prisma.activities.findUnique({
       where: { id: activityId },
-      select: { itinerary_day_id: true },
+      select: { itineraryDayId: true },
     });
 
-    await prisma.activity.delete({
+    await prisma.activities.delete({
       where: { id: activityId },
     });
 
     if (activity) {
-      await this.#invalidateCache(activity.itinerary_day_id);
+      await this.#invalidateCache(activity.itineraryDayId);
     }
   }
 
   async deleteMany(activityIds) {
-    const activities = await prisma.activity.findMany({
+    const activities = await prisma.activities.findMany({
       where: { id: { in: activityIds } },
-      select: { itinerary_day_id: true },
+      select: { itineraryDayId: true },
     });
 
-    await prisma.activity.deleteMany({
+    await prisma.activities.deleteMany({
       where: { id: { in: activityIds } },
     });
 
-    const dayIds = [...new Set(activities.map(a => a.itinerary_day_id))];
+    const dayIds = [...new Set(activities.map(a => a.itineraryDayId))];
     for (const dayId of dayIds) {
       await this.#invalidateCache(dayId);
     }
@@ -101,9 +117,9 @@ export class ActivityRepository {
 
   async reorder(dayId, activityIds) {
     const updates = activityIds.map((activityId, index) =>
-      prisma.activity.update({
+      prisma.activities.update({
         where: { id: activityId },
-        data: { order_index: index },
+        data: { orderIndex: index },
       })
     );
 
@@ -112,23 +128,23 @@ export class ActivityRepository {
   }
 
   async getByDay(dayId) {
-    return prisma.activity.findMany({
-      where: { itinerary_day_id: dayId },
-      orderBy: { order_index: 'asc' },
+    return prisma.activities.findMany({
+      where: { itineraryDayId: dayId },
+      orderBy: { orderIndex: 'asc' },
     });
   }
 
   async searchByPlace(placeId) {
-    return prisma.activity.findMany({
-      where: { place_id: placeId },
+    return prisma.activities.findMany({
+      where: { placeId: placeId },
       include: {
-        itinerary_day: {
+        itinerary_days: {
           include: {
-            trip: {
+            trips: {
               select: {
                 id: true,
                 title: true,
-                owner_id: true,
+                ownerId: true,
               },
             },
           },
@@ -138,20 +154,20 @@ export class ActivityRepository {
   }
 
   async getById(activityId) {
-    return prisma.activity.findUnique({
+    return prisma.activities.findUnique({
       where: { id: activityId },
     });
   }
 
   async #invalidateCache(dayId) {
-    const day = await prisma.itineraryDay.findUnique({
+    const day = await prisma.itinerary_days.findUnique({
       where: { id: dayId },
-      select: { trip_id: true },
+      select: { tripId: true },
     });
 
     if (day) {
-      await cacheService.del(`trip:${day.trip_id}:days`);
-      await cacheService.del(`trip:detail:${day.trip_id}`);
+      await cacheService.del(`trip:${day.tripId}:days`);
+      await cacheService.del(`trip:detail:${day.tripId}`);
     }
   }
 }

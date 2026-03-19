@@ -155,29 +155,30 @@ class TripService {
     const typeMapping = {
       sightseeing: 'ATTRACTION',
       attraction: 'ATTRACTION',
-      dining: 'DINING',
-      restaurant: 'DINING',
-      food: 'DINING',
-      meal: 'DINING',
-      cafe: 'DINING',
-      coffee: 'DINING',
-      accommodation: 'ACCOMMODATION',
-      hotel: 'ACCOMMODATION',
-      lodging: 'ACCOMMODATION',
-      transport: 'TRANSPORTATION',
-      transportation: 'TRANSPORTATION',
-      travel: 'TRANSPORTATION',
+      dining: 'RESTAURANT',
+      restaurant: 'RESTAURANT',
+      food: 'RESTAURANT',
+      meal: 'RESTAURANT',
+      cafe: 'RESTAURANT',
+      coffee: 'RESTAURANT',
+      accommodation: 'HOTEL',
+      hotel: 'HOTEL',
+      lodging: 'HOTEL',
+      transport: 'TRANSPORT',
+      transportation: 'TRANSPORT',
+      travel: 'TRANSPORT',
       activity: 'ACTIVITY',
       adventure: 'ACTIVITY',
       entertainment: 'ACTIVITY',
-      shopping: 'SHOPPING',
-      market: 'SHOPPING',
-      store: 'SHOPPING',
-      other: 'OTHER',
+      shopping: 'ACTIVITY',
+      market: 'ACTIVITY',
+      store: 'ACTIVITY',
+      flight: 'FLIGHT',
+      other: 'CUSTOM',
     };
 
-    const normalizedType = aiType?.toLowerCase() || 'other';
-    return typeMapping[normalizedType] || 'OTHER';
+    const normalizedType = aiType?.toLowerCase() || 'custom';
+    return typeMapping[normalizedType] || 'CUSTOM';
   }
 
   extractPlaceData(aiActivity) {

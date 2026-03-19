@@ -19,15 +19,15 @@ import { logger } from '../../../../shared/services/LoggerService.js';
 crawleeLog.setLevel(crawleeLog.LEVELS.ERROR);
 Configuration.getGlobalConfig().set('persistStorage', false);
 
-const CRAWL_TIMEOUT_MS = 25000;       // 25s max for entire crawl
-const HANDLER_TIMEOUT_SECS = 20;
+const CRAWL_TIMEOUT_MS = 45000;       // 45s max for entire crawl
+const HANDLER_TIMEOUT_SECS = 35;
 const SCROLL_PAUSE_MS = 1500;
 const MAX_SCROLLS = 3;
 
 const DETAIL_TIMEOUT_MS = 8000;        // 8s per detail page
-const DETAIL_TOTAL_TIMEOUT_MS = 80000; // 80s total for all detail pages
-const MAX_DETAIL_PLACES = 10;          // Only top 10 places
-const DETAIL_PAGE_WAIT_MS = 3000;      // Wait for JS rendering
+const DETAIL_TOTAL_TIMEOUT_MS = 40000; // 40s total for all detail pages
+const MAX_DETAIL_PLACES = 5;           // Only top 5 places (was 10)
+const DETAIL_PAGE_WAIT_MS = 2500;      // Wait for JS rendering
 
 const REALISTIC_USER_AGENT =
   'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
@@ -93,23 +93,177 @@ function mapType(categoryText) {
   return 'ATTRACTION';
 }
 
+// ─── JSON Network Extractor ───────────────────────────────────────────
+
+function extractPlacesFromNetworkData(rawBatches) {
+  const places = [];
+  const seen = new Set();
+  const categoryPatterns = [
+    'Nhà hàng', 'Quán ăn', 'Quán cà phê', 'Quán cafe', 'Quán bar',
+    'Khách sạn', 'Nhà nghỉ', 'Resort', 'Homestay',
+    'Bảo tàng', 'Công viên', 'Chùa', 'Đền', 'Nhà thờ',
+    'Chợ', 'Trung tâm mua sắm', 'Spa',
+    'Restaurant', 'Cafe', 'Hotel', 'Museum', 'Park', 'Market'
+  ];
+
+  function walk(node, currentPlace = {}) {
+    if (!node) return;
+
+    if (Array.isArray(node)) {
+      let currentURL = currentPlace.url;
+      let hasNewURL = false;
+      const urlIndex = node.findIndex(item => typeof item === 'string' && item.startsWith('https://www.google.com/maps/place/'));
+      if (urlIndex !== -1) {
+        currentURL = node[urlIndex];
+        hasNewURL = true;
+      }
+
+      if (hasNewURL && node.length > 5) {
+        const nameMatch = currentURL.match(/place\/([^/]+)\/@/);
+        if (nameMatch) {
+          const baseName = decodeURIComponent(nameMatch[1].replace(/\+/g, ' '));
+
+          if (!seen.has(baseName)) {
+            let rating = null, ratingCount = null, lat = null, lng = null, phone = null, address = null, photoUrl = null, category = null;
+            const flatStrings = [];
+
+            function getPrimitives(n) {
+              if (Array.isArray(n)) n.forEach(getPrimitives);
+              else if (typeof n === 'string') {
+                flatStrings.push(n);
+              } else if (typeof n === 'number') {
+                if (n > 0 && n <= 5 && !Number.isInteger(n)) if (!rating) rating = parseFloat(n.toFixed(1));
+                if (Number.isInteger(n) && n > 10) if (!ratingCount) ratingCount = n;
+              }
+            }
+            getPrimitives(node);
+
+            const urlCoord = currentURL.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+            if (urlCoord) {
+              lat = parseFloat(urlCoord[1]);
+              lng = parseFloat(urlCoord[2]);
+            }
+
+            for (const str of flatStrings) {
+              if (str.match(/(?:\+84|0)\d[\d\s.-]{7,}/) && str.length < 20) {
+                if (!phone) phone = str.replace(/[\s.-]/g, '');
+              }
+              if (str.length > 15 && str.length < 150 && (str.includes('P.') || str.includes('Phường') || str.includes('Đường') || str.includes('Quận') || str.includes('TP'))) {
+                if (!address) address = str;
+              }
+              if (str.startsWith('https://lh5.googleusercontent') || str.includes('ggpht.com')) {
+                if (!photoUrl && !str.includes('icon') && !str.includes('branding')) {
+                  photoUrl = str.replace(/=w\d+-h\d+/, '=w400-h300');
+                }
+              }
+              if (!category && str.length < 30) {
+                for (const cat of categoryPatterns) {
+                  if (str.toLowerCase().includes(cat.toLowerCase())) {
+                    category = cat; break;
+                  }
+                }
+              }
+            }
+
+            places.push({
+              name: baseName,
+              googleMapsUrl: currentURL,
+              rating,
+              ratingCount,
+              latitude: lat,
+              longitude: lng,
+              phone,
+              address,
+              photoUrl,
+              category,
+              source: 'google_maps_network'
+            });
+            seen.add(baseName);
+          }
+        }
+      }
+      node.forEach(child => walk(child, { url: currentURL }));
+    } else if (typeof node === 'object') {
+      Object.values(node).forEach(child => walk(child, currentPlace));
+    }
+  }
+
+  for (const block of rawBatches) {
+    if (!block) continue;
+    try {
+      walk(JSON.parse(block));
+    } catch (e) {
+      try {
+        const cleaned = block.replace(/^\/\*""\*\/\s*/, '');
+        const obj = JSON.parse(cleaned);
+        if (obj.d) {
+          try { walk(JSON.parse(obj.d)); } catch (e3) { walk(obj); }
+        } else {
+          walk(obj);
+        }
+      } catch (e2) { /* ignore */ }
+    }
+  }
+  return places;
+}
+
 // ─── Standalone request handler (avoids `this` context issues) ─────────
 
 async function handleGoogleMapsRequest({ page, request }, resolveResult) {
-  // 1. Handle Google consent popup
+  // 1. Handle Google consent / cookie popup (many variants)
   try {
-    const consentBtn = page.locator('button:has-text("Accept all"), button:has-text("Chấp nhận tất cả"), form[action*="consent"] button');
-    const visible = await consentBtn.first().isVisible({ timeout: 3000 }).catch(() => false);
-    if (visible) {
-      await consentBtn.first().click();
-      await page.waitForTimeout(1500);
-      logger.info('[GoogleMaps] Dismissed consent popup');
+    const consentSelectors = [
+      'button:has-text("Accept all")',
+      'button:has-text("Chấp nhận tất cả")',
+      'button:has-text("Đồng ý")',
+      'button:has-text("I agree")',
+      'form[action*="consent"] button',
+      'button[aria-label*="Accept"]',
+      'button[aria-label*="Consent"]',
+      '[role="dialog"] button:first-of-type',
+    ];
+    for (const sel of consentSelectors) {
+      try {
+        const btn = page.locator(sel).first();
+        const visible = await btn.isVisible({ timeout: 2000 }).catch(() => false);
+        if (visible) {
+          await btn.click();
+          await page.waitForTimeout(1500);
+          logger.info('[GoogleMaps] Dismissed consent popup');
+          break;
+        }
+      } catch {
+        // Try next selector
+      }
     }
   } catch {
     // No consent popup — continue
   }
 
-  // 2. Wait for the feed container to load
+  // 2. Extract Data via Network Intercept / APP_INITIALIZATION_STATE
+  const networkData = request.userData?.rawJsonBatches || [];
+
+  const appStateStr = await page.evaluate(() => {
+    const s = Array.from(document.querySelectorAll('script')).find(s => s.textContent.includes('window.APP_INITIALIZATION_STATE'));
+    if (s) {
+      const match = s.textContent.match(/window\.APP_INITIALIZATION_STATE\s*=\s*(\[.*\]);/);
+      return match ? match[1] : null;
+    }
+    return null;
+  }).catch(() => null);
+
+  if (appStateStr) networkData.push(appStateStr);
+
+  const networkPlaces = extractPlacesFromNetworkData(networkData);
+  if (networkPlaces.length >= 5) {
+    logger.info(`[GoogleMaps] Extracted ${networkPlaces.length} places instantly via Network Intercept JSON parsing (Fast path)`);
+    resolveResult(networkPlaces);
+    return;
+  }
+
+  logger.info('[GoogleMaps] Network intercept yielded few results, falling back to DOM parsing');
+
+  // 3. Fallback to DOM: Wait for the feed container to load
   try {
     await page.waitForSelector('[role="feed"], div[aria-label*="Results"]', { timeout: 8000 });
   } catch {
@@ -118,7 +272,7 @@ async function handleGoogleMapsRequest({ page, request }, resolveResult) {
 
   await page.waitForTimeout(2000);
 
-  // 3. Scroll feed to load more results
+  // 4. Scroll feed to load more results
   const feedSelector = '[role="feed"]';
   for (let i = 0; i < MAX_SCROLLS; i++) {
     try {
@@ -171,7 +325,7 @@ async function handleGoogleMapsRequest({ page, request }, resolveResult) {
       let latitude = null;
       let longitude = null;
       const coordMatch = href.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) ||
-                          href.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+        href.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
       if (coordMatch) {
         latitude = parseFloat(coordMatch[1]);
         longitude = parseFloat(coordMatch[2]);
@@ -258,9 +412,9 @@ async function handleGoogleMapsRequest({ page, request }, resolveResult) {
         ].filter(Boolean);
         for (const src of candidates) {
           if (src.length > 30 &&
-              (src.includes('googleusercontent.com') || src.includes('ggpht.com') ||
-               (src.includes('googleapis.com') && src.includes('photo'))) &&
-              !src.includes('branding') && !src.includes('icon')) {
+            (src.includes('googleusercontent.com') || src.includes('ggpht.com') ||
+              (src.includes('googleapis.com') && src.includes('photo'))) &&
+            !src.includes('branding') && !src.includes('icon')) {
             // Upgrade thumbnail to higher resolution: change =w80-h106 → =w400-h300
             photoUrl = src.replace(/=w\d+-h\d+/, '=w400-h300');
             break;
@@ -275,7 +429,7 @@ async function handleGoogleMapsRequest({ page, request }, resolveResult) {
           const style = el.getAttribute('style') || '';
           const bgMatch = style.match(/background-image:\s*url\(["']?([^"')]+)["']?\)/);
           if (bgMatch && bgMatch[1].length > 30 &&
-              (bgMatch[1].includes('googleusercontent') || bgMatch[1].includes('ggpht'))) {
+            (bgMatch[1].includes('googleusercontent') || bgMatch[1].includes('ggpht'))) {
             photoUrl = bgMatch[1].replace(/=w\d+-h\d+/, '=w400-h300');
             break;
           }
@@ -305,10 +459,10 @@ async function handleGoogleMapsRequest({ page, request }, resolveResult) {
         const text = span.textContent?.trim() || '';
         // Description is typically 15-100 chars, not a category, not hours, not address
         if (text.length >= 15 && text.length <= 150 &&
-            !text.match(/^[\d.,]+$/) &&
-            !text.match(/(?:mở cửa|đóng cửa|open|closed)/i) &&
-            !text.match(/^\d+\s+(?:P\.|Đ\.|Đường|Phố)/) &&
-            !text.match(/^(?:Nhà hàng|Quán|Khách sạn|Bảo tàng|Công viên|Điểm thu hút)/i)) {
+          !text.match(/^[\d.,]+$/) &&
+          !text.match(/(?:mở cửa|đóng cửa|open|closed)/i) &&
+          !text.match(/^\d+\s+(?:P\.|Đ\.|Đường|Phố)/) &&
+          !text.match(/^(?:Nhà hàng|Quán|Khách sạn|Bảo tàng|Công viên|Điểm thu hút)/i)) {
           description = text;
           break;
         }
@@ -513,11 +667,41 @@ class GoogleMapsProvider {
     logger.info(`[GoogleMaps] URL: ${url}`);
 
     let places = [];
+    let lastError = null;
 
-    try {
-      places = await this._crawl(url);
-    } catch (error) {
-      logger.warn(`[GoogleMaps] Crawl failed: ${error.message}`);
+    // Retry once on failure
+    for (let attempt = 0; attempt <= 1; attempt++) {
+      try {
+        places = await this._crawl(url);
+        lastError = null;
+        break;
+      } catch (error) {
+        lastError = error;
+        if (attempt === 0) {
+          logger.warn(`[GoogleMaps] Crawl failed (attempt 1): ${error.message}, retrying...`);
+        } else {
+          logger.warn(`[GoogleMaps] Crawl failed (attempt 2): ${error.message}`);
+        }
+      }
+    }
+
+    if (lastError && places.length === 0) {
+      // If structured crawl failed, try full page text as fallback
+      try {
+        logger.info(`[GoogleMaps] Trying full page text fallback...`);
+        const pageData = await this.crawlFullPageText(url);
+        if (pageData?.fullText) {
+          return {
+            source: 'google_maps_fulltext',
+            places: [],
+            fullPageText: pageData.fullText,
+            url,
+            note: 'Structured extraction failed. Raw page text provided for AI analysis.',
+          };
+        }
+      } catch (fallbackError) {
+        logger.warn(`[GoogleMaps] Full page fallback also failed: ${fallbackError.message}`);
+      }
       return { source: 'google_maps', places: [] };
     }
 
@@ -563,11 +747,14 @@ class GoogleMapsProvider {
   }
 
   /**
-   * Crawl Google Maps search results page
+   * Crawl a Google Maps page and return the full page text content.
+   * Used as a fallback when structured extraction fails, allowing AI to parse the raw text.
+   * @param {string} url - Google Maps search URL
+   * @returns {{ fullText: string, url: string }}
    */
-  _crawl(url) {
+  crawlFullPageText(url) {
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('Google Maps crawl timeout')), CRAWL_TIMEOUT_MS);
+      const timer = setTimeout(() => reject(new Error('Google Maps full page crawl timeout')), CRAWL_TIMEOUT_MS);
       let settled = false;
       const settle = (fn, val) => {
         if (settled) return;
@@ -576,13 +763,11 @@ class GoogleMapsProvider {
         fn(val);
       };
 
-      const resolveResult = (places) => settle(resolve, places);
-
       const crawler = new PlaywrightCrawler({
         maxConcurrency: 1,
         maxRequestRetries: 1,
         requestHandlerTimeoutSecs: HANDLER_TIMEOUT_SECS,
-        navigationTimeoutSecs: 15,
+        navigationTimeoutSecs: 30,
         headless: true,
         useSessionPool: false,
         browserPoolOptions: {
@@ -617,8 +802,126 @@ class GoogleMapsProvider {
               Object.defineProperty(navigator, 'webdriver', { get: () => false });
             });
 
+            // Block heavy resources but keep images for context
+            await page.route('**/*.{woff,woff2,ttf,eot,mp4,webm}', route => route.abort());
+          },
+        ],
+
+        async requestHandler({ page }) {
+          // Wait for page to render
+          await page.waitForTimeout(5000);
+
+          // Scroll to load more content
+          for (let i = 0; i < MAX_SCROLLS; i++) {
+            try {
+              await page.evaluate(() => {
+                const feed = document.querySelector('[role="feed"]');
+                if (feed) feed.scrollTop = feed.scrollHeight;
+                else window.scrollTo(0, document.body.scrollHeight);
+              });
+              await page.waitForTimeout(SCROLL_PAUSE_MS);
+            } catch {
+              break;
+            }
+          }
+
+          // Extract full page text
+          const fullText = await page.evaluate(() => {
+            // Try to get text from the main content area first
+            const feed = document.querySelector('[role="feed"]');
+            if (feed) {
+              return feed.innerText?.substring(0, 15000) || '';
+            }
+            // Fallback: get body text
+            return document.body.innerText?.substring(0, 15000) || '';
+          });
+
+          settle(resolve, { fullText, url });
+        },
+
+        async failedRequestHandler(_, error) {
+          settle(reject, new Error(`Google Maps full page crawl failed: ${error?.message || 'blocked'}`));
+        },
+      });
+
+      crawler.run([url]).catch(err => settle(reject, err));
+    });
+  }
+
+  /**
+   * Crawl Google Maps search results page
+   */
+  _crawl(url) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Google Maps crawl timeout')), CRAWL_TIMEOUT_MS);
+      let settled = false;
+      const settle = (fn, val) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        fn(val);
+      };
+
+      const resolveResult = (places) => settle(resolve, places);
+
+      const crawler = new PlaywrightCrawler({
+        maxConcurrency: 1,
+        maxRequestRetries: 1,
+        requestHandlerTimeoutSecs: HANDLER_TIMEOUT_SECS,
+        navigationTimeoutSecs: 30,
+        headless: true,
+        useSessionPool: false,
+        browserPoolOptions: {
+          useFingerprints: true,
+        },
+        launchContext: {
+          launchOptions: {
+            args: [
+              '--no-sandbox',
+              '--disable-setuid-sandbox',
+              '--disable-gpu',
+              '--disable-blink-features=AutomationControlled',
+              '--disable-dev-shm-usage',
+            ],
+          },
+        },
+
+        preNavigationHooks: [
+          async ({ page, request }) => {
+            await page.setExtraHTTPHeaders({
+              'User-Agent': REALISTIC_USER_AGENT,
+              'Accept-Language': 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+              'Sec-Fetch-Dest': 'document',
+              'Sec-Fetch-Mode': 'navigate',
+              'Sec-Fetch-Site': 'none',
+              'Sec-Fetch-User': '?1',
+              'Upgrade-Insecure-Requests': '1',
+            });
+
+            await page.addInitScript(() => {
+              Object.defineProperty(navigator, 'webdriver', { get: () => false });
+            });
+
             // Block heavy resources
             await page.route('**/*.{png,jpg,jpeg,gif,svg,webp,woff,woff2,ttf,eot,mp4,webm}', route => route.abort());
+
+            // --- NEW: Network Interception ---
+            request.userData = request.userData || {};
+            request.userData.rawJsonBatches = [];
+            page.on('response', async (res) => {
+              if (res.url().includes('/search?') || res.url().includes('batchexecute')) {
+                try {
+                  const text = await res.text();
+                  if (text && text.length > 50) {
+                    request.userData.rawJsonBatches.push(text);
+                  }
+                } catch (e) { /* ignore text error */ }
+              }
+            });
+
+            // Use domcontentloaded instead of load — Google Maps is SPA, full load waits for all XHRs
+            request.skipNavigation = false;
           },
         ],
 

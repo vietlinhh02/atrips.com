@@ -256,19 +256,19 @@ export class Trip {
   static fromPersistence(data) {
     return new Trip({
       id: data.id,
-      ownerId: data.owner_id,
+      ownerId: data.ownerId,
       title: data.title,
       description: data.description,
-      startDate: data.start_date,
-      endDate: data.end_date,
-      travelersCount: data.travelers_count,
-      budgetTotal: data.budget_total,
-      budgetCurrency: data.budget_currency,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      travelersCount: data.travelersCount,
+      budgetTotal: data.budgetTotal,
+      budgetCurrency: data.budgetCurrency,
       status: data.status,
       visibility: data.visibility,
-      coverImageUrl: data.cover_image_url,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
+      coverImageUrl: data.coverImageUrl,
+      createdAt: data.createdAt,
+      updatedAt: data.updatedAt,
     });
   }
 

@@ -183,36 +183,16 @@ async function getAirportCode(location, token) {
 
 function searchFlightsFallback(origin, destination, departureDate, returnDate, passengers) {
   return {
+    success: false,
     source: 'fallback',
     origin,
     destination,
     departureDate,
     returnDate,
     passengers,
-    flights: [
-      {
-        airline: 'Vietnam Airlines',
-        flightNumber: 'VN***',
-        price: 1500000,
-        currency: 'VND',
-        note: 'Giá tham khảo',
-      },
-      {
-        airline: 'VietJet Air',
-        flightNumber: 'VJ***',
-        price: 1200000,
-        currency: 'VND',
-        note: 'Giá tham khảo',
-      },
-      {
-        airline: 'Bamboo Airways',
-        flightNumber: 'QH***',
-        price: 1350000,
-        currency: 'VND',
-        note: 'Giá tham khảo',
-      },
-    ],
-    note: 'Dữ liệu tham khảo - Vui lòng cấu hình AMADEUS_CLIENT_ID và AMADEUS_CLIENT_SECRET để có kết quả chính xác',
+    flights: [],
+    error: 'Chưa cấu hình API tìm vé máy bay (Amadeus) hoặc không tìm thấy chuyến bay cho ngày này. Vui lòng thử ngày khác.',
+    note: 'DO NOT hallucinate flight data. Inform the user flights are not available.',
   };
 }
 
@@ -321,42 +301,17 @@ async function searchRapidAPIHotels(location, checkIn, checkOut, guests, budget)
 }
 
 function searchHotelsFallback(location, checkIn, checkOut, guests, budget) {
-  const priceMultiplier = budget === 'luxury' ? 3 : budget === 'mid-range' ? 1.5 : 1;
-
   return {
+    success: false,
     source: 'fallback',
     location,
     checkIn,
     checkOut,
     guests,
     budget: budget || 'all',
-    hotels: [
-      {
-        name: `Grand Hotel ${location}`,
-        rating: 4.5,
-        pricePerNight: Math.round(1500000 * priceMultiplier),
-        currency: 'VND',
-        amenities: ['WiFi', 'Hồ bơi', 'Gym', 'Spa'],
-        note: 'Giá tham khảo',
-      },
-      {
-        name: `Boutique Hotel ${location}`,
-        rating: 4.2,
-        pricePerNight: Math.round(1000000 * priceMultiplier),
-        currency: 'VND',
-        amenities: ['WiFi', 'Ăn sáng', 'Giặt ủi'],
-        note: 'Giá tham khảo',
-      },
-      {
-        name: `Cozy Homestay ${location}`,
-        rating: 4.7,
-        pricePerNight: Math.round(500000 * priceMultiplier),
-        currency: 'VND',
-        amenities: ['WiFi', 'Bếp', 'View đẹp'],
-        note: 'Giá tham khảo',
-      },
-    ],
-    note: 'Dữ liệu tham khảo - Vui lòng cấu hình RAPIDAPI_KEY để có kết quả từ Booking.com',
+    hotels: [],
+    error: `Không tìm thấy khách sạn tại ${location} cho ngày này. Có thể do chưa cấu hình RapidAPI Key hoặc nền tảng Booking đang lỗi.`,
+    note: 'DO NOT hallucinate hotel data. Ask the user if they want to choose a different location or check accommodations manually.',
   };
 }
 
@@ -493,17 +448,12 @@ function mapCategoryToTicketmaster(category) {
 
 function getEventsFallback(location, dateFrom, dateTo, category) {
   return {
+    success: false,
     source: 'fallback',
     location,
     dateRange: { from: dateFrom, to: dateTo },
-    events: [
-      {
-        title: `Sự kiện tại ${location}`,
-        description: 'Thông tin sự kiện đang được cập nhật',
-        category: category || 'general',
-        note: 'Dữ liệu tham khảo',
-      },
-    ],
-    note: 'Vui lòng cấu hình TICKETMASTER_API_KEY để có thông tin sự kiện chính xác',
+    events: [],
+    error: `Không tìm thấy sự kiện nào tại ${location}. Vui lòng cấu hình Ticketmaster API để có thông tin sự kiện.`,
+    note: 'DO NOT hallucinate events. Inform the user no events were found.',
   };
 }

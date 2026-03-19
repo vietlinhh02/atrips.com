@@ -12,13 +12,15 @@ const CACHE_KEYS = {
 
 export class ItineraryDayRepository {
   async createDay(tripId, dayData) {
-    const day = await prisma.itineraryDay.create({
+    const day = await prisma.itinerary_days.create({
       data: {
-        trip_id: tripId,
+        tripId: tripId,
         date: new Date(dayData.date),
-        day_number: dayData.dayNumber,
-        title: dayData.title,
+        dayNumber: dayData.dayNumber,
         notes: dayData.notes,
+        cityName: dayData.cityName || null,
+        weatherData: dayData.weatherData || null,
+        metadata: dayData.metadata || null,
       },
     });
 
@@ -29,13 +31,15 @@ export class ItineraryDayRepository {
   }
 
   async createDays(tripId, daysData) {
-    const days = await prisma.itineraryDay.createMany({
+    const days = await prisma.itinerary_days.createMany({
       data: daysData.map(dayData => ({
-        trip_id: tripId,
+        tripId: tripId,
         date: new Date(dayData.date),
-        day_number: dayData.dayNumber,
-        title: dayData.title,
+        dayNumber: dayData.dayNumber,
         notes: dayData.notes,
+        cityName: dayData.cityName || null,
+        weatherData: dayData.weatherData || null,
+        metadata: dayData.metadata || null,
       })),
     });
 
@@ -52,12 +56,12 @@ export class ItineraryDayRepository {
       return cached;
     }
 
-    const days = await prisma.itineraryDay.findMany({
-      where: { trip_id: tripId },
+    const days = await prisma.itinerary_days.findMany({
+      where: { tripId: tripId },
       orderBy: { date: 'asc' },
       include: {
         activities: {
-          orderBy: { order_index: 'asc' },
+          orderBy: { orderIndex: 'asc' },
         },
       },
     });
@@ -69,52 +73,52 @@ export class ItineraryDayRepository {
   async updateDay(dayId, updates) {
     const data = {};
     if (updates.date !== undefined) data.date = new Date(updates.date);
-    if (updates.dayNumber !== undefined) data.day_number = updates.dayNumber;
-    if (updates.title !== undefined) data.title = updates.title;
+    if (updates.dayNumber !== undefined) data.dayNumber = updates.dayNumber;
     if (updates.notes !== undefined) data.notes = updates.notes;
+    if (updates.cityName !== undefined) data.cityName = updates.cityName;
+    if (updates.weatherData !== undefined) data.weatherData = updates.weatherData;
+    if (updates.metadata !== undefined) data.metadata = updates.metadata;
 
-    data.updated_at = new Date();
-
-    const day = await prisma.itineraryDay.update({
+    const day = await prisma.itinerary_days.update({
       where: { id: dayId },
       data,
     });
 
-    const tripDay = await prisma.itineraryDay.findUnique({
+    const tripDay = await prisma.itinerary_days.findUnique({
       where: { id: dayId },
-      select: { trip_id: true },
+      select: { tripId: true },
     });
 
     if (tripDay) {
-      await cacheService.del(CACHE_KEYS.TRIP_DAYS(tripDay.trip_id));
-      await cacheService.del(`trip:detail:${tripDay.trip_id}`);
+      await cacheService.del(CACHE_KEYS.TRIP_DAYS(tripDay.tripId));
+      await cacheService.del(`trip:detail:${tripDay.tripId}`);
     }
 
     return day;
   }
 
   async deleteDay(dayId) {
-    const day = await prisma.itineraryDay.findUnique({
+    const day = await prisma.itinerary_days.findUnique({
       where: { id: dayId },
-      select: { trip_id: true },
+      select: { tripId: true },
     });
 
-    await prisma.itineraryDay.delete({
+    await prisma.itinerary_days.delete({
       where: { id: dayId },
     });
 
     if (day) {
-      await cacheService.del(CACHE_KEYS.TRIP_DAYS(day.trip_id));
-      await cacheService.del(`trip:detail:${day.trip_id}`);
+      await cacheService.del(CACHE_KEYS.TRIP_DAYS(day.tripId));
+      await cacheService.del(`trip:detail:${day.tripId}`);
     }
   }
 
   async getDayById(dayId) {
-    return prisma.itineraryDay.findUnique({
+    return prisma.itinerary_days.findUnique({
       where: { id: dayId },
       include: {
         activities: {
-          orderBy: { order_index: 'asc' },
+          orderBy: { orderIndex: 'asc' },
         },
       },
     });

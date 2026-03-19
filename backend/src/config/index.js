@@ -76,6 +76,15 @@ export const config = {
     emailVerificationRequired: process.env.EMAIL_VERIFICATION_REQUIRED === 'true',
   },
 
+  // Cloudflare R2 Storage
+  r2: {
+    accountId: process.env.R2_ACCOUNT_ID,
+    accessKeyId: process.env.R2_ACCESS_KEY_ID,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+    bucketName: process.env.R2_BUCKET_NAME || 'atrips-images',
+    publicUrl: process.env.R2_PUBLIC_URL,
+  },
+
   // Map services
   mapbox: {
     accessToken: process.env.MAPBOX_ACCESS_TOKEN,

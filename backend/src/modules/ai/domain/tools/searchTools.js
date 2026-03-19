@@ -27,7 +27,7 @@ export const SEARCH_TOOLS = [
     type: 'function',
     function: {
       name: 'web_search',
-      description: 'Search the web for the latest information. Returns results from the past 6 months by default, sorted by newest first. Use for: reviews, travel tips, prices, events, news, blog posts. Results contain short snippets only — follow up with scrape_url for full details.',
+      description: 'Search the web for the latest information. Returns results from the past 6 months by default, sorted by newest first. DO NOT append past years (like 2024 or 2025) to your query. Use for: reviews, travel tips, prices, events, news. Results contain short snippets only — follow up with scrape_url for full details.',
       parameters: {
         type: 'object',
         properties: {
@@ -94,7 +94,7 @@ export const SEARCH_TOOLS = [
     type: 'function',
     function: {
       name: 'search_places',
-      description: 'Search for specific venues — restaurants, hotels, attractions, cafes, shopping, entertainment — at a given location. Returns structured data including coordinates, ratings, and addresses. Results prioritized by recent updates and ratings.',
+      description: 'Search for specific venues — restaurants, hotels, attractions, cafes, shopping, entertainment — at a given location. DO NOT append past years to your query. Returns structured data including coordinates, ratings, and addresses. Results prioritized by recent updates and ratings.',
       parameters: {
         type: 'object',
         properties: {
@@ -155,7 +155,7 @@ export const SEARCH_TOOLS = [
     type: 'function',
     function: {
       name: 'calculate_distance',
-      description: 'Calculate distance and estimated travel time between two locations. Supports driving, walking, transit, and bicycling modes.',
+      description: 'Calculate distance and estimated travel time between two locations. Supports driving, walking, transit, and bicycling modes. CRITICAL: Use this tool to verify if travel between distant cities (e.g., Munich to Berlin) is feasible within a single day before adding it to an itinerary.',
       parameters: {
         type: 'object',
         properties: {
@@ -357,6 +357,20 @@ export const SEARCH_TOOLS = [
  * Search tool names for easy reference
  */
 export const SEARCH_TOOL_NAMES = SEARCH_TOOLS.map(t => t.function.name);
+
+/**
+ * Gemini native Google Search grounding tool
+ * Sent as-is to the AI proxy when GEMINI_SEARCH_ENABLED=true
+ */
+export const GEMINI_GOOGLE_SEARCH_TOOL = {
+  type: 'google_search',
+  google_search: {},
+};
+
+/**
+ * Tools replaced by Gemini native search (removed when Gemini search is enabled)
+ */
+export const TOOLS_REPLACED_BY_GEMINI_SEARCH = [];
 
 /**
  * Search tool handlers mapping

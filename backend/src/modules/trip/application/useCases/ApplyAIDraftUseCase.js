@@ -11,9 +11,70 @@ import tripRepository from '../../infrastructure/repositories/TripRepository.js'
 import itineraryDayRepository from '../../infrastructure/repositories/ItineraryDayRepository.js';
 import activityRepository from '../../infrastructure/repositories/ActivityRepository.js';
 import tripService from '../services/TripService.js';
+import draftCompilerService from '../services/DraftCompilerService.js';
+import imageQueueService from '../../../image/infrastructure/services/ImageQueueService.js';
 import { AppError } from '../../../../shared/errors/AppError.js';
 import prisma from '../../../../config/database.js';
 import { logger } from '../../../../shared/services/LoggerService.js';
+
+/**
+ * Extract the city name from a day's first activity address.
+ * e.g. "Ubud, Gianyar" → "Ubud" | "Jl. Monkey Forest, Ubud" → "Ubud"
+ */
+function extractCityFromDay(dayData) {
+  const activities = dayData.schedule || dayData.activities || [];
+  for (const act of activities) {
+    const addr = act.address || act.location || act.customAddress;
+    if (!addr || typeof addr !== 'string') continue;
+    const parts = addr.split(',').map((p) => p.trim());
+    // If first part looks like a street (starts with Jl./Jalan/No.), use second part
+    if (parts.length > 1 && /^(jl\.|jalan|no\.|gang)/i.test(parts[0])) {
+      return parts[1] || parts[0];
+    }
+    return parts[0];
+  }
+  return null;
+}
+
+/**
+ * Get a cover image URL for the destination using curated Unsplash photos.
+ */
+function getDestinationCoverImage(destination) {
+  if (!destination) return null;
+  const dest = destination.toLowerCase();
+  const covers = {
+    bali: 'https://images.unsplash.com/photo-1537953773345-d172ccf13cf1?auto=format&fit=crop&w=1200&q=80',
+    'da lat': 'https://images.unsplash.com/photo-1566195992011-5f6b21e539aa?auto=format&fit=crop&w=1200&q=80',
+    dalat: 'https://images.unsplash.com/photo-1566195992011-5f6b21e539aa?auto=format&fit=crop&w=1200&q=80',
+    'phu quoc': 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=1200&q=80',
+    'hoi an': 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?auto=format&fit=crop&w=1200&q=80',
+    hanoi: 'https://images.unsplash.com/photo-1555921015-5532091f6026?auto=format&fit=crop&w=1200&q=80',
+    'ha noi': 'https://images.unsplash.com/photo-1555921015-5532091f6026?auto=format&fit=crop&w=1200&q=80',
+    'ho chi minh': 'https://images.unsplash.com/photo-1583417319070-4a69db38a482?auto=format&fit=crop&w=1200&q=80',
+    bangkok: 'https://images.unsplash.com/photo-1508009603885-50cf7c579365?auto=format&fit=crop&w=1200&q=80',
+    'singapore': 'https://images.unsplash.com/photo-1525625293386-3f8f99389edd?auto=format&fit=crop&w=1200&q=80',
+    tokyo: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=1200&q=80',
+    paris: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1200&q=80',
+  };
+  for (const [key, url] of Object.entries(covers)) {
+    if (dest.includes(key)) return url;
+  }
+  // Generic travel fallback
+  return 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=1200&q=80';
+}
+
+/**
+ * Detect image source provider from URL
+ */
+function detectImageProvider(url) {
+  if (!url || typeof url !== 'string') return 'PEXELS';
+  if (url.includes('googleusercontent.com') || url.includes('google.com/maps')) return 'GOOGLE_MAPS';
+  if (url.includes('pexels.com')) return 'PEXELS';
+  if (url.includes('unsplash.com')) return 'UNSPLASH';
+  if (url.includes('picsum.photos')) return 'PICSUM';
+  if (url.includes('mapbox.com')) return 'MAPBOX';
+  return 'PEXELS';
+}
 
 export class ApplyAIDraftUseCase {
   async execute({ draftId, userId, createNew = true, existingTripId = null }) {
@@ -31,25 +92,39 @@ export class ApplyAIDraftUseCase {
       throw AppError.notFound('Draft not found');
     }
 
-    if (draft.conversation && draft.conversation.user_id !== userId) {
+    if (draft.ai_conversations && draft.ai_conversations.userId !== userId) {
       logger.error('User does not have access to this draft');
       throw AppError.forbidden('You do not have access to this draft');
     }
 
-    if (draft.applied_at) {
+    if (draft.appliedAt) {
       logger.error('Draft has already been applied');
       throw AppError.badRequest('Draft has already been applied');
     }
 
+    logger.info('  Compiling draft into production-ready data...');
+    let compiledData;
+    try {
+      const compileResult = await draftCompilerService.compileDraftIfNeeded(draft);
+      compiledData = compileResult.compiledData;
+      if (compileResult.compileReport) {
+        logger.info(`  - Compile status: ${compileResult.compileReport.status || 'COMPLETED'}`);
+        logger.info(`  - Places resolved: ${compileResult.compileReport.placesResolved || 0}/${compileResult.compileReport.totalActivities || 0}`);
+      }
+    } catch (compileError) {
+      logger.error(`  Draft compile failed: ${compileError.message}`);
+      throw AppError.badRequest('Không thể chuẩn hóa draft thành dữ liệu trip. Vui lòng tạo lại kế hoạch hoặc thử lại.');
+    }
+
     logger.info('  Parsing draft data...');
-    const tripData = tripService.parseAIDraftToTripData(draft.generated_data);
+    const tripData = tripService.parseAIDraftToTripData(compiledData);
     logger.info(`  - Trip title: ${tripData.title || 'N/A'}`);
     logger.info(`  - Destination: ${tripData.destination || 'N/A'}`);
 
     // Phase 1: Extract additional data
-    const draftContent = typeof draft.generated_data === 'string'
-      ? JSON.parse(draft.generated_data)
-      : draft.generated_data;
+    const draftContent = typeof compiledData === 'string'
+      ? JSON.parse(compiledData)
+      : compiledData;
 
     const phase1Data = {
       overview: draftContent.overview || null,
@@ -75,10 +150,13 @@ export class ApplyAIDraftUseCase {
           tips: phase1Data.travelTips,
           budgetBreakdown: phase1Data.budgetBreakdown,
         },
+        // Set cover image from destination if not provided
+        coverImageUrl: tripData.coverImageUrl || getDestinationCoverImage(tripData.destination),
       };
 
+      logger.info('  tripDataWithPhase1:', JSON.stringify(tripDataWithPhase1, null, 2));
       trip = await tripRepository.createTrip(tripDataWithPhase1, userId);
-      logger.info(`  Trip created: ${trip.id}`);
+      logger.info(`  Trip created: ${trip?.id || 'NULL'}`);
 
       // Phase 1: Create bookings if suggestions exist
       if (phase1Data.bookingSuggestions && phase1Data.bookingSuggestions.length > 0) {
@@ -115,27 +193,39 @@ export class ApplyAIDraftUseCase {
       logger.info(`  Trip updated: ${trip.id}`);
     }
 
-    const generatedData = typeof draft.generated_data === 'string'
-      ? JSON.parse(draft.generated_data)
-      : draft.generated_data;
+    const generatedData = typeof compiledData === 'string'
+      ? JSON.parse(compiledData)
+      : compiledData;
+
+    // Extract currency from draft top-level (AI returns currency at root, e.g. "VND")
+    const activityCurrency = generatedData.currency || tripData.budgetCurrency || 'VND';
 
     // ═══════════════════════════════════════════════════════════════
     // Create Itinerary Days and Activities
     // ═══════════════════════════════════════════════════════════════
     logger.info('  Creating Itinerary Days...');
-    
+
+    // Track created activities for image ingestion
+    const createdActivities = [];
+
     if (generatedData.days && Array.isArray(generatedData.days)) {
       logger.info(`     Total days to create: ${generatedData.days.length}`);
-      
+
       for (let dayIndex = 0; dayIndex < generatedData.days.length; dayIndex++) {
         const dayData = generatedData.days[dayIndex];
         logger.info(`     Day ${dayIndex + 1}:`);
-        
+
         const day = await itineraryDayRepository.createDay(trip.id, {
           date: dayData.date,
-          dayNumber: dayData.dayNumber || dayData.day,
-          title: dayData.title || dayData.theme || `Day ${dayData.dayNumber || dayData.day}`,
-          notes: dayData.notes || dayData.theme || null,
+          dayNumber: dayData.dayNumber || dayData.day || (dayIndex + 1),
+          notes: dayData.notes || dayData.theme || dayData.title || null,
+          cityName: dayData.location || dayData.city || extractCityFromDay(dayData),
+          weatherData: dayData.weatherData || dayData.weather || null,
+          metadata: dayData.metadata || {
+            ...(dayData.totalDistance != null ? { totalDistance: dayData.totalDistance } : {}),
+            ...(dayData.totalTravelTime != null ? { totalTravelTime: dayData.totalTravelTime } : {}),
+            ...(dayData.theme ? { theme: dayData.theme } : {}),
+          },
         });
         logger.info(`       - Created day: ${day.id}`);
 
@@ -143,12 +233,12 @@ export class ApplyAIDraftUseCase {
         const activitiesList = dayData.schedule || dayData.activities;
         if (activitiesList && Array.isArray(activitiesList)) {
           logger.info(`       → Creating ${activitiesList.length} activities...`);
-          
+
           for (let index = 0; index < activitiesList.length; index++) {
             const activityData = activitiesList[index];
             const placeData = tripService.extractPlaceData(activityData);
 
-            await activityRepository.create({
+            const createdActivity = await activityRepository.create({
               itineraryDayId: day.id,
               name: placeData.name,
               type: tripService.mapActivityTypeFromAI(activityData.type),
@@ -157,21 +247,64 @@ export class ApplyAIDraftUseCase {
               endTime: activityData.endTime || null,
               duration: placeData.duration,
               placeId: placeData.placeId,
-              placeName: placeData.name,
               customAddress: placeData.address,
               latitude: placeData.latitude,
               longitude: placeData.longitude,
               estimatedCost: placeData.estimatedCost,
+              currency: activityData.currency || activityCurrency,
+              notes: activityData.tips || activityData.notes || null,
+              bookingUrl: activityData.bookingUrl || null,
               orderIndex: activityData.orderIndex !== undefined ? activityData.orderIndex : index,
-              transportFromPrevious: activityData.transportFromPrevious || null, // Phase 1
+              transportFromPrevious: activityData.transportFromPrevious || null,
               createdById: userId,
             });
+
+            // Track for image ingestion
+            const imageUrl = activityData.image || activityData.imageUrl
+              || activityData.photos?.[0] || activityData.thumbnail || null;
+            if (imageUrl) {
+              createdActivities.push({
+                activityId: createdActivity.id,
+                imageUrl,
+                sourceProvider: activityData.sourceProvider || detectImageProvider(imageUrl),
+              });
+            }
           }
           logger.info(`       - Created ${activitiesList.length} activities`);
         }
       }
     } else {
       logger.warn('     No days data found in draft');
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Queue image ingestion jobs (fire-and-forget)
+    // ═══════════════════════════════════════════════════════════════
+    if (imageQueueService.isReady && (createdActivities.length > 0 || trip.coverImageUrl)) {
+      const imageJobs = createdActivities.map(({ activityId, imageUrl, sourceProvider }) => ({
+        sourceUrl: imageUrl,
+        sourceProvider,
+        entityType: 'activity',
+        entityId: activityId,
+      }));
+
+      // Trip cover image
+      const coverUrl = generatedData.coverImageUrl || tripData.coverImageUrl;
+      if (coverUrl) {
+        imageJobs.push({
+          sourceUrl: coverUrl,
+          sourceProvider: detectImageProvider(coverUrl),
+          entityType: 'trip_cover',
+          entityId: trip.id,
+        });
+      }
+
+      if (imageJobs.length > 0) {
+        imageQueueService.addBulk(imageJobs).catch(err => {
+          logger.warn(`[ImageQueue] Failed to queue ${imageJobs.length} jobs: ${err.message}`);
+        });
+        logger.info(`  Queued ${imageJobs.length} image ingest jobs`);
+      }
     }
 
     // ═══════════════════════════════════════════════════════════════

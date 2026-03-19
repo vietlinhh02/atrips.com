@@ -57,6 +57,9 @@ router.get('/conversations', authenticate, aiController.getConversations);
 // Get single conversation
 router.get('/conversations/:id', authenticate, aiController.getConversation);
 
+// Update conversation (e.g. rename title)
+router.patch('/conversations/:id', authenticate, aiController.updateConversation);
+
 // Delete conversation
 router.delete('/conversations/:id', authenticate, aiController.deleteConversation);
 

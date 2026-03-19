@@ -14,6 +14,9 @@ import config from './config/index.js';
 import { connectDatabase, setupDatabaseShutdown } from './config/database.js';
 import { configureGoogleStrategy } from './config/passport.js';
 import cacheService from './shared/services/CacheService.js';
+import r2StorageService from './modules/image/infrastructure/services/R2StorageService.js';
+import imageQueueService from './modules/image/infrastructure/services/ImageQueueService.js';
+import { processImageIngestJob } from './modules/image/infrastructure/services/ImageIngestWorker.js';
 import { errorHandler, notFoundHandler } from './shared/middleware/errorHandler.js';
 import googleAuthUseCase from './modules/auth/application/useCases/GoogleAuthUseCase.js';
 
@@ -27,6 +30,7 @@ import openaiProxyRoutes from './modules/ai/interfaces/http/openaiProxyRoutes.js
 import tripRoutes from './modules/trip/interfaces/http/tripRoutes.js';
 import cacheRoutes from './shared/interfaces/http/cacheRoutes.js';
 import configRoutes from './shared/interfaces/http/configRoutes.js';
+import imageRoutes from './modules/image/interfaces/http/imageRoutes.js';
 
 /**
  * Create and configure Express application
@@ -145,6 +149,9 @@ function createApp() {
   // Config routes (provides API keys to authenticated users)
   app.use('/api/config', configRoutes);
 
+  // Image asset routes
+  app.use('/api/images', imageRoutes);
+
   // Root endpoint
   app.get('/', (req, res) => {
     res.json({
@@ -175,6 +182,12 @@ async function startServer() {
     // Initialize cache service
     await cacheService.init();
 
+    // Initialize image pipeline (R2 + BullMQ) — non-blocking
+    const r2Ready = r2StorageService.init();
+    if (r2Ready) {
+      imageQueueService.init(processImageIngestJob);
+    }
+
     // Setup graceful shutdown
     setupDatabaseShutdown();
 
@@ -201,6 +214,7 @@ async function startServer() {
         console.log(`\nReceived ${signal}, shutting down gracefully...`);
         server.close(async () => {
           console.log('HTTP server closed');
+          await imageQueueService.close();
           await cacheService.close();
           console.log('Cache service closed');
         });

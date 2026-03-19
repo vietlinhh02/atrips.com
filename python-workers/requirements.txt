@@ -1,0 +1,4 @@
+browser-use==0.2.6
+fastapi
+uvicorn
+playwright

@@ -1,0 +1,22 @@
+services:
+  browser-workers:
+    build: .
+    env_file:
+      - ../backend/.env
+    ports:
+      - "8500:8500"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      # Override only OAI_BASE_URL: localhost → host.docker.internal
+      # OAI_API_KEY and OAI_MODEL come from backend/.env via env_file
+      - OAI_BASE_URL=http://host.docker.internal:8317
+      - MAX_CONCURRENT_BROWSERS=4
+      - BROWSER_HEADLESS=true
+      - TASK_TIMEOUT_SECONDS=60
+      - MAX_STEPS_PER_TASK=15
+      # Browser Use Cloud (optional — set BROWSER_USE_API_KEY to enable)
+      - BROWSER_USE_API_KEY=${BROWSER_USE_API_KEY:-}
+      - BROWSER_USE_PROXY_COUNTRY=${BROWSER_USE_PROXY_COUNTRY:-vn}
+    shm_size: "2gb"
+    restart: unless-stopped

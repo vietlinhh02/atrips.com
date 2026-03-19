@@ -1,23 +1,77 @@
 /**
- * AI Service
- * Handles communication with OpenAI-compatible AI providers
- * Includes caching support and tool calling
+ * AI Service (Refactored)
+ * Routes queries through the 5-layer pipeline architecture:
+ *   - Simple queries → DirectAgent (ReAct)
+ *   - Trip management → TripManageAgent (ReAct)
+ *   - Trip planning → PlanningPipeline (5 layers)
  */
 
+import { HumanMessage, AIMessage, SystemMessage } from '@langchain/core/messages';
 import cacheService from '../../../../shared/services/CacheService.js';
 import { buildSystemPrompt, buildTaskPrompt } from '../../domain/prompts/index.js';
 import { TOOL_DEFINITIONS, getToolsForContext } from '../../domain/tools/index.js';
 import toolExecutor from './ToolExecutor.js';
+import { runDirectAgent } from './agents/directAgent.js';
+import { runTripManageAgent } from './agents/tripManageAgent.js';
+import { PlanningPipeline } from './pipeline/PlanningPipeline.js';
+import { compressMessages } from './contextCompressor.js';
+import { logger } from '../../../../shared/services/LoggerService.js';
 
-// Cache TTL settings (in seconds)
-const CACHE_TTL = {
-  CHAT: 3600,        // 1 hour for chat responses
-  MODELS: 86400,     // 24 hours for models list
-  STATUS: 300,       // 5 minutes for status
-};
+const CACHE_TTL = { CHAT: 3600, MODELS: 86400, STATUS: 300 };
 
-// Maximum tool call iterations to prevent infinite loops
-const MAX_TOOL_ITERATIONS = 5;
+// Intent classification keywords
+const COMPLEX_KEYWORDS = [
+  'plan', 'itinerary', 'lịch trình', 'chuyến đi', 'trip',
+  'kế hoạch', 'schedule', 'travel plan', 'du lịch',
+];
+
+const TRIP_MANAGE_KEYWORDS = [
+  'tạo chuyến', 'create trip', 'save trip', 'apply draft',
+  'áp dụng', 'lưu', 'xóa', 'delete trip', 'update trip',
+  'sửa', 'thêm hoạt động', 'add activity', 'xây dựng',
+  'get my trips', 'danh sách chuyến',
+];
+
+const DETAIL_INDICATORS = [
+  /\d+\s*(ngày|đêm|day|night)/i,
+  /\d{1,2}[/\-]\d{1,2}/,
+  /tháng\s*\d+/i,
+  /từ\s*.+đến/i,
+  /cuối tuần|weekend/i,
+  /\d+\s*(người|person|traveler|khách)/i,
+];
+
+function classifyIntent(message) {
+  const content = message.toLowerCase();
+
+  if (TRIP_MANAGE_KEYWORDS.some(k => content.includes(k))) {
+    return 'trip_manage';
+  }
+
+  const isComplex = COMPLEX_KEYWORDS.some(k => content.includes(k));
+  if (isComplex) return 'complex';
+
+  return 'simple';
+}
+
+function formatUsage(usage) {
+  const input = usage?.inputTokens || 0;
+  const output = usage?.outputTokens || 0;
+  return {
+    prompt_tokens: input,
+    completion_tokens: output,
+    total_tokens: input + output,
+  };
+}
+
+function toLangChainMessages(messages) {
+  return messages.map(m => {
+    if (m.role === 'user') return new HumanMessage(m.content);
+    if (m.role === 'assistant') return new AIMessage(m.content);
+    if (m.role === 'system') return new SystemMessage(m.content);
+    return new HumanMessage(m.content);
+  });
+}
 
 class AIService {
   constructor() {
@@ -29,214 +83,120 @@ class AIService {
     this.toolsEnabled = process.env.AI_TOOLS_ENABLED !== 'false';
   }
 
-  /**
-   * Get headers for API requests
-   */
-  getHeaders() {
-    const headers = {
-      'Content-Type': 'application/json',
-    };
-    if (this.apiKey) {
-      headers['Authorization'] = `Bearer ${this.apiKey}`;
-    }
-    return headers;
-  }
-
-  /**
-   * Build system prompt for the AI
-   */
   getSystemPrompt(context = {}, taskType = null) {
-    if (taskType) {
-      return buildTaskPrompt(taskType, context);
-    }
-    return buildSystemPrompt(context);
+    return taskType
+      ? buildTaskPrompt(taskType, context)
+      : buildSystemPrompt(context);
   }
 
-  /**
-   * Generate cache key for chat request
-   */
   generateCacheKey(messages, options = {}) {
     const lastUserMessage = messages.filter(m => m.role === 'user').pop();
-    const cacheData = {
+    return cacheService.generateChatKey([{
       message: lastUserMessage?.content || '',
       model: options.model || this.model,
       contextKeys: Object.keys(options.context || {}),
-    };
-    return cacheService.generateChatKey([cacheData], options);
+    }], options);
   }
 
   /**
-   * Chat with AI (non-streaming) with tool support
+   * Chat with AI (non-streaming).
+   * Routes to appropriate agent based on intent.
    */
   async chat(messages, options = {}) {
     const {
       model = this.model,
       temperature = 0.7,
-      maxTokens = 16384,
       context = {},
-      taskType = null,
       skipCache = false,
       enableTools = this.toolsEnabled,
-      tools = null,
       userId = null,
       conversationId = null,
     } = options;
 
-    // Set user context for tool executor (needed for trip management tools)
-    if (userId) {
-      toolExecutor.setUserContext(userId);
-    }
-
-    // Set user profile for tool executor (needed for personalized planning)
-    toolExecutor.setUserProfile(context.userProfile || null);
-
-    // Set conversation context for tool executor (needed for draft creation)
-    toolExecutor.setConversationContext(conversationId);
-
-    // Prepend system message if not already present
-    const systemMessage = {
-      role: 'system',
-      content: this.getSystemPrompt(context, taskType),
-    };
-
-    const hasSystemMessage = messages.some(m => m.role === 'system');
-    let finalMessages = hasSystemMessage ? [...messages] : [systemMessage, ...messages];
-
-    // Check cache first
+    const userMessages = messages.filter(m => m.role !== 'system');
     const cacheKey = this.generateCacheKey(messages, { model, context });
 
+    // Cache check for deterministic, tool-free queries
     if (this.cacheEnabled && !skipCache && temperature <= 0.3 && !enableTools) {
       const cached = await cacheService.get(cacheKey);
-      if (cached) {
-        console.log('[Cache] AI cache hit:', cacheKey.substring(0, 30));
-        return { ...cached, fromCache: true };
-      }
+      if (cached) return { ...cached, fromCache: true };
     }
 
-    // Get tools for this context
-    const toolDefinitions = enableTools
-      ? (tools || getToolsForContext({ taskType }))
-      : undefined;
-
-    console.log('[AI] Tool calling config:', {
-      enableTools,
-      toolsEnabled: this.toolsEnabled,
-      toolCount: toolDefinitions?.length || 0,
-      toolNames: toolDefinitions?.map(t => t.function.name) || [],
-    });
-
     try {
-      let iterations = 0;
-      let toolCalls = [];
-      let finalResult = null;
+      const compressedMessages = compressMessages(userMessages);
+      const lcMessages = toLangChainMessages(compressedMessages);
+      const lastMessage = userMessages[userMessages.length - 1]?.content || '';
+      const intent = classifyIntent(lastMessage);
+      const userProfile = context.userProfile || null;
 
-      // Tool calling loop
-      while (iterations < MAX_TOOL_ITERATIONS) {
-        iterations++;
+      logger.info('[AIService] Intent:', { intent, message: lastMessage.substring(0, 60) });
 
-        const requestBody = {
-          model,
-          messages: finalMessages,
-          temperature,
-          max_tokens: maxTokens,
-          stream: false,
-        };
+      let result;
 
-        // Add tools if enabled
-        if (toolDefinitions && toolDefinitions.length > 0) {
-          requestBody.tools = toolDefinitions;
-          requestBody.tool_choice = 'auto';
-        }
-
-        console.log('[AI] Sending request:', {
-          url: `${this.baseUrl}/v1/chat/completions`,
-          model: requestBody.model,
-          hasTools: !!requestBody.tools,
-          toolChoice: requestBody.tool_choice,
-          messageCount: requestBody.messages.length,
-        });
-
-        const response = await fetch(`${this.baseUrl}/v1/chat/completions`, {
-          method: 'POST',
-          headers: this.getHeaders(),
-          body: JSON.stringify(requestBody),
-        });
-
-        if (!response.ok) {
-          const error = await response.text();
-          throw new Error(`AI request failed: ${response.status} - ${error}`);
-        }
-
-        const data = await response.json();
-        const choice = data.choices?.[0];
-
-        console.log('[AI] Response:', {
-          hasToolCalls: !!choice?.message?.tool_calls,
-          toolCallsCount: choice?.message?.tool_calls?.length || 0,
-          finishReason: choice?.finish_reason,
-          contentPreview: choice?.message?.content?.substring(0, 100),
-        });
-
-        // Check if AI wants to call tools
-        if (choice?.message?.tool_calls && choice.message.tool_calls.length > 0) {
-          // Add assistant message with tool calls
-          finalMessages.push({
-            role: 'assistant',
-            content: choice.message.content || null,
-            tool_calls: choice.message.tool_calls,
+      switch (intent) {
+        case 'trip_manage':
+          result = await runTripManageAgent(lcMessages, {
+            modelId: model, userId, conversationId, userProfile,
           });
+          break;
 
-          // Execute each tool call
-          for (const toolCall of choice.message.tool_calls) {
-            const toolName = toolCall.function.name;
-            const toolArgs = JSON.parse(toolCall.function.arguments || '{}');
+        case 'complex': {
+          const pipeline = new PlanningPipeline({
+            modelId: model, userId, conversationId, userProfile,
+          });
+          const pipelineResult = await pipeline.run(userMessages);
 
-            console.log(`[Tool] Executing: ${toolName}`, toolArgs);
-
-            const toolResult = await toolExecutor.execute(toolName, toolArgs);
-
-            toolCalls.push({
-              name: toolName,
-              arguments: toolArgs,
-              result: toolResult,
+          if (pipelineResult.type === 'clarification') {
+            result = {
+              content: pipelineResult.question,
+              toolCalls: [],
+              usage: { inputTokens: 0, outputTokens: 0 },
+              clarification: {
+                missing: pipelineResult.missing,
+                gathered: pipelineResult.gathered,
+              },
+            };
+          } else if (pipelineResult.type === 'not_travel') {
+            // Not a travel query, fall through to direct agent
+            result = await runDirectAgent(lcMessages, {
+              modelId: model, context, userId,
+              conversationId, userProfile,
             });
-
-            // Add tool result to messages
-            finalMessages.push({
-              role: 'tool',
-              tool_call_id: toolCall.id,
-              content: JSON.stringify(toolResult),
-            });
+          } else {
+            result = pipelineResult;
           }
-
-          // Continue loop to get final response
-          continue;
+          break;
         }
 
-        // No more tool calls, we have final response
-        finalResult = {
-          content: choice?.message?.content || '',
-          usage: data.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
-          model: data.model || model,
-          finishReason: choice?.finish_reason || 'stop',
-          fromCache: false,
-          toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-        };
-
-        break;
+        default:
+          result = await runDirectAgent(lcMessages, {
+            modelId: model, context, userId,
+            conversationId, userProfile,
+          });
       }
 
-      // Cache the result if no tools were used
+      const totalUsage = formatUsage(result.usage);
+      const toolCalls = result.toolCalls || [];
+
+      const finalResult = {
+        content: result.content || '',
+        usage: totalUsage,
+        model,
+        finishReason: 'stop',
+        fromCache: false,
+        toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+        draftId: result.draftId || undefined,
+        clarification: result.clarification || undefined,
+      };
+
       if (this.cacheEnabled && !skipCache && temperature <= 0.3 && toolCalls.length === 0) {
         await cacheService.set(cacheKey, finalResult, CACHE_TTL.CHAT);
-        console.log('[Cache] AI response cached:', cacheKey.substring(0, 30));
       }
 
       return finalResult;
     } catch (error) {
-      // Try fallback model
       if (model !== this.fallbackModel) {
-        console.warn(`Primary model failed, trying fallback: ${this.fallbackModel}`);
+        logger.warn(`Primary model failed (${error.message}), trying fallback`);
         return this.chat(messages, { ...options, model: this.fallbackModel });
       }
       throw error;
@@ -244,330 +204,197 @@ class AIService {
   }
 
   /**
-   * Chat with AI (streaming) with tool support
+   * Chat with AI (streaming).
+   * Yields SSE events for the frontend.
    */
   async *chatStream(messages, options = {}) {
     const {
       model = this.model,
-      temperature = 0.7,
-      maxTokens = 16384,
       context = {},
-      taskType = null,
       enableTools = this.toolsEnabled,
-      tools = null,
       userId = null,
       conversationId = null,
     } = options;
 
-    // Set user context for tool executor (needed for trip management tools)
-    if (userId) {
-      toolExecutor.setUserContext(userId);
-    }
+    const userMessages = messages.filter(m => m.role !== 'system');
+    const lastMessage = userMessages[userMessages.length - 1]?.content || '';
+    const intent = classifyIntent(lastMessage);
+    const userProfile = context.userProfile || null;
 
-    // Set user profile for tool executor (needed for personalized planning)
-    toolExecutor.setUserProfile(context.userProfile || null);
+    logger.info('[AIService Stream] Intent:', { intent });
 
-    // Set conversation context for tool executor (needed for draft creation)
-    toolExecutor.setConversationContext(conversationId);
-
-    const systemMessage = {
-      role: 'system',
-      content: this.getSystemPrompt(context, taskType),
-    };
-
-    const hasSystemMessage = messages.some(m => m.role === 'system');
-    let finalMessages = hasSystemMessage ? [...messages] : [systemMessage, ...messages];
-
-    const toolDefinitions = enableTools
-      ? (tools || getToolsForContext({ taskType }))
-      : undefined;
-
-    let iterations = 0;
-
-    while (iterations < MAX_TOOL_ITERATIONS) {
-      iterations++;
-
-      const requestBody = {
-        model,
-        messages: finalMessages,
-        temperature,
-        max_tokens: maxTokens,
-        stream: true,
-      };
-
-      if (toolDefinitions && toolDefinitions.length > 0) {
-        requestBody.tools = toolDefinitions;
-        requestBody.tool_choice = 'auto';
-      }
-
-      const response = await fetch(`${this.baseUrl}/v1/chat/completions`, {
-        method: 'POST',
-        headers: this.getHeaders(),
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`AI stream request failed: ${response.status} - ${error}`);
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let currentToolCalls = [];
-      let hasToolCalls = false;
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed || !trimmed.startsWith('data:')) continue;
-
-            const data = trimmed.slice(5).trim();
-            if (data === '[DONE]') {
-              continue;
-            }
-
-            try {
-              const parsed = JSON.parse(data);
-              const delta = parsed.choices?.[0]?.delta;
-
-              // Handle tool calls in stream
-              if (delta?.tool_calls) {
-                hasToolCalls = true;
-                for (const toolCallDelta of delta.tool_calls) {
-                  const index = toolCallDelta.index;
-                  if (!currentToolCalls[index]) {
-                    currentToolCalls[index] = {
-                      id: toolCallDelta.id || `call_${index}`,
-                      type: 'function',
-                      function: { name: '', arguments: '' },
-                    };
-                  }
-                  if (toolCallDelta.function?.name) {
-                    currentToolCalls[index].function.name = toolCallDelta.function.name;
-                  }
-                  if (toolCallDelta.function?.arguments) {
-                    currentToolCalls[index].function.arguments += toolCallDelta.function.arguments;
-                  }
-                }
-              }
-
-              // Handle content
-              const content = delta?.content;
-              if (content) {
-                yield { type: 'content', content };
-              }
-
-              if (parsed.choices?.[0]?.finish_reason) {
-                yield { type: 'finish', reason: parsed.choices[0].finish_reason };
-              }
-            } catch (parseError) {
-              // Skip invalid JSON lines - log in debug mode
-              if (process.env.DEBUG_AI) {
-                console.debug('Failed to parse SSE line:', parseError.message);
-              }
-            }
-          }
-        }
-      } finally {
-        reader.releaseLock();
-      }
-
-      // Process tool calls if any
-      if (hasToolCalls && currentToolCalls.length > 0) {
-        // Add assistant message with tool calls
-        finalMessages.push({
-          role: 'assistant',
-          content: null,
-          tool_calls: currentToolCalls,
+    try {
+      if (intent === 'complex') {
+        // Planning pipeline with progress events
+        const pipeline = new PlanningPipeline({
+          modelId: model, userId, conversationId, userProfile,
         });
 
-        // Execute tools and add results
-        for (const toolCall of currentToolCalls) {
-          const toolName = toolCall.function.name;
-          const toolArgs = JSON.parse(toolCall.function.arguments || '{}');
+        const clarification = await pipeline.clarify(userMessages);
 
-          yield { type: 'tool_call', name: toolName, arguments: toolArgs };
-
-          const toolResult = await toolExecutor.execute(toolName, toolArgs);
-
-          yield { type: 'tool_result', name: toolName, result: toolResult };
-
-          finalMessages.push({
-            role: 'tool',
-            tool_call_id: toolCall.id,
-            content: JSON.stringify(toolResult),
+        if (clarification.notTravelQuery) {
+          // Fall through to direct agent
+          yield* this._streamDirectAgent(userMessages, {
+            model, context, userId, conversationId, userProfile,
           });
+          return;
         }
 
-        // Continue to get final response
-        continue;
-      }
+        if (!clarification.complete) {
+          yield {
+            type: 'clarification',
+            question: clarification.question,
+            missing: clarification.missing,
+            gathered: clarification.gathered,
+          };
+          yield { type: 'content', content: clarification.question };
+          yield { type: 'finish', reason: 'clarification' };
+          return;
+        }
 
-      // No more tool calls, exit loop
-      break;
+        // Full pipeline with progress streaming
+        const result = await pipeline.plan(
+          clarification.context,
+          (event) => {
+            // This callback not used in current streaming
+            // but events are logged
+          },
+        );
+
+        // Emit tool calls
+        for (const tc of (result.toolCalls || [])) {
+          yield { type: 'tool_call_start', name: tc.name };
+          yield { type: 'tool_result', name: tc.name, result: tc.result };
+        }
+
+        if (result.content) {
+          yield { type: 'content', content: result.content };
+        }
+
+        if (result.draftId) {
+          yield {
+            type: 'draft_created',
+            draftId: result.draftId,
+            message: 'Draft created! You can apply it to a trip.',
+          };
+        }
+
+        yield { type: 'usage', usage: formatUsage(result.usage) };
+      } else {
+        // Simple or trip_manage — use direct/tripManage agent
+        yield* this._streamDirectAgent(userMessages, {
+          model, context, userId, conversationId, userProfile, intent,
+        });
+      }
+    } catch (error) {
+      logger.error('[AIService Stream] Error:', { error: error.message });
+      yield { type: 'error', error: error.message };
     }
+
+    yield { type: 'finish', reason: 'stop' };
   }
 
   /**
-   * Get place recommendations with tools
+   * Stream results from direct or trip manage agent.
    */
+  async *_streamDirectAgent(userMessages, options) {
+    const {
+      model, context, userId, conversationId, userProfile,
+      intent = 'simple',
+    } = options;
+
+    const compressedMessages = compressMessages(userMessages);
+    const lcMessages = toLangChainMessages(compressedMessages);
+
+    const agentFn = intent === 'trip_manage'
+      ? runTripManageAgent
+      : runDirectAgent;
+
+    const result = await agentFn(lcMessages, {
+      modelId: model, context, userId, conversationId, userProfile,
+    });
+
+    for (const tc of (result.toolCalls || [])) {
+      yield { type: 'tool_call_start', name: tc.name };
+      yield { type: 'tool_result', name: tc.name, result: tc.result };
+    }
+
+    if (result.content) {
+      yield { type: 'content', content: result.content };
+    }
+
+    yield { type: 'usage', usage: formatUsage(result.usage) };
+  }
+
+  // ─── Delegate methods ───
+
   async getRecommendations(params) {
     const { location, type, budget, interests = [] } = params;
-
-    const context = {
-      destination: location,
-      budget,
-      interests,
-    };
-
-    const userMessage = `Recommend the best ${type || 'places'} in ${location}.
-${budget ? `Budget: ${budget}` : ''}
-${interests.length > 0 ? `Interests: ${interests.join(', ')}` : ''}
-
-Use the search_places tool to find real venues with verified data.`;
-
     return this.chat(
-      [{ role: 'user', content: userMessage }],
-      {
-        context,
-        taskType: 'recommend',
-        temperature: 0.6,
-        enableTools: true,
-      }
+      [{ role: 'user', content: `Recommend the best ${type || 'places'} in ${location}.\n${budget ? `Budget: ${budget}` : ''}\n${interests.length > 0 ? `Interests: ${interests.join(', ')}` : ''}\n\nUse the search_places tool to find real venues with verified data.` }],
+      { context: { destination: location, budget, interests }, taskType: 'recommend', temperature: 0.6, enableTools: true },
     );
   }
 
-  /**
-   * Estimate trip budget with tools
-   */
   async estimateBudget(params) {
     const { destination, duration, travelers = 1, style = 'comfort' } = params;
-
-    const context = {
-      destination,
-      duration,
-      travelers,
-      travelStyle: style,
-    };
-
-    const userMessage = `Estimate the total cost for a trip to ${destination} for ${duration}.
-Travelers: ${travelers}
-Style: ${style}
-
-Use tools to look up flight prices, hotel rates, and exchange rates.
-Break down by category.`;
-
     return this.chat(
-      [{ role: 'user', content: userMessage }],
-      {
-        context,
-        taskType: 'budget',
-        temperature: 0.4,
-        enableTools: true,
-      }
+      [{ role: 'user', content: `Estimate the total cost for a trip to ${destination} for ${duration}.\nTravelers: ${travelers}\nStyle: ${style}\n\nUse tools to look up flight prices, hotel rates, and exchange rates.\nBreak down by category.` }],
+      { context: { destination, duration, travelers, travelStyle: style }, taskType: 'budget', temperature: 0.4, enableTools: true },
     );
   }
 
-  /**
-   * Execute a single tool manually
-   */
   async executeTool(toolName, args) {
     return toolExecutor.execute(toolName, args);
   }
 
-  /**
-   * Get available tools
-   */
   getAvailableTools(context = {}) {
     return getToolsForContext(context);
   }
 
-  /**
-   * Get all tool definitions
-   */
   getAllToolDefinitions() {
     return TOOL_DEFINITIONS;
   }
 
-  /**
-   * Get available models (cached)
-   */
   async getModels() {
     const cacheKey = 'ai:models:list';
-
     if (this.cacheEnabled) {
       const cached = await cacheService.get(cacheKey);
-      if (cached) {
-        return cached;
-      }
+      if (cached) return cached;
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}/v1/models`, {
-        method: 'GET',
-        headers: this.getHeaders(),
-      });
+      const headers = { 'Content-Type': 'application/json' };
+      if (this.apiKey) headers['Authorization'] = `Bearer ${this.apiKey}`;
 
-      if (!response.ok) {
-        return this.getDefaultModels();
-      }
+      const response = await fetch(`${this.baseUrl}/v1/models`, { method: 'GET', headers });
+      if (!response.ok) return this.getDefaultModels();
 
       const data = await response.json();
-
-      if (this.cacheEnabled) {
-        await cacheService.set(cacheKey, data, CACHE_TTL.MODELS);
-      }
-
+      if (this.cacheEnabled) await cacheService.set(cacheKey, data, CACHE_TTL.MODELS);
       return data;
     } catch (error) {
-      console.warn('Failed to fetch models list:', error.message);
+      logger.warn('Failed to fetch models:', { error: error.message });
       return this.getDefaultModels();
     }
   }
 
-  /**
-   * Get default models list
-   */
   getDefaultModels() {
+    const now = Math.floor(Date.now() / 1000);
     return {
       object: 'list',
       data: [
-        {
-          id: this.model,
-          object: 'model',
-          created: Math.floor(Date.now() / 1000),
-          owned_by: 'atrips',
-        },
-        {
-          id: this.fallbackModel,
-          object: 'model',
-          created: Math.floor(Date.now() / 1000),
-          owned_by: 'atrips',
-        },
+        { id: this.model, object: 'model', created: now, owned_by: 'atrips' },
+        { id: this.fallbackModel, object: 'model', created: now, owned_by: 'atrips' },
       ],
     };
   }
 
-  /**
-   * Get provider status (cached)
-   */
   async getStatus() {
     const cacheKey = 'ai:provider:status';
-
     if (this.cacheEnabled) {
       const cached = await cacheService.get(cacheKey);
-      if (cached) {
-        return { ...cached, fromCache: true };
-      }
+      if (cached) return { ...cached, fromCache: true };
     }
 
     try {
@@ -576,7 +403,7 @@ Break down by category.`;
       const availableTools = this.getAvailableTools();
 
       const status = {
-        provider: 'openai-compatible',
+        provider: 'langchain',
         status: 'operational',
         baseUrl: this.baseUrl,
         primaryModel: this.model,
@@ -584,22 +411,16 @@ Break down by category.`;
         availableModels: models.data || [],
         tools: {
           enabled: this.toolsEnabled,
-          available: availableTools.map(t => t.function.name),
+          available: availableTools.map(t => t.function?.name || t.type),
         },
-        cache: {
-          enabled: this.cacheEnabled,
-          ...cacheStats,
-        },
+        cache: { enabled: this.cacheEnabled, ...cacheStats },
       };
 
-      if (this.cacheEnabled) {
-        await cacheService.set(cacheKey, status, CACHE_TTL.STATUS);
-      }
-
+      if (this.cacheEnabled) await cacheService.set(cacheKey, status, CACHE_TTL.STATUS);
       return status;
     } catch (error) {
       return {
-        provider: 'openai-compatible',
+        provider: 'langchain',
         status: 'error',
         error: error.message,
         tools: { enabled: this.toolsEnabled },
@@ -608,12 +429,9 @@ Break down by category.`;
     }
   }
 
-  /**
-   * Clear AI cache
-   */
   async clearCache() {
     await cacheService.delPattern('ai:*');
-    console.log('[Cache] AI cache cleared');
+    logger.info('[Cache] AI cache cleared');
   }
 }
 

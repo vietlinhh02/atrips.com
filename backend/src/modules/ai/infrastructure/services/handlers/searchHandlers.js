@@ -8,12 +8,124 @@ import prisma from '../../../../../config/database.js';
 import cacheService from '../../../../../shared/services/CacheService.js';
 import searxngService from '../SearxngService.js';
 import crawleeService from '../CrawleeService.js';
+import { isGeminiSearchEnabled } from '../../../domain/tools/index.js';
 
 // Cache TTL for tool results (in seconds)
 const TOOL_CACHE_TTL = {
   PLACES: 86400,      // 24 hours
   WEB_SEARCH: 1800,   // 30 minutes
 };
+
+// Pexels image fetching for place enrichment
+const PEXELS_API_KEY = process.env.PEXELS_API_KEY;
+const placeImageCache = new Map();
+
+function hashCode(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash);
+}
+
+async function fetchPlaceImage(query) {
+  if (!PEXELS_API_KEY) return null;
+
+  const cacheKey = query.toLowerCase().trim();
+  if (placeImageCache.has(cacheKey)) return placeImageCache.get(cacheKey);
+
+  try {
+    const response = await fetch(
+      `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=3&orientation=landscape`,
+      {
+        headers: { Authorization: PEXELS_API_KEY },
+        signal: AbortSignal.timeout(3000),
+      }
+    );
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    if (data.photos && data.photos.length > 0) {
+      const photos = data.photos.slice(0, 3).map(p => ({
+        large: p.src.large2x || p.src.large,
+        medium: p.src.medium,
+        small: p.src.small,
+      }));
+      placeImageCache.set(cacheKey, photos);
+      return photos;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function addImagesToPlace(place, location) {
+  // DB places may already have photos stored
+  if (Array.isArray(place.photos) && place.photos.length > 0) {
+    return {
+      ...place,
+      imageUrl: place.photos[0],
+      thumbnailUrl: place.photos[0],
+      sideImages: place.photos.slice(1, 3),
+    };
+  }
+
+  const query = `${place.name} ${location || place.city || ''} ${place.type || ''}`.trim();
+  const photos = await fetchPlaceImage(query).catch(() => null);
+
+  if (photos && photos.length > 0) {
+    return {
+      ...place,
+      imageUrl: photos[0].large,
+      thumbnailUrl: photos[0].medium,
+      sideImages: photos.slice(1).map(p => p.large),
+    };
+  }
+
+  // Picsum fallback — deterministic seed from place name
+  const seed = hashCode(place.name || query);
+  return {
+    ...place,
+    imageUrl: `https://picsum.photos/seed/${seed}/600/400`,
+    thumbnailUrl: `https://picsum.photos/seed/${seed}/300/200`,
+    sideImages: [
+      `https://picsum.photos/seed/${seed + 1}/300/200`,
+      `https://picsum.photos/seed/${seed + 2}/300/200`,
+    ],
+  };
+}
+
+/**
+ * Normalize a DB cached_place record to the same shape as a Mapbox place
+ */
+function normalizeDBPlace(place) {
+  return {
+    id: place.id,
+    name: place.name,
+    fullName: place.name,
+    type: place.type?.toLowerCase() || 'attraction',
+    address: place.address || '',
+    city: place.city || '',
+    coordinates: {
+      lat: place.latitude,
+      lng: place.longitude,
+    },
+    latitude: place.latitude,
+    longitude: place.longitude,
+    rating: place.rating,
+    ratingCount: place.ratingCount,
+    priceLevel: place.priceLevel?.toLowerCase() || null,
+    phone: place.phone || null,
+    website: place.website || null,
+    openingHours: place.openingHours || null,
+    photos: place.photos || [],
+    categories: [],
+    source: 'database',
+  };
+}
 
 /**
  * Create search handlers bound to executor context
@@ -27,11 +139,151 @@ export function createSearchHandlers(executor) {
 }
 
 /**
+ * Web Search via Gemini Google Search grounding
+ * Gọi riêng 1 API request chỉ với google_search tool, tránh conflict với function calling.
+ * Timeout configurable via GEMINI_SEARCH_TIMEOUT_MS env var (default: 60s).
+ * Retries once on timeout.
+ */
+const GEMINI_SEARCH_TIMEOUT_MS = parseInt(process.env.GEMINI_SEARCH_TIMEOUT_MS, 10) || 60000;
+const GEMINI_SEARCH_MAX_RETRIES = 1;
+
+async function webSearchViaGemini(args) {
+  const { query } = args;
+
+  const cacheKey = `tool:websearch:gemini:${query}`;
+  const cached = await cacheService.get(cacheKey);
+  if (cached) {
+    return { ...cached, source: 'cache' };
+  }
+
+  const baseUrl = process.env.OAI_BASE_URL || 'http://localhost:8317';
+  const apiKey = process.env.OAI_API_KEY || '';
+  const model = process.env.OAI_MODEL || process.env.AI_MODEL || 'gpt-4-turbo';
+
+  const headers = { 'Content-Type': 'application/json' };
+  if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+
+  const requestBody = JSON.stringify({
+    model,
+    messages: [{
+      role: 'user',
+      content: `${query}\n\nProvide factual, detailed information with specific names, addresses, prices, ratings, and URLs where available. Be concise and data-focused.`,
+    }],
+    tools: [{ google_search: {} }],
+    temperature: 0.4,
+    max_tokens: 4096,
+  });
+
+  let lastError = null;
+
+  for (let attempt = 0; attempt <= GEMINI_SEARCH_MAX_RETRIES; attempt++) {
+    const attemptLabel = attempt > 0 ? ` (retry ${attempt})` : '';
+    console.log(`[Gemini Search] Query: "${query}"${attemptLabel}`);
+    const startMs = Date.now();
+
+    try {
+      const response = await fetch(`${baseUrl}/v1/chat/completions`, {
+        method: 'POST',
+        headers,
+        body: requestBody,
+        signal: AbortSignal.timeout(GEMINI_SEARCH_TIMEOUT_MS),
+      });
+
+      const elapsedMs = Date.now() - startMs;
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error(`[Gemini Search] Failed (${elapsedMs}ms): ${error.substring(0, 300)}`);
+        throw new Error(`Gemini search failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || '';
+
+      // Extract grounding metadata if available (source URLs from Google Search)
+      const groundingMeta = data.choices?.[0]?.message?.grounding_metadata
+        || data.choices?.[0]?.grounding_metadata
+        || null;
+
+      console.log(`[Gemini Search] OK — ${content.length} chars in ${elapsedMs}ms, grounding: ${groundingMeta ? 'yes' : 'no'}, usage: prompt=${data.usage?.prompt_tokens}, completion=${data.usage?.completion_tokens}`);
+
+      // Build results with grounding sources if available
+      const results = [{
+        title: `Google Search: ${query}`,
+        url: '',
+        content,
+        enriched: true,
+        engine: 'gemini-grounding',
+      }];
+
+      // Add grounding sources as separate results for citation support
+      if (groundingMeta?.search_entry_point?.rendered_content) {
+        results[0].groundingHtml = groundingMeta.search_entry_point.rendered_content;
+      }
+      if (Array.isArray(groundingMeta?.grounding_chunks)) {
+        for (const chunk of groundingMeta.grounding_chunks) {
+          if (chunk.web?.uri) {
+            results.push({
+              title: chunk.web.title || '',
+              url: chunk.web.uri,
+              content: '',
+              engine: 'google-grounding-source',
+            });
+          }
+        }
+      }
+
+      const result = {
+        source: 'gemini-google-search',
+        query,
+        searchType: 'google_search',
+        results,
+        totalResults: results.length,
+      };
+
+      await cacheService.set(cacheKey, result, TOOL_CACHE_TTL.WEB_SEARCH);
+      return result;
+    } catch (error) {
+      const elapsedMs = Date.now() - startMs;
+      lastError = error;
+
+      if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+        console.error(`[Gemini Search] Timeout after ${(elapsedMs / 1000).toFixed(1)}s for query: "${query}"${attemptLabel}`);
+        // Retry on timeout
+        if (attempt < GEMINI_SEARCH_MAX_RETRIES) {
+          console.log(`[Gemini Search] Retrying...`);
+          continue;
+        }
+      } else {
+        console.error(`[Gemini Search] Error (${elapsedMs}ms): ${error.message}${attemptLabel}`);
+        // Don't retry on non-timeout errors
+        break;
+      }
+    }
+  }
+
+  // Fallback: return empty result so the AI can still function
+  return {
+    source: 'gemini-google-search',
+    query,
+    searchType: 'google_search',
+    results: [],
+    totalResults: 0,
+    error: lastError?.message || 'Unknown error',
+  };
+}
+
+/**
  * Web Search - SearXNG + Crawlee (Exa replacement)
  * No rate limits when self-hosted
  * Default: Current year enhanced search
  */
 async function webSearch(args) {
+  // Route to Gemini Google Search when enabled
+  if (isGeminiSearchEnabled()) {
+    return webSearchViaGemini(args);
+  }
+
   const {
     query,
     type = 'auto',
@@ -84,15 +336,19 @@ async function webSearch(args) {
     // 3. Limit results
     filteredResults = filteredResults.slice(0, limit);
 
-    // 4. Enrich top results with Crawlee (optional - for better quality)
+    // 4. Enrich top results with Crawlee (with timeout to avoid blocking)
     let enrichedResults = filteredResults;
     try {
-      const topResults = filteredResults.slice(0, Math.min(3, limit));
-      const enriched = await crawleeService.enrichResults(topResults, {
-        maxResults: 3,
-        includeHighlights: true,
-        extractMetadata: true,
-      });
+      const topResults = filteredResults.slice(0, Math.min(2, limit));
+      const enrichmentTimeout = 3000; // 3 second max for enrichment
+      const enriched = await Promise.race([
+        crawleeService.enrichResults(topResults, {
+          maxResults: 2,
+          includeHighlights: true,
+          extractMetadata: true,
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Enrichment timeout')), enrichmentTimeout)),
+      ]);
 
       // Merge enriched results with remaining results
       enrichedResults = [
@@ -100,8 +356,8 @@ async function webSearch(args) {
         ...filteredResults.slice(enriched.length),
       ];
     } catch (crawlError) {
-      console.warn('Crawlee enrichment failed, using basic results:', crawlError.message);
-      // Continue with basic results if enrichment fails
+      console.warn('Crawlee enrichment skipped:', crawlError.message);
+      // Continue with basic results - SearXNG snippets are usually sufficient
     }
 
     const result = {
@@ -203,9 +459,11 @@ async function searchPlaces(args) {
     return { ...cached, source: 'cache' };
   }
 
-  const dbPlaces = await searchPlacesFromDB(args);
-  if (dbPlaces.length > 0) {
-    const result = { source: 'database', places: dbPlaces };
+  const rawDbPlaces = await searchPlacesFromDB(args);
+  if (rawDbPlaces.length > 0) {
+    const normalized = rawDbPlaces.map(normalizeDBPlace);
+    const enriched = await Promise.all(normalized.map(p => addImagesToPlace(p, location)));
+    const result = { source: 'database', places: enriched };
     await cacheService.set(cacheKey, result, TOOL_CACHE_TTL.PLACES);
     return result;
   }
@@ -218,44 +476,29 @@ async function searchPlaces(args) {
     const searchTerm = query || getDefaultSearchTerm(type);
     const searchQuery = `${searchTerm} ${location}`;
 
-    // Build Mapbox URL with POI type filter and proximity
-    let url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchQuery)}.json?` +
-      `access_token=${this.mapboxToken}&limit=${effectiveLimit}&language=vi&types=poi`;
+    // Use Mapbox Search Box API v1 (supports POI search)
+    // Fallback to Geocoding v5 if Search Box fails
+    let rawPlaces = await searchViaMapboxSearchBox(
+      searchQuery, this.mapboxToken, effectiveLimit, args, type,
+    );
 
-    // Add proximity if coordinates are available from context
-    if (args.longitude && args.latitude) {
-      url += `&proximity=${args.longitude},${args.latitude}`;
+    // Fallback: try Geocoding v5 with types=poi
+    if (rawPlaces.length === 0) {
+      rawPlaces = await searchViaMapboxGeocoding(
+        searchQuery, this.mapboxToken, effectiveLimit, args, type,
+      );
     }
 
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      throw new Error(`Mapbox API error: ${response.status}`);
+    if (rawPlaces.length === 0) {
+      console.warn(`[searchPlaces] Mapbox returned 0 results for "${searchQuery}"`);
+      return searchPlacesFallback(args);
     }
 
-    const data = await response.json();
-
-    const places = data.features.map(feature => ({
-      name: feature.text,
-      fullName: feature.place_name,
-      type: type || detectPlaceType(feature),
-      address: feature.place_name,
-      city: extractCity(feature),
-      coordinates: {
-        lat: feature.center[1],
-        lng: feature.center[0],
-      },
-      latitude: feature.center[1],
-      longitude: feature.center[0],
-      relevance: feature.relevance,
-      categories: feature.properties?.category?.split(', ') || [],
-      phone: feature.properties?.tel || null,
-      website: feature.properties?.website || null,
-      openingHours: feature.properties?.open_hours || null,
-      source: 'mapbox',
-    }));
+    // Enrich all places with images in parallel
+    const places = await Promise.all(rawPlaces.map(p => addImagesToPlace(p, location)));
 
     const result = {
+      success: true,
       source: 'mapbox',
       places,
       query: searchQuery,
@@ -263,7 +506,7 @@ async function searchPlaces(args) {
 
     await cacheService.set(cacheKey, result, TOOL_CACHE_TTL.PLACES);
 
-    savePlacesToDB(result.places, location);
+    savePlacesToDB(rawPlaces, location);
 
     return result;
   } catch (error) {
@@ -409,12 +652,142 @@ function webSearchFallback(query, currentYear) {
   };
 }
 
+/**
+ * Mapbox Search Box API v1 — proper POI search
+ */
+async function searchViaMapboxSearchBox(
+  searchQuery, token, limit, args, type,
+) {
+  try {
+    const params = new URLSearchParams({
+      q: searchQuery,
+      access_token: token,
+      limit: String(limit),
+      language: 'vi',
+      types: 'poi',
+    });
+    if (args.longitude && args.latitude) {
+      params.set('proximity', `${args.longitude},${args.latitude}`);
+    }
+    const url = `https://api.mapbox.com/search/searchbox/v1/suggest?${params}`;
+    const resp = await fetch(url);
+    if (!resp.ok) return [];
+
+    const data = await resp.json();
+    const suggestions = data.suggestions || [];
+    if (suggestions.length === 0) return [];
+
+    // Retrieve full details for each suggestion
+    const places = [];
+    for (const s of suggestions.slice(0, limit)) {
+      if (!s.mapbox_id) continue;
+      try {
+        const detailResp = await fetch(
+          `https://api.mapbox.com/search/searchbox/v1/retrieve/${s.mapbox_id}?` +
+          `access_token=${token}&language=vi`,
+        );
+        if (!detailResp.ok) continue;
+        const detail = await detailResp.json();
+        const feat = detail.features?.[0];
+        if (!feat) continue;
+        const props = feat.properties || {};
+        const coords = feat.geometry?.coordinates || [];
+        places.push({
+          name: props.name || s.name,
+          fullName: props.full_address || props.place_formatted || s.full_address || '',
+          type: type || detectPlaceTypeFromCategories(props.poi_category || []),
+          address: props.full_address || props.place_formatted || '',
+          city: props.context?.place?.name || extractCityFromAddress(props.full_address || ''),
+          coordinates: { lat: coords[1], lng: coords[0] },
+          latitude: coords[1],
+          longitude: coords[0],
+          relevance: 1,
+          categories: props.poi_category || [],
+          phone: props.metadata?.phone || null,
+          website: props.metadata?.website || null,
+          openingHours: null,
+          photos: [],
+          source: 'mapbox_search',
+        });
+      } catch {
+        // Skip failed detail fetch
+      }
+    }
+    if (places.length > 0) {
+      console.log(`[searchPlaces] Mapbox Search Box returned ${places.length} results for "${searchQuery}"`);
+    }
+    return places;
+  } catch (err) {
+    console.warn('[searchPlaces] Mapbox Search Box API error:', err.message);
+    return [];
+  }
+}
+
+function detectPlaceTypeFromCategories(categories) {
+  const cats = categories.map(c => c.toLowerCase()).join(' ');
+  if (/restaurant|food|dining/.test(cats)) return 'restaurant';
+  if (/hotel|lodging|resort/.test(cats)) return 'hotel';
+  if (/cafe|coffee/.test(cats)) return 'cafe';
+  if (/museum|monument|temple|park|attraction/.test(cats)) return 'attraction';
+  if (/shop|market|mall/.test(cats)) return 'shopping';
+  return 'attraction';
+}
+
+function extractCityFromAddress(address) {
+  if (!address) return '';
+  const parts = address.split(',').map(p => p.trim());
+  return parts.length >= 2 ? parts[parts.length - 2] : '';
+}
+
+/**
+ * Mapbox Geocoding v5 fallback — less accurate for POI search
+ */
+async function searchViaMapboxGeocoding(
+  searchQuery, token, limit, args, type,
+) {
+  try {
+    let url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchQuery)}.json?` +
+      `access_token=${token}&limit=${limit}&language=vi&types=poi`;
+    if (args.longitude && args.latitude) {
+      url += `&proximity=${args.longitude},${args.latitude}`;
+    }
+    const response = await fetch(url);
+    if (!response.ok) return [];
+    const data = await response.json();
+
+    return (data.features || []).map(feature => ({
+      name: feature.text,
+      fullName: feature.place_name,
+      type: type || detectPlaceType(feature),
+      address: feature.place_name,
+      city: extractCity(feature),
+      coordinates: { lat: feature.center[1], lng: feature.center[0] },
+      latitude: feature.center[1],
+      longitude: feature.center[0],
+      relevance: feature.relevance,
+      categories: feature.properties?.category?.split(', ') || [],
+      phone: feature.properties?.tel || null,
+      website: feature.properties?.website || null,
+      openingHours: feature.properties?.open_hours || null,
+      photos: [],
+      source: 'mapbox',
+    }));
+  } catch (err) {
+    console.warn('[searchPlaces] Mapbox Geocoding v5 error:', err.message);
+    return [];
+  }
+}
+
 function searchPlacesFallback(args) {
-  const { query, location, type, limit = 5 } = args;
+  const { query, location, type } = args;
+  const errorMsg = `Không tìm thấy địa điểm "${query || type || 'all'}" tại ${location}. Hãy thử dùng web_search để tìm từ internet.`;
   return {
+    success: false,
+    error: errorMsg,
     source: 'fallback',
-    places: generateMockPlaces(location, type, query, limit),
-    note: 'Dữ liệu tham khảo - Vui lòng cấu hình MAPBOX_ACCESS_TOKEN để có kết quả chính xác',
+    places: [],
+    message: errorMsg,
+    suggestion: 'Use web_search tool to find places from the internet instead.',
   };
 }
 
@@ -469,32 +842,7 @@ function getDefaultSearchTerm(type) {
   return terms[type] || 'points of interest';
 }
 
-function generateMockPlaces(location, type, query, limit) {
-  const places = [];
-  const types = {
-    restaurant: ['Nhà hàng', 'Quán ăn', 'Bistro'],
-    hotel: ['Khách sạn', 'Resort', 'Homestay'],
-    attraction: ['Điểm tham quan', 'Bảo tàng', 'Công viên'],
-    cafe: ['Quán cà phê', 'Coffee House', 'Cafe'],
-    shopping: ['Trung tâm mua sắm', 'Chợ', 'Cửa hàng'],
-    entertainment: ['Khu vui chơi', 'Rạp chiếu phim', 'Bar'],
-  };
-
-  const prefixes = types[type] || ['Địa điểm'];
-
-  for (let i = 0; i < limit; i++) {
-    places.push({
-      name: `${prefixes[i % prefixes.length]} ${query || ''} ${location} ${i + 1}`.trim(),
-      type: type || 'attraction',
-      address: `${100 + i} Đường chính, ${location}`,
-      rating: (4 + Math.random()).toFixed(1),
-      reviewCount: Math.floor(Math.random() * 500) + 50,
-      priceLevel: ['budget', 'mid-range', 'luxury'][Math.floor(Math.random() * 3)],
-    });
-  }
-
-  return places;
-}
+// Mock places generation removed to prevent AI Hallucination
 
 // Export helper functions for use in other handlers
 export {

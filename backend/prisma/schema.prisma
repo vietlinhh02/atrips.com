@@ -13,6 +13,7 @@ model activities {
   id                      String                    @id @default(uuid())
   itineraryDayId          String
   createdById             String?
+  imageAssetId            String?
   name                    String
   type                    ActivityType
   description             String?
@@ -36,12 +37,14 @@ model activities {
   User                    User?                     @relation(fields: [createdById], references: [id])
   itinerary_days          itinerary_days            @relation(fields: [itineraryDayId], references: [id], onDelete: Cascade)
   cached_places           cached_places?            @relation(fields: [placeId], references: [id])
+  image_assets            image_assets?             @relation(fields: [imageAssetId], references: [id])
   activity_votes          activity_votes[]
   flight_activities       flight_activities?
   accommodation_activities accommodation_activities?
   trip_bookings           trip_bookings[]
 
   @@index([deletedAt])
+  @@index([imageAssetId])
   @@index([itineraryDayId])
   @@index([orderIndex])
   @@index([placeId])
@@ -137,11 +140,16 @@ model ai_itinerary_drafts {
   conversationId   String?
   sourcePrompt     String
   generatedData    Json
+  compiledData     Json?
+  compileReport    Json?
+  compileStatus    String            @default("PENDING")
+  compiledAt       DateTime?
   appliedAt        DateTime?
   appliedToTripId  String?
   createdAt        DateTime          @default(now())
   ai_conversations ai_conversations? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
+  @@index([compileStatus])
   @@index([conversationId])
 }
 
@@ -1203,6 +1211,7 @@ model trips {
   id                  String                @id @default(uuid())
   ownerId             String
   tenantId            String?
+  coverImageAssetId   String?
   title               String
   description         String?
   coverImageUrl       String?
@@ -1221,6 +1230,7 @@ model trips {
   updatedAt           DateTime              @updatedAt
   activity_logs       activity_logs[]
   ai_conversations    ai_conversations[]
+  coverImageAsset     image_assets?         @relation("TripCoverImage", fields: [coverImageAssetId], references: [id])
   expenses            expenses[]
   guide_hire_requests guide_hire_requests[]
   itinerary_days      itinerary_days[]
@@ -1235,6 +1245,7 @@ model trips {
   User                User                  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   tenants             tenants?              @relation(fields: [tenantId], references: [id])
 
+  @@index([coverImageAssetId])
   @@index([createdAt])
   @@index([deletedAt])
   @@index([ownerId])
@@ -1651,4 +1662,47 @@ enum TripVisibility {
 enum VoteType {
   UP
   DOWN
+}
+
+enum ImageAssetStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum ImageSourceProvider {
+  GOOGLE_MAPS
+  PEXELS
+  UNSPLASH
+  PICSUM
+  MAPBOX
+  USER_UPLOAD
+}
+
+model image_assets {
+  id             String              @id @default(uuid())
+  sourceUrl      String
+  sourceProvider ImageSourceProvider
+  contentHash    String?             @unique
+  status         ImageAssetStatus    @default(PENDING)
+  r2Key          String?
+  r2Bucket       String?
+  width          Int?
+  height         Int?
+  fileSize       Int?
+  mimeType       String?
+  blurhash       String?
+  variants       Json?
+  lastError      String?
+  attempts       Int                 @default(0)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  activities  activities[]
+  trips_cover trips[]      @relation("TripCoverImage")
+
+  @@index([sourceUrl])
+  @@index([status])
+  @@index([contentHash])
 }
