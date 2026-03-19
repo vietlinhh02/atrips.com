@@ -3,6 +3,7 @@
  * Handles execution of AI tool calls with real API integrations
  */
 
+import { createHash } from 'node:crypto';
 import {
   createSearchHandlers,
   createInfoHandlers,
@@ -12,6 +13,64 @@ import {
   createSocialMediaHandlers,
 } from './handlers/index.js';
 import { logger } from '../../../../shared/services/LoggerService.js';
+import cacheService from '../../../../shared/services/CacheService.js';
+
+/** TTL in seconds, keyed by tool name. */
+const TOOL_CACHE_TTL = {
+  web_search: 3600,
+  scrape_url: 3600,
+  search_places: 86400,
+  get_place_details: 86400,
+  get_weather: 10800,
+  search_flights: 1800,
+  search_hotels: 1800,
+  get_exchange_rate: 21600,
+  calculate_distance: 604800,
+};
+const DEFAULT_CACHE_TTL = 3600;
+
+/** Tools that mutate data — never cache. */
+const MUTATING_TOOLS = new Set([
+  'add_activity',
+  'update_activity',
+  'delete_activity',
+  'reorder_activities',
+  'update_trip',
+  'delete_trip',
+  'create_trip_plan',
+  'apply_draft_to_trip',
+  'add_day_to_trip',
+  'update_day',
+  'delete_day',
+  'optimize_itinerary',
+]);
+
+/** Param keys that indicate user-specific data — skip cache. */
+const USER_SPECIFIC_PARAMS = new Set([
+  'conversationId',
+  'userId',
+]);
+
+function generateCacheKey(toolName, params) {
+  const sortedParams = Object.keys(params)
+    .sort()
+    .reduce((obj, key) => {
+      obj[key] = params[key];
+      return obj;
+    }, {});
+  const hash = createHash('md5')
+    .update(`${toolName}:${JSON.stringify(sortedParams)}`)
+    .digest('hex');
+  return `tool:${hash}`;
+}
+
+function isCacheable(toolName, params) {
+  if (MUTATING_TOOLS.has(toolName)) return false;
+  for (const key of Object.keys(params)) {
+    if (USER_SPECIFIC_PARAMS.has(key)) return false;
+  }
+  return true;
+}
 
 class ToolExecutor {
   constructor() {
@@ -205,6 +264,27 @@ class ToolExecutor {
     else if (step7bTools.includes(toolName)) stepLabel = '[STEP 7B: Modify]';
     else stepLabel = '[TOOL]';
 
+    const cacheable = isCacheable(toolName, args);
+    let cacheKey;
+
+    if (cacheable) {
+      cacheKey = generateCacheKey(toolName, args);
+      try {
+        const cached = await cacheService.get(cacheKey);
+        if (cached !== null) {
+          logger.info(
+            `[ToolCache] HIT: ${toolName} (${cacheKey.slice(0, 8)})`
+          );
+          return { success: true, data: cached, cached: true };
+        }
+        logger.info(`[ToolCache] MISS: ${toolName} - executing`);
+      } catch (cacheErr) {
+        logger.warn('[ToolCache] Read error, executing normally', {
+          error: cacheErr.message,
+        });
+      }
+    }
+
     try {
       logger.info(`${stepLabel} Executing: ${toolName}`);
       const startTime = Date.now();
@@ -215,12 +295,28 @@ class ToolExecutor {
       // Normalize this as a failed tool execution so callers don't get
       // misleading outer success=true envelopes.
       if (result?.success === false) {
-        logger.warn(`${toolName} failed in ${duration}ms`, { error: result.error || 'Unknown tool error' });
+        logger.warn(`${toolName} failed in ${duration}ms`, {
+          error: result.error || 'Unknown tool error',
+        });
         return {
           success: false,
           error: result.error || `${toolName} failed`,
           data: result,
         };
+      }
+
+      if (cacheable) {
+        const ttl = TOOL_CACHE_TTL[toolName] ?? DEFAULT_CACHE_TTL;
+        try {
+          await cacheService.set(cacheKey, result, ttl);
+          logger.info(
+            `[ToolCache] SAVED: ${toolName} (TTL: ${ttl}s)`
+          );
+        } catch (cacheErr) {
+          logger.warn('[ToolCache] Write error, result not cached', {
+            error: cacheErr.message,
+          });
+        }
       }
 
       logger.info(`${toolName} completed in ${duration}ms`);
