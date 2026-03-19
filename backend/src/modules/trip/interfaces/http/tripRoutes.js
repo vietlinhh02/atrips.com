@@ -8,6 +8,7 @@ import { body, param, query } from 'express-validator';
 import * as tripController from './tripController.js';
 import { authenticate } from '../../../../shared/middleware/authenticate.js';
 import tripPhase1Routes from './tripPhase1Routes.js';
+import tripAdvancedRoutes from './tripAdvancedRoutes.js';
 
 const router = Router();
 
@@ -17,6 +18,11 @@ router.use(authenticate);
 // Phase 1 Routes (Overview, Transportation, Bookings, Budget)
 // ═══════════════════════════════════════════════════════════════
 router.use('/', tripPhase1Routes);
+
+// ═══════════════════════════════════════════════════════════════
+// Advanced Trip Management (duplicate, archive, PDF export)
+// ═══════════════════════════════════════════════════════════════
+router.use('/', tripAdvancedRoutes);
 
 const createTripValidation = [
   body('title')

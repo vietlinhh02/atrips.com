@@ -34,6 +34,15 @@ import tripRoutes from './modules/trip/interfaces/http/tripRoutes.js';
 import cacheRoutes from './shared/interfaces/http/cacheRoutes.js';
 import configRoutes from './shared/interfaces/http/configRoutes.js';
 import imageRoutes from './modules/image/interfaces/http/imageRoutes.js';
+import notificationRoutes from './modules/notification/interfaces/http/notificationRoutes.js';
+import collectionRoutes from './modules/collection/interfaces/http/collectionRoutes.js';
+import activityVoteRoutes from './modules/trip/interfaces/http/activityVoteRoutes.js';
+import storyRoutes from './modules/story/interfaces/http/storyRoutes.js';
+import expenseRoutes from './modules/expense/interfaces/http/expenseRoutes.js';
+import weatherRoutes from './modules/weather/interfaces/http/weatherRoutes.js';
+import gamificationRoutes from './modules/gamification/interfaces/http/gamificationRoutes.js';
+import flightRoutes from './modules/flight/interfaces/http/flightRoutes.js';
+import eventRoutes from './modules/event/interfaces/http/eventRoutes.js';
 
 /**
  * Create and configure Express application
@@ -217,6 +226,33 @@ function createApp() {
 
   // Image asset routes
   app.use('/api/images', imageRoutes);
+
+  // Notification routes
+  app.use('/api/notifications', notificationRoutes);
+
+  // Collection routes
+  app.use('/api/collections', collectionRoutes);
+
+  // Activity vote routes
+  app.use('/api/votes', activityVoteRoutes);
+
+  // Story routes
+  app.use('/api/stories', storyRoutes);
+
+  // Expense routes (note: uses /api prefix, routes include /trips/:tripId/expenses and /expenses/:id)
+  app.use('/api', expenseRoutes);
+
+  // Weather routes
+  app.use('/api/weather', weatherRoutes);
+
+  // Gamification routes
+  app.use('/api/gamification', gamificationRoutes);
+
+  // Flight routes
+  app.use('/api/flights', flightRoutes);
+
+  // Event routes
+  app.use('/api/events', eventRoutes);
 
   // Root endpoint
   app.get('/', (req, res) => {
