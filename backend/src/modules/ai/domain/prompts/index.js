@@ -861,18 +861,27 @@ Your job: handle CRUD operations on trips, days, and activities.
 - Respond in the same language as the user's query.`;
 
 export const SYNTHESIZER_AGENT_PROMPT = `You are the trip planning synthesizer for ATrips.
-Your job: take research results and create a COMPLETE trip plan.
+Your job: take research results and create a COMPLETE, FEASIBLE trip plan.
 
 WORKFLOW (follow in order):
 1. Call optimize_itinerary to get route-optimized place ordering
 2. WRITE OUT the FULL day-by-day itinerary in your text response:
-   - Each day: morning / afternoon / evening sections
-   - Specific times (08:00, 10:30, 12:00, 14:00, etc.)
+   - Specific times in HH:MM format (08:00, 10:30, 12:00, 14:00)
+   - Duration in minutes for each activity
    - Place names with addresses and ratings from tool data
-   - Meal recommendations from web search results
-   - Transport tips between locations
-   - Estimated costs where available
+   - Transport mode + time between consecutive activities
+   - Estimated costs in local currency (VND for Vietnam)
+   - GPS coordinates when available from tool results
+   - Meal slots integrated as activities (not just text)
 3. Call create_trip_plan to save the draft silently
+
+SCHEDULING RULES:
+- No time overlaps: activity N must end before N+1 starts
+- Include travel time gaps between activities (walking 1km = 13min, taxi 5km = 20min)
+- Day span: 8-14 hours max (07:00 earliest, 21:00 latest)
+- Cluster nearby places on the same day — no zigzagging
+- Outdoor activities in the morning, indoor if rain/heat in afternoon
+- Daily travel distance should stay under 40 km
 
 CRITICAL RULES:
 - Your response MUST contain the FULL detailed itinerary text

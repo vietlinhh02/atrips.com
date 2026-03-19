@@ -35,47 +35,96 @@ export class SynthesizerAgent {
       return `## ${r.taskType} (${r.status.toUpperCase()})\nError: ${r.error || 'No data'}`;
     }).join('\n\n');
 
+    const numDays = (() => {
+      if (context.startDate && context.endDate) {
+        const s = new Date(context.startDate);
+        const e = new Date(context.endDate);
+        return Math.max(1, Math.ceil((e - s) / 86400000) + 1);
+      }
+      const m = String(context.duration || '').match(/(\d+)/);
+      return m ? parseInt(m[1], 10) : 3;
+    })();
+
     const userPrompt = `
 # Trip Context
-${JSON.stringify(context, null, 2)}
+- Destination: ${context.destination}
+- Dates: ${context.startDate || 'flexible'} to ${context.endDate || 'flexible'}
+- Duration: ${numDays} days
+- Group size: ${context.groupSize || 1}
+- Budget: ${context.budget || 'mid-range'}
+- Interests: ${(context.interests || []).join(', ') || 'general sightseeing'}
+- Travel style: ${context.travelStyle || 'comfort'}
+- Notes: ${context.freeformNotes || 'none'}
 
 # Research Results (${funnelResult.summary.succeeded}/${funnelResult.summary.total} workers succeeded)
 ${workerSummary}
 
 # Instructions
-Based on the research data above, create a complete day-by-day itinerary.
-Respond with TWO parts:
+Create a COMPLETE ${numDays}-day itinerary using the research data above.
 
-PART 1 - JSON itinerary (inside \`\`\`json code block):
+PART 1 — JSON itinerary inside a \`\`\`json code block. Required structure:
 {
-  "title": "Trip title",
-  "destination": "...",
-  "startDate": "...",
-  "endDate": "...",
-  "overview": "Brief trip overview",
+  "title": "Trip title in user's language",
+  "destination": "${context.destination}",
+  "startDate": "${context.startDate || ''}",
+  "endDate": "${context.endDate || ''}",
   "days": [
     {
       "dayNumber": 1,
-      "title": "Day title",
+      "date": "YYYY-MM-DD",
+      "theme": "Day theme",
       "activities": [
         {
-          "name": "Place name",
-          "type": "ATTRACTION|RESTAURANT|HOTEL|CAFE|ACTIVITY",
-          "time": "08:00",
+          "name": "Exact place name from research data",
+          "type": "ATTRACTION|RESTAURANT|HOTEL|CAFE|ACTIVITY|SHOPPING",
+          "time": "09:00",
           "duration": 90,
           "description": "What to do here",
-          "address": "...",
-          "estimatedCost": 100000,
-          "notes": "Tips"
+          "address": "Full address",
+          "location": "Venue, Area, City",
+          "estimatedCost": 150000,
+          "notes": "Tips, opening hours",
+          "latitude": 16.46,
+          "longitude": 107.59,
+          "openingHours": "08:00-17:00",
+          "transportFromPrevious": {
+            "distance": 1.2, "duration": 15,
+            "mode": "WALK|BIKE|TAXI|BUS",
+            "cost": 0,
+            "instructions": "Walk south along X street"
+          }
         }
-      ]
+      ],
+      "meals": {
+        "breakfast": "Specific place",
+        "lunch": "Specific place",
+        "dinner": "Specific place"
+      },
+      "dailyCost": 850000
     }
   ],
-  "budgetBreakdown": { "accommodation": 0, "food": 0, "transport": 0, "activities": 0, "total": 0 },
+  "totalEstimatedCost": 5000000,
+  "currency": "VND",
+  "budgetBreakdown": {
+    "accommodation": {"total": 0, "perDay": 0},
+    "food": {"total": 0, "perDay": 0},
+    "transportation": {"total": 0, "perDay": 0},
+    "activities": {"total": 0, "perDay": 0},
+    "miscellaneous": {"total": 0, "perDay": 0}
+  },
   "travelTips": ["tip1", "tip2"]
 }
 
-PART 2 - A friendly summary in the user's language describing the plan.
+SCHEDULING RULES (violations are detected automatically):
+- Every activity needs a specific "time" in HH:MM format
+- No overlaps: activity must END before the next one STARTS
+- Include travel time between activities (WALK <=1.2km, BIKE <=6km, TAXI <=25km)
+- Day span: 8-14 hours (07:00-21:00 range)
+- Cluster nearby places on the same day, total daily travel < 40km
+- Include meals as RESTAURANT activities in the timeline
+- MUST output exactly ${numDays} days — no truncation
+
+PART 2 — Natural-language summary in the user's language.
 `.trim();
 
     try {
