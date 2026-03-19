@@ -12,6 +12,7 @@ import applyAIDraftUseCase from '../../application/useCases/ApplyAIDraftUseCase.
 import modifyTripWithAIUseCase from '../../application/useCases/ModifyTripWithAIUseCase.js';
 import tripRepository from '../../infrastructure/repositories/TripRepository.js';
 import activityRepository from '../../infrastructure/repositories/ActivityRepository.js';
+import novuService from '../../../notification/application/NovuService.js';
 
 export const createTrip = asyncHandler(async (req, res) => {
   // ═══════════════════════════════════════════════════════════════
@@ -91,6 +92,19 @@ export const updateTrip = asyncHandler(async (req, res) => {
   const updates = req.body;
 
   const trip = await tripRepository.updateTrip(id, updates, req.user.id);
+
+  // Notify trip members about the update
+  tripRepository.getTripMembers(id).then((members) => {
+    const otherMembers = members
+      .filter((m) => m.userId !== req.user.id)
+      .map((m) => m.userId);
+    if (otherMembers.length > 0) {
+      novuService.triggerBulk('trip-update', otherMembers, {
+        tripId: id,
+        tripName: trip.title,
+      }, req.user.id);
+    }
+  });
 
   return sendSuccess(res, { trip: trip.toJSON() }, 'Trip updated successfully');
 });

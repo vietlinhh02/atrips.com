@@ -8,6 +8,7 @@ import { sendSuccess, sendCreated } from '../../../../shared/utils/response.js';
 import { AppError } from '../../../../shared/errors/AppError.js';
 import tripRepository from '../../infrastructure/repositories/TripRepository.js';
 import prisma from '../../../../config/database.js';
+import novuService from '../../../notification/application/NovuService.js';
 
 /**
  * GET /api/trips/:tripId/bookings
@@ -295,6 +296,19 @@ export const updatePaymentStatus = asyncHandler(async (req, res) => {
   const updatedBooking = await prisma.trip_bookings.update({
     where: { id: bookingId },
     data: { paymentStatus },
+  });
+
+  // Notify trip members about payment status change
+  tripRepository.getTripMembers(booking.tripId).then((members) => {
+    const memberIds = members.map((m) => m.userId);
+    if (memberIds.length > 0) {
+      novuService.triggerBulk('payment-update', memberIds, {
+        bookingTitle: updatedBooking.title || 'Booking',
+        paymentStatus,
+        amount: updatedBooking.totalCost,
+        currency: updatedBooking.currency,
+      }, req.user.id);
+    }
   });
 
   return sendSuccess(res, { booking: updatedBooking }, `Payment status updated to ${paymentStatus}`);
