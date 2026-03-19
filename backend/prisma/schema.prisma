@@ -578,6 +578,19 @@ model guide_follows {
   @@index([userId])
 }
 
+model user_follows {
+  id          String   @id @default(uuid())
+  followerId  String
+  followingId String
+  followedAt  DateTime @default(now())
+  follower    User     @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
 model guide_hire_requests {
   id              String          @id @default(uuid())
   guideId         String
@@ -1360,6 +1373,8 @@ model User {
   user_badges                          user_badges[]
   travel_profiles                      travel_profiles?
   UserPreference                       UserPreference?
+  user_followers                       user_follows[]             @relation("UserFollowing")
+  user_following                       user_follows[]             @relation("UserFollowers")
   voice_inputs                         voice_inputs[]
 
   @@index([createdAt])

@@ -33,7 +33,7 @@ const CACHE_KEYS = {
 export const getPublicProfile = asyncHandler(async (req, res) => {
   const { userId } = req.params;
 
-  const [user, publicTrips] = await Promise.all([
+  const [user, publicTrips, followCounts] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId, isActive: true, deletedAt: null },
       select: {
@@ -74,6 +74,10 @@ export const getPublicProfile = asyncHandler(async (req, res) => {
       orderBy: { createdAt: 'desc' },
       take: 12,
     }),
+    Promise.all([
+      prisma.user_follows.count({ where: { followingId: userId } }),
+      prisma.user_follows.count({ where: { followerId: userId } }),
+    ]),
   ]);
 
   if (!user) {
@@ -82,6 +86,8 @@ export const getPublicProfile = asyncHandler(async (req, res) => {
       message: 'User not found',
     });
   }
+
+  const [followersCount, followingCount] = followCounts;
 
   return sendSuccess(res, {
     user: {
@@ -97,6 +103,8 @@ export const getPublicProfile = asyncHandler(async (req, res) => {
       travelerTypes: user.travel_profiles?.travelerTypes || [],
       personaTitle: user.travel_profiles?.personaTitle || null,
       tripsCount: publicTrips.length,
+      followersCount,
+      followingCount,
     },
     trips: publicTrips,
   }, 'Public profile retrieved');
