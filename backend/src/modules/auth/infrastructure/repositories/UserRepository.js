@@ -455,13 +455,15 @@ export class UserRepository {
    * @param {string} email - User email
    * @param {string} token - Verification token
    * @param {Date} expiresAt - Token expiration date
+   * @param {string} [otp] - 6-digit OTP code
    * @returns {Promise<object>}
    */
-  async createEmailVerificationToken(email, token, expiresAt) {
+  async createEmailVerificationToken(email, token, expiresAt, otp = null) {
     return prisma.email_verification_tokens.create({
       data: {
         email: email.toLowerCase(),
         token,
+        otp,
         expiresAt,
       },
     });
@@ -475,6 +477,23 @@ export class UserRepository {
   async findEmailVerificationToken(token) {
     return prisma.email_verification_tokens.findUnique({
       where: { token },
+    });
+  }
+
+  /**
+   * Find the latest unused email verification token by email and OTP
+   * @param {string} email - User email
+   * @param {string} otp - 6-digit OTP code
+   * @returns {Promise<object|null>}
+   */
+  async findEmailVerificationByOTP(email, otp) {
+    return prisma.email_verification_tokens.findFirst({
+      where: {
+        email: email.toLowerCase(),
+        otp,
+        usedAt: null,
+      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 

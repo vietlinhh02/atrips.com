@@ -77,6 +77,25 @@ const verifyEmailValidation = [
     .withMessage('Invalid verification token'),
 ];
 
+const verifyEmailOTPValidation = [
+  body('otp')
+    .notEmpty()
+    .withMessage('Verification code is required')
+    .isLength({ min: 6, max: 6 })
+    .withMessage('Verification code must be 6 digits'),
+  body('email')
+    .isEmail()
+    .withMessage('Please provide a valid email address')
+    .normalizeEmail(),
+];
+
+const resendVerificationValidation = [
+  body('email')
+    .isEmail()
+    .withMessage('Please provide a valid email address')
+    .normalizeEmail(),
+];
+
 /**
  * Routes
  */
@@ -93,6 +112,8 @@ router.post('/reset-password', resetPasswordValidation, authController.resetPass
 
 // Email Verification
 router.get('/verify-email/:token', verifyEmailValidation, authController.verifyEmail);
+router.post('/verify-email', verifyEmailOTPValidation, authController.verifyEmailOTP);
+router.post('/resend-verification', resendVerificationValidation, authController.resendVerification);
 
 // Google OAuth
 router.get(

@@ -60,11 +60,10 @@ export class RegisterUseCase {
     });
 
     if (config.features.emailVerificationRequired) {
-      const verificationToken = await authService.createEmailVerificationToken(user.email);
-      const verificationUrl = `${config.frontendUrl}/verify-email?token=${verificationToken}`;
+      const { otp } = await authService.createEmailVerificationToken(user.email);
       novuService.trigger('email-verification', user.id, {
         name: user.name || 'there',
-        verificationUrl,
+        otp,
       });
     } else {
       novuService.trigger('welcome-email', user.id, {

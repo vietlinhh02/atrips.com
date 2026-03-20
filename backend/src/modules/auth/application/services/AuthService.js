@@ -9,6 +9,7 @@ import { AppError } from '../../../../shared/errors/AppError.js';
 import {
   generateTokenPair,
   generateRandomToken,
+  generateOTP,
   verifyRefreshToken,
 } from '../../../../shared/utils/jwt.js';
 import userRepository from '../../infrastructure/repositories/UserRepository.js';
@@ -106,17 +107,20 @@ export class AuthService {
   }
 
   /**
-   * Generate email verification token
+   * Generate email verification token and OTP
    * @param {string} email - User email
-   * @returns {Promise<string>} - Verification token
+   * @returns {Promise<{token: string, otp: string}>} - Verification token and OTP
    */
   async createEmailVerificationToken(email) {
     const token = generateRandomToken();
+    const otp = generateOTP(6);
     const expiresAt = new Date(Date.now() + config.emailVerificationExpires);
 
-    await userRepository.createEmailVerificationToken(email, token, expiresAt);
+    await userRepository.createEmailVerificationToken(
+      email, token, expiresAt, otp,
+    );
 
-    return token;
+    return { token, otp };
   }
 
   /**
@@ -133,6 +137,28 @@ export class AuthService {
 
     if (tokenRecord.usedAt) {
       throw AppError.badRequest('This verification link has already been used');
+    }
+
+    if (new Date() > tokenRecord.expiresAt) {
+      throw AppError.tokenExpired();
+    }
+
+    return tokenRecord;
+  }
+
+  /**
+   * Verify email verification OTP
+   * @param {string} otp - 6-digit OTP code
+   * @param {string} email - User email
+   * @returns {Promise<object>} - Token record
+   */
+  async verifyEmailOTP(otp, email) {
+    const tokenRecord = await userRepository.findEmailVerificationByOTP(
+      email, otp,
+    );
+
+    if (!tokenRecord) {
+      throw AppError.badRequest('Invalid verification code');
     }
 
     if (new Date() > tokenRecord.expiresAt) {

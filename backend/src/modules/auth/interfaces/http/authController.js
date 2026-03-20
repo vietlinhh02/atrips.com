@@ -14,6 +14,8 @@ import refreshTokenUseCase from '../../application/useCases/RefreshTokenUseCase.
 import forgotPasswordUseCase from '../../application/useCases/ForgotPasswordUseCase.js';
 import resetPasswordUseCase from '../../application/useCases/ResetPasswordUseCase.js';
 import verifyEmailUseCase from '../../application/useCases/VerifyEmailUseCase.js';
+import userRepository from '../../infrastructure/repositories/UserRepository.js';
+import novuService from '../../../notification/application/NovuService.js';
 import config from '../../../../config/index.js';
 
 /**
@@ -147,7 +149,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
 
 /**
  * @route GET /api/auth/verify-email/:token
- * @desc Verify email with token
+ * @desc Verify email with token (link-based)
  * @access Public
  */
 export const verifyEmail = asyncHandler(async (req, res) => {
@@ -158,6 +160,65 @@ export const verifyEmail = asyncHandler(async (req, res) => {
   return sendSuccess(res, {
     alreadyVerified: result.alreadyVerified,
   }, result.message);
+});
+
+/**
+ * @route POST /api/auth/verify-email
+ * @desc Verify email with OTP code
+ * @access Public
+ */
+export const verifyEmailOTP = asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return sendValidationError(res, errors.array());
+  }
+
+  const { otp, email } = req.body;
+
+  const result = await verifyEmailUseCase.executeWithOTP(otp, email);
+
+  return sendSuccess(res, {
+    alreadyVerified: result.alreadyVerified,
+  }, result.message);
+});
+
+/**
+ * @route POST /api/auth/resend-verification
+ * @desc Resend email verification OTP
+ * @access Public
+ */
+export const resendVerification = asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return sendValidationError(res, errors.array());
+  }
+
+  const { email } = req.body;
+
+  const user = await userRepository.findByEmail(email);
+  if (!user) {
+    return sendSuccess(res, null, 'If an account exists, a new code has been sent.');
+  }
+
+  if (user.emailVerified) {
+    return sendSuccess(res, null, 'Email is already verified.');
+  }
+
+  const { otp } = await authService.createEmailVerificationToken(email);
+
+  await novuService.initSubscriber({
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    displayName: user.displayName,
+  });
+
+  novuService.trigger('email-verification', user.id, {
+    name: user.name || 'there',
+    otp,
+  });
+
+  return sendSuccess(res, null, 'If an account exists, a new code has been sent.');
 });
 
 /**
@@ -215,6 +276,8 @@ export default {
   forgotPassword,
   resetPassword,
   verifyEmail,
+  verifyEmailOTP,
+  resendVerification,
   googleAuth,
   googleCallback,
   getCurrentUser,
