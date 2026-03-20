@@ -1024,7 +1024,7 @@ function completeTripDays(aiDays, startDate, endDate, destination) {
  * FLOW: Step 5 - Draft Storage (via Tool)
  */
 async function createTripPlan(args) {
-  const {
+  let {
     title,
     destination,
     description,
@@ -1037,6 +1037,19 @@ async function createTripPlan(args) {
     budgetBreakdown,
     bookingSuggestions,
   } = args;
+
+  // Generate default dates when not provided
+  if (!startDate && itineraryData?.days?.length > 0) {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    startDate = itineraryData.startDate
+      || tomorrow.toISOString().split('T')[0];
+    const numDays = itineraryData.days.length;
+    const end = new Date(startDate);
+    end.setDate(end.getDate() + numDays - 1);
+    endDate = itineraryData.endDate
+      || end.toISOString().split('T')[0];
+  }
 
   const resolvedDestination = destination
     || itineraryData?.destination

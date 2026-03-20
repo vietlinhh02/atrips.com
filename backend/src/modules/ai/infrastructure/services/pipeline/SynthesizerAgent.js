@@ -53,7 +53,7 @@ Interests: ${(context.interests || []).join(', ') || 'general sightseeing'}
 # Research (${funnelResult.summary.succeeded}/${funnelResult.summary.total} OK)
 ${workerSummary}
 
-Create a ${numDays}-day itinerary JSON (see system prompt for schema) + brief summary. Include 4-6 activities per day with meals as RESTAURANT type. Output ALL ${numDays} days.`.trim();
+Create a ${numDays}-day itinerary JSON (see system prompt for schema) + brief summary. Include enough activities to fill each day (typically 4-7 per day including meals). Use ONLY real places from research data above — copy their rating, ratingCount, coordinates exactly. Output ALL ${numDays} days.`.trim();
 
     try {
       const inputChars = SYNTHESIZER_SYSTEM_PROMPT.length + userPrompt.length;

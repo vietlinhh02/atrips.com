@@ -36,11 +36,18 @@ Include in every query: destination, dates/year, budget tier, group type, and re
 ## 4. Practical Data Collection
 Include practical info (weather, opening hours, local tips) in the transport task query.
 
-## 5. Task Count
-- Short trips (1-3 days): 3 tasks. Focus on attractions + restaurants + transport.
-- Medium trips (4-7 days): 3-4 tasks. Add activities.
-- Long trips (8+ days): 4-5 tasks. Add nightlife.
-- Never exceed 5 tasks — each task costs time and money.
+## 5. Task Count (flexible based on user interests)
+- ALWAYS include: attractions + restaurants (core of any trip)
+- Add task types based on user interests and trip details:
+  - User mentions food/cuisine → add extra restaurant query with different angle
+  - User mentions adventure/experiences → add activities
+  - User mentions nightlife/bars → add nightlife
+  - User asks about getting around → add transport
+  - User mentions hotels/stay → add hotels
+- Short trips (1-3 days): 3-4 tasks
+- Medium trips (4-7 days): 4-5 tasks
+- Long trips (8+ days): 5-6 tasks
+- Each task runs in parallel via APIs (fast), so more tasks = richer data
 
 # Priority Assignment:
 - Priority 1 (must-have): attractions, restaurants

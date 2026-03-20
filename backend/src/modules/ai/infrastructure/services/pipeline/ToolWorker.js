@@ -100,21 +100,7 @@ export class ToolWorker {
         );
       }
 
-      // 4. Mapbox search_places as supplementary source
-      if (['attractions', 'restaurants', 'activities'].includes(task.taskType)) {
-        promises.push(
-          toolExecutor.execute('search_places', {
-            query: `${ctx.destination} ${task.taskType}`,
-            location: ctx.destination,
-            limit: 8,
-          }).then(r => {
-            if (r?.success && r.data?.places?.length > 0) {
-              return { type: 'mapbox', data: r.data };
-            }
-            return null;
-          }).catch(() => null),
-        );
-      }
+      // Mapbox removed — Serper Places returns richer Google data
 
       // Run all in parallel
       const results = await Promise.allSettled(promises);
@@ -135,26 +121,6 @@ export class ToolWorker {
             if (key && !seenNames.has(key)) {
               seenNames.add(key);
               places.push(p);
-            }
-          }
-        } else if (type === 'mapbox' && data?.places) {
-          for (const p of data.places) {
-            const key = (p.name || '').toLowerCase().trim();
-            if (key && !seenNames.has(key)) {
-              seenNames.add(key);
-              places.push({
-                name: p.name,
-                address: p.address,
-                latitude: p.latitude || p.coordinates?.lat,
-                longitude: p.longitude || p.coordinates?.lng,
-                rating: p.rating,
-                ratingCount: p.ratingCount,
-                category: p.type || p.categories?.[0] || '',
-                openingHours: p.openingHours,
-                phone: p.phone,
-                website: p.website,
-                source: 'mapbox',
-              });
             }
           }
         } else if (type === 'hotels') {

@@ -9,7 +9,9 @@ import aiDraftRepository from '../../infrastructure/repositories/AIItineraryDraf
 import googleMapsProvider from '../../../ai/infrastructure/services/GoogleMapsProvider.js';
 import { logger } from '../../../../shared/services/LoggerService.js';
 
-const GOOGLE_MAPS_HYDRATION_ENABLED = process.env.GOOGLE_MAPS_HYDRATION_ENABLED !== 'false';
+// Disabled by default — Serper Places already provides coordinates, ratings.
+// Google Maps Playwright crawl adds 15-20s and often fails in Docker.
+const GOOGLE_MAPS_HYDRATION_ENABLED = process.env.GOOGLE_MAPS_HYDRATION_ENABLED === 'true';
 
 const DEFAULT_DURATION_BY_TYPE = {
   HOTEL: 60,
