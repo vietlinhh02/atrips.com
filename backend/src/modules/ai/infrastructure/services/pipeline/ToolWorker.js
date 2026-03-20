@@ -1,147 +1,198 @@
 /**
  * Tool Worker (Layer 2.5 — API-based)
- * Replaces browser-use WorkerClient with direct API tool calls.
- * Each task type maps to 1-2 existing tool handlers (search_places,
- * web_search, search_hotels, etc.) — no Chrome needed.
+ * Replaces browser-use WorkerClient with direct API + Serper calls.
+ * Each task type uses Serper Places (Google data) + web_search for context.
+ * Zero Chrome instances needed.
  */
 
 import toolExecutor from '../ToolExecutor.js';
+import serperService from '../SerperService.js';
 import { logger } from '../../../../../shared/services/LoggerService.js';
 
 /**
- * Task type → tool call configuration.
- * Each entry defines which tools to call and how to build args.
+ * Serper Places query templates per task type.
+ * Returns real Google Maps data: name, rating, ratingCount, address,
+ * latitude, longitude, category, phone, website, cid.
  */
-const TASK_TOOL_MAP = {
-  attractions: {
-    tools: [
-      { name: 'search_places', buildArgs: (q, ctx) => ({
-        query: `${ctx.destination} tourist attractions`,
-        location: ctx.destination,
-        type: 'attraction',
-        limit: 10,
-      })},
-      { name: 'web_search', buildArgs: (q) => ({
-        query: q,
-        limit: 5,
-      })},
-    ],
-  },
-  restaurants: {
-    tools: [
-      { name: 'search_places', buildArgs: (q, ctx) => ({
-        query: `restaurants local food ${ctx.destination}`,
-        location: ctx.destination,
-        type: 'restaurant',
-        limit: 10,
-      })},
-      { name: 'web_search', buildArgs: (q) => ({
-        query: q,
-        limit: 3,
-      })},
-    ],
-  },
-  hotels: {
-    tools: [
-      { name: 'search_hotels', buildArgs: (q, ctx) => ({
-        destination: ctx.destination,
-        checkin: ctx.startDate || '',
-        checkout: ctx.endDate || '',
-        guests: ctx.groupSize || 2,
-        budget: ctx.budget || 'mid-range',
-      })},
-    ],
-  },
-  transport: {
-    tools: [
-      { name: 'web_search', buildArgs: (q) => ({
-        query: q,
-        limit: 5,
-      })},
-    ],
-  },
-  activities: {
-    tools: [
-      { name: 'search_places', buildArgs: (q, ctx) => ({
-        query: `${ctx.destination} activities tours experiences`,
-        location: ctx.destination,
-        type: 'activity',
-        limit: 8,
-      })},
-      { name: 'web_search', buildArgs: (q) => ({
-        query: q,
-        limit: 3,
-      })},
-    ],
-  },
-  nightlife: {
-    tools: [
-      { name: 'search_places', buildArgs: (q, ctx) => ({
-        query: `${ctx.destination} nightlife bars night market`,
-        location: ctx.destination,
-        limit: 8,
-      })},
-    ],
-  },
+const SERPER_PLACES_QUERIES = {
+  attractions: (ctx) => [
+    `tourist attractions ${ctx.destination}`,
+    `things to do ${ctx.destination}`,
+  ],
+  restaurants: (ctx) => [
+    `best restaurants ${ctx.destination}`,
+    `local food ${ctx.destination}`,
+  ],
+  activities: (ctx) => [
+    `activities tours experiences ${ctx.destination}`,
+  ],
+  nightlife: (ctx) => [
+    `nightlife bars night market ${ctx.destination}`,
+  ],
 };
 
-const DEFAULT_TOOLS = {
-  tools: [
-    { name: 'web_search', buildArgs: (q) => ({
-      query: q,
-      limit: 5,
-    })},
-  ],
+/**
+ * Web search queries for enrichment context.
+ */
+const WEB_SEARCH_QUERIES = {
+  attractions: (q, ctx) => q || `${ctx.destination} top attractions opening hours entrance fee ${new Date().getFullYear()}`,
+  restaurants: (q, ctx) => q || `${ctx.destination} best local food restaurants ${new Date().getFullYear()}`,
+  hotels: (q, ctx) => q || `${ctx.destination} hotels accommodation ${ctx.budget || ''} ${new Date().getFullYear()}`,
+  transport: (q, ctx) => q || `${ctx.destination} transportation getting around weather tips ${new Date().getFullYear()}`,
+  activities: (q, ctx) => q || `${ctx.destination} unique experiences tours ${new Date().getFullYear()}`,
+  nightlife: (q, ctx) => q || `${ctx.destination} nightlife evening entertainment ${new Date().getFullYear()}`,
 };
 
 export class ToolWorker {
   /**
-   * Execute a single task using API tools instead of browser.
+   * Execute a single task using Serper Places + web_search.
    *
    * @param {import('./OrchestratorAgent.js').WorkerTask} task
    * @returns {Promise<{taskId: string, status: string, data: any, error?: string}>}
    */
   async executeTask(task) {
     const startTime = Date.now();
-    const config = TASK_TOOL_MAP[task.taskType] || DEFAULT_TOOLS;
+    const ctx = task.context || {};
 
     try {
       logger.info('[ToolWorker] Executing task:', {
         taskId: task.taskId,
         taskType: task.taskType,
-        toolCount: config.tools.length,
       });
 
-      // Run all tools for this task type in parallel
-      const results = await Promise.allSettled(
-        config.tools.map(async (toolDef) => {
-          const args = toolDef.buildArgs(task.query, task.context || {});
-          return toolExecutor.execute(toolDef.name, args);
-        }),
-      );
+      const promises = [];
 
-      // Merge all successful results
-      const mergedData = [];
-      for (const outcome of results) {
-        if (outcome.status === 'fulfilled' && outcome.value?.success) {
-          mergedData.push(outcome.value.data || outcome.value);
+      // 1. Serper Places (if applicable — structured Google data)
+      const placeQueries = SERPER_PLACES_QUERIES[task.taskType];
+      if (placeQueries && serperService.isAvailable) {
+        for (const q of placeQueries(ctx)) {
+          promises.push(
+            serperService.searchPlaces({ query: q })
+              .then(r => ({ type: 'places', data: r }))
+              .catch(() => null),
+          );
         }
       }
 
-      const data = mergedData.length > 0 ? mergedData : null;
+      // 2. Hotels via search_hotels handler (Booking.com/SearXNG)
+      if (task.taskType === 'hotels') {
+        promises.push(
+          toolExecutor.execute('search_hotels', {
+            destination: ctx.destination,
+            checkin: ctx.startDate || '',
+            checkout: ctx.endDate || '',
+            guests: ctx.groupSize || 2,
+            budget: ctx.budget || 'mid-range',
+          }).then(r => r?.success ? { type: 'hotels', data: r.data } : null)
+            .catch(() => null),
+        );
+      }
+
+      // 3. Web search for context/enrichment
+      const webQuery = WEB_SEARCH_QUERIES[task.taskType];
+      if (webQuery) {
+        promises.push(
+          toolExecutor.execute('web_search', {
+            query: webQuery(task.query, ctx),
+            numResults: 5,
+          }).then(r => r?.success ? { type: 'web', data: r.data } : null)
+            .catch(() => null),
+        );
+      }
+
+      // 4. Mapbox search_places as supplementary source
+      if (['attractions', 'restaurants', 'activities'].includes(task.taskType)) {
+        promises.push(
+          toolExecutor.execute('search_places', {
+            query: `${ctx.destination} ${task.taskType}`,
+            location: ctx.destination,
+            limit: 8,
+          }).then(r => {
+            if (r?.success && r.data?.places?.length > 0) {
+              return { type: 'mapbox', data: r.data };
+            }
+            return null;
+          }).catch(() => null),
+        );
+      }
+
+      // Run all in parallel
+      const results = await Promise.allSettled(promises);
+
+      // Merge results
+      const places = [];
+      const webResults = [];
+      const hotelResults = [];
+      const seenNames = new Set();
+
+      for (const outcome of results) {
+        if (outcome.status !== 'fulfilled' || !outcome.value) continue;
+        const { type, data } = outcome.value;
+
+        if (type === 'places' && data?.places) {
+          for (const p of data.places) {
+            const key = (p.name || '').toLowerCase().trim();
+            if (key && !seenNames.has(key)) {
+              seenNames.add(key);
+              places.push(p);
+            }
+          }
+        } else if (type === 'mapbox' && data?.places) {
+          for (const p of data.places) {
+            const key = (p.name || '').toLowerCase().trim();
+            if (key && !seenNames.has(key)) {
+              seenNames.add(key);
+              places.push({
+                name: p.name,
+                address: p.address,
+                latitude: p.latitude || p.coordinates?.lat,
+                longitude: p.longitude || p.coordinates?.lng,
+                rating: p.rating,
+                ratingCount: p.ratingCount,
+                category: p.type || p.categories?.[0] || '',
+                openingHours: p.openingHours,
+                phone: p.phone,
+                website: p.website,
+                source: 'mapbox',
+              });
+            }
+          }
+        } else if (type === 'hotels') {
+          hotelResults.push(data);
+        } else if (type === 'web' && data?.results) {
+          for (const r of data.results) {
+            webResults.push({
+              title: r.title,
+              url: r.url,
+              snippet: r.content || r.snippet || '',
+            });
+          }
+        }
+      }
+
+      // Build merged output
+      const mergedData = {};
+      if (places.length > 0) mergedData.places = places;
+      if (webResults.length > 0) mergedData.webContext = webResults;
+      if (hotelResults.length > 0) mergedData.hotels = hotelResults;
+
+      const hasData = places.length > 0
+        || webResults.length > 0
+        || hotelResults.length > 0;
 
       logger.info('[ToolWorker] Task completed:', {
         taskId: task.taskId,
-        status: data ? 'success' : 'empty',
+        status: hasData ? 'success' : 'empty',
         durationMs: Date.now() - startTime,
-        resultCount: mergedData.length,
+        places: places.length,
+        webResults: webResults.length,
       });
 
       return {
         taskId: task.taskId,
-        status: data ? 'success' : 'error',
-        data,
-        error: data ? undefined : 'No data from API tools',
+        status: hasData ? 'success' : 'error',
+        data: hasData ? mergedData : null,
+        error: hasData ? undefined : 'No data from API tools',
       };
     } catch (error) {
       logger.error('[ToolWorker] Task failed:', {
