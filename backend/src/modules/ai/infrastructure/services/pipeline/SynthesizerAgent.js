@@ -91,14 +91,23 @@ Create a ${numDays}-day itinerary JSON (see system prompt for schema) + brief su
       let draftId = null;
 
       if (itineraryData) {
-        // Call create_trip_plan to save draft
+        // Call create_trip_plan to save draft with ALL Phase 1 fields
         const { userId, conversationId, userProfile } = this.executionContext;
         toolExecutor.setUserContext(userId);
         toolExecutor.setConversationContext(conversationId);
         toolExecutor.setUserProfile(userProfile);
 
         const createResult = await toolExecutor.execute('create_trip_plan', {
+          title: itineraryData.title,
+          destination: itineraryData.destination || context.destination,
+          startDate: itineraryData.startDate || context.startDate,
+          endDate: itineraryData.endDate || context.endDate,
+          travelersCount: context.groupSize || 1,
           itineraryData,
+          overview: itineraryData.overview || null,
+          travelTips: itineraryData.travelTips || null,
+          budgetBreakdown: itineraryData.budgetBreakdown || null,
+          bookingSuggestions: itineraryData.bookingSuggestions || null,
           userMessage: context.freeformNotes || `Trip to ${context.destination}`,
         });
 
