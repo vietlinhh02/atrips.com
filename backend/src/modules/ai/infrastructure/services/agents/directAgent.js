@@ -6,7 +6,7 @@
 
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { HumanMessage } from '@langchain/core/messages';
-import { getModel } from '../provider.js';
+import { getSynthesisModel } from '../provider.js';
 import { buildLangChainTools } from '../langchainTools.js';
 import { buildSystemPrompt } from '../../../domain/prompts/index.js';
 import { logger } from '../../../../../shared/services/LoggerService.js';
@@ -28,7 +28,8 @@ export async function runDirectAgent(messages, options = {}) {
     modelId, context = {}, userId, conversationId, userProfile,
   } = options;
 
-  const model = getModel(modelId);
+  // Use synthesis model (non-thinking) for faster responses
+  const model = getSynthesisModel();
   const tools = buildLangChainTools(
     { taskType: 'research' },
     { userId, conversationId, userProfile },

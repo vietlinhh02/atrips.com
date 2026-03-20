@@ -91,10 +91,16 @@ const TOOLS_BY_TASK = {
   ],
   // Research & info
   research: [
+    'get_current_datetime',
     'web_search',
     'scrape_url',
     'search_places',
+    'get_weather',
     'get_travel_tips',
+    'get_exchange_rate',
+    'calculate_distance',
+    'search_hotels',
+    'search_flights',
     'search_social_media',
     'search_youtube_videos',
   ],
