@@ -7,6 +7,7 @@
 import prisma from '../../../../../config/database.js';
 import cacheService from '../../../../../shared/services/CacheService.js';
 import { logger } from '../../../../../shared/services/LoggerService.js';
+import serperService from '../SerperService.js';
 import searxngService from '../SearxngService.js';
 import crawleeService from '../CrawleeService.js';
 import { isGeminiSearchEnabled } from '../../../domain/tools/index.js';
@@ -275,9 +276,9 @@ async function webSearchViaGemini(args) {
 }
 
 /**
- * Web Search - SearXNG + Crawlee (Exa replacement)
- * No rate limits when self-hosted
- * Default: Current year enhanced search
+ * Web Search — Serper.dev (primary) → SearXNG (fallback)
+ * Serper: Google Search API, structured data, no rate limits.
+ * SearXNG: Self-hosted fallback when Serper key not configured.
  */
 async function webSearch(args) {
   // Route to Gemini Google Search when enabled
@@ -303,8 +304,49 @@ async function webSearch(args) {
     return { ...cached, source: 'cache' };
   }
 
+  // ── Try Serper.dev first (fast, reliable Google results) ──
+  if (serperService.isAvailable) {
+    try {
+      const searchQuery = enhanceQueryWithYear(query, currentYear);
+      const serperResult = await serperService.search({
+        query: searchQuery,
+        limit,
+      });
+
+      let filteredResults = serperResult.results || [];
+      if (excludeDomains.length > 0) {
+        filteredResults = filteredResults.filter(r =>
+          !excludeDomains.some(d => r.url.includes(d)),
+        );
+      }
+      if (includeDomains.length > 0) {
+        const domainMatches = filteredResults.filter(r =>
+          includeDomains.some(d => r.url.includes(d)),
+        );
+        if (domainMatches.length > 0) filteredResults = domainMatches;
+      }
+
+      const result = {
+        source: 'serper',
+        query,
+        searchType: type,
+        results: filteredResults.slice(0, limit),
+        totalResults: filteredResults.length,
+        knowledgeGraph: serperResult.knowledgeGraph,
+        peopleAlsoAsk: serperResult.peopleAlsoAsk,
+      };
+
+      await cacheService.set(cacheKey, result, TOOL_CACHE_TTL.WEB_SEARCH);
+      return result;
+    } catch (error) {
+      logger.warn('[WebSearch] Serper failed, falling back to SearXNG', {
+        error: error.message,
+      });
+    }
+  }
+
+  // ── Fallback: SearXNG ──
   try {
-    // Build search query with domain filters
     let searchQuery = enhanceQueryWithYear(query, currentYear);
 
     if (includeDomains.length > 0) {
@@ -314,10 +356,9 @@ async function webSearch(args) {
 
     logger.info('[SearXNG] Search', { query: searchQuery.substring(0, 50), limit });
 
-    // 1. Get search results from SearXNG
     const searchResults = await searxngService.search({
       query: searchQuery,
-      limit: limit * 2, // Get more results for better selection
+      limit: limit * 2,
       language: 'vi',
       category: 'general',
     });
@@ -326,7 +367,6 @@ async function webSearch(args) {
       return webSearchFallback(query, currentYear);
     }
 
-    // 2. Filter by excluded domains
     let filteredResults = searchResults.results;
     if (excludeDomains.length > 0) {
       filteredResults = filteredResults.filter(r => {
@@ -334,7 +374,6 @@ async function webSearch(args) {
       });
     }
 
-    // 3. Limit results
     filteredResults = filteredResults.slice(0, limit);
 
     // 4. Enrich top results with Crawlee (with timeout to avoid blocking)
