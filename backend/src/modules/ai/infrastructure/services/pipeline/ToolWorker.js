@@ -74,16 +74,16 @@ export class ToolWorker {
         }
       }
 
-      // 2. Hotels via search_hotels handler (Booking.com/SearXNG)
-      if (task.taskType === 'hotels') {
+      // 2. Hotels via Serper (Google Places + web search)
+      if (task.taskType === 'hotels' && serperService.isAvailable) {
         promises.push(
-          toolExecutor.execute('search_hotels', {
+          serperService.searchHotels({
             destination: ctx.destination,
             checkin: ctx.startDate || '',
             checkout: ctx.endDate || '',
             guests: ctx.groupSize || 2,
             budget: ctx.budget || 'mid-range',
-          }).then(r => r?.success ? { type: 'hotels', data: r.data } : null)
+          }).then(r => ({ type: 'hotels', data: r }))
             .catch(() => null),
         );
       }
@@ -100,7 +100,22 @@ export class ToolWorker {
         );
       }
 
-      // Mapbox removed — Serper Places returns richer Google data
+      // Transport: also search for flights via Serper if applicable
+      if (task.taskType === 'transport' && serperService.isAvailable) {
+        const hasOrigin = task.query.match(/from\s+(\w+)|từ\s+(\w+)/i);
+        if (hasOrigin) {
+          promises.push(
+            serperService.searchFlights({
+              origin: hasOrigin[1] || hasOrigin[2],
+              destination: ctx.destination,
+              departureDate: ctx.startDate || '',
+              returnDate: ctx.endDate || '',
+              passengers: ctx.groupSize || 1,
+            }).then(r => ({ type: 'flights', data: r }))
+              .catch(() => null),
+          );
+        }
+      }
 
       // Run all in parallel
       const results = await Promise.allSettled(promises);
@@ -108,7 +123,6 @@ export class ToolWorker {
       // Merge results
       const places = [];
       const webResults = [];
-      const hotelResults = [];
       const seenNames = new Set();
 
       for (const outcome of results) {
@@ -123,8 +137,27 @@ export class ToolWorker {
               places.push(p);
             }
           }
-        } else if (type === 'hotels') {
-          hotelResults.push(data);
+        } else if (type === 'hotels' && data) {
+          if (data.hotels) {
+            for (const h of data.hotels) {
+              const key = (h.name || '').toLowerCase().trim();
+              if (key && !seenNames.has(key)) {
+                seenNames.add(key);
+                places.push({ ...h, type: 'hotel' });
+              }
+            }
+          }
+          if (data.webContext) {
+            for (const r of data.webContext) webResults.push(r);
+          }
+        } else if (type === 'flights' && data?.results) {
+          for (const r of data.results) {
+            webResults.push({
+              title: r.title,
+              url: r.url,
+              snippet: r.content || r.snippet || '',
+            });
+          }
         } else if (type === 'web' && data?.results) {
           for (const r of data.results) {
             webResults.push({
@@ -140,11 +173,8 @@ export class ToolWorker {
       const mergedData = {};
       if (places.length > 0) mergedData.places = places;
       if (webResults.length > 0) mergedData.webContext = webResults;
-      if (hotelResults.length > 0) mergedData.hotels = hotelResults;
 
-      const hasData = places.length > 0
-        || webResults.length > 0
-        || hotelResults.length > 0;
+      const hasData = places.length > 0 || webResults.length > 0;
 
       logger.info('[ToolWorker] Task completed:', {
         taskId: task.taskId,

@@ -97,23 +97,6 @@ export class ClarificationAgent {
         throw new Error(`No valid JSON in response: ${content.substring(0, 200)}`);
       }
 
-      // Fill default dates when user only provides duration
-      if (parsed.complete && parsed.context) {
-        const ctx = parsed.context;
-        if (!ctx.startDate && ctx.duration) {
-          const numDays = parseInt(
-            String(ctx.duration).match(/(\d+)/)?.[1] || '3',
-            10,
-          );
-          const tomorrow = new Date();
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          ctx.startDate = tomorrow.toISOString().split('T')[0];
-          const end = new Date(tomorrow);
-          end.setDate(end.getDate() + numDays - 1);
-          ctx.endDate = end.toISOString().split('T')[0];
-        }
-      }
-
       logger.info('[ClarificationAgent] Result:', {
         complete: parsed.complete,
         missing: parsed.missing,

@@ -166,6 +166,81 @@ class SerperService {
   }
 
   /**
+   * Search hotels via Google (Serper web search + places).
+   */
+  async searchHotels(options) {
+    const { destination, checkin, checkout, guests, budget } = options;
+
+    const budgetHint = budget === 'luxury' ? 'luxury 5 star'
+      : budget === 'budget' ? 'budget cheap'
+      : 'best rated';
+
+    const query = `${budgetHint} hotels ${destination} ${checkin || ''} ${guests || 2} guests`.trim();
+
+    const [webResults, placesResults] = await Promise.allSettled([
+      this.search({ query, limit: 5 }),
+      this.searchPlaces({ query: `hotels ${destination}` }),
+    ]);
+
+    const hotels = [];
+    const seenNames = new Set();
+
+    // Places → structured hotel data
+    if (placesResults.status === 'fulfilled' && placesResults.value?.places) {
+      for (const p of placesResults.value.places) {
+        const key = (p.name || '').toLowerCase();
+        if (key && !seenNames.has(key)) {
+          seenNames.add(key);
+          hotels.push({
+            name: p.name,
+            address: p.address,
+            rating: p.rating,
+            ratingCount: p.ratingCount,
+            latitude: p.latitude,
+            longitude: p.longitude,
+            category: p.category,
+            phone: p.phone,
+            website: p.website,
+            source: 'google-places',
+          });
+        }
+      }
+    }
+
+    // Web → contextual info (prices, booking links)
+    const webContext = [];
+    if (webResults.status === 'fulfilled' && webResults.value?.results) {
+      for (const r of webResults.value.results) {
+        webContext.push({
+          title: r.title,
+          url: r.url,
+          snippet: r.content,
+        });
+      }
+    }
+
+    return { hotels, webContext, source: 'serper' };
+  }
+
+  /**
+   * Search flights via Google (Serper web search).
+   */
+  async searchFlights(options) {
+    const { origin, destination, departureDate, returnDate, passengers } = options;
+
+    const query = `flights ${origin || ''} to ${destination} ${departureDate || ''} ${returnDate ? 'return ' + returnDate : ''} ${passengers || 1} passengers`.trim();
+
+    const result = await this.search({ query, limit: 8, hl: 'en' });
+
+    return {
+      source: 'serper',
+      query,
+      results: result.results || [],
+      knowledgeGraph: result.knowledgeGraph,
+    };
+  }
+
+  /**
    * Normalize Serper web search response to match existing format.
    */
   _normalizeResults(data, query) {
