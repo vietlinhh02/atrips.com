@@ -100,13 +100,52 @@ export class ToolWorker {
         );
       }
 
-      // Weather forecast for travel dates
-      if (ctx.destination && ctx.startDate) {
+      // Weather forecast for travel dates (only for first task to avoid duplicates)
+      if (ctx.destination && ctx.startDate && task.taskType === 'attractions') {
         promises.push(
           toolExecutor.execute('get_weather', {
             location: ctx.destination,
             date: ctx.startDate,
           }).then(r => r?.success ? { type: 'weather', data: r.data } : null)
+            .catch(() => null),
+        );
+      }
+
+      // Exchange rate for international trips (non-Vietnam destinations)
+      if (task.taskType === 'hotels' && ctx.destination) {
+        const isVietnam = /vi[eệ]t\s*nam|hà\s*n[oộ]i|đ[aà]\s*n[aẵ]ng|sài\s*gòn|hcm|huế|hội\s*an|nha\s*trang|đà\s*lạt|phú\s*quốc/i.test(ctx.destination);
+        if (!isVietnam) {
+          promises.push(
+            toolExecutor.execute('get_exchange_rate', {
+              from: 'USD',
+              to: 'VND',
+            }).then(r => r?.success ? { type: 'exchange', data: r.data } : null)
+              .catch(() => null),
+          );
+        }
+      }
+
+      // Local events during trip dates
+      if (task.taskType === 'activities' && ctx.destination && ctx.startDate) {
+        promises.push(
+          toolExecutor.execute('get_local_events', {
+            location: ctx.destination,
+            startDate: ctx.startDate,
+            endDate: ctx.endDate || ctx.startDate,
+          }).then(r => r?.success && r.data?.events?.length > 0
+            ? { type: 'events', data: r.data }
+            : null,
+          ).catch(() => null),
+        );
+      }
+
+      // Serper Images for destination cover photos
+      if (task.taskType === 'attractions' && serperService.isAvailable) {
+        promises.push(
+          serperService.searchImages?.({
+            query: `${ctx.destination} travel photography`,
+            limit: 5,
+          }).then(r => r ? { type: 'images', data: r } : null)
             .catch(() => null),
         );
       }
@@ -135,6 +174,9 @@ export class ToolWorker {
       const places = [];
       const webResults = [];
       let weatherData = null;
+      let exchangeData = null;
+      let eventsData = null;
+      let imagesData = null;
       const seenNames = new Set();
 
       for (const outcome of results) {
@@ -172,6 +214,12 @@ export class ToolWorker {
           }
         } else if (type === 'weather' && data) {
           weatherData = data;
+        } else if (type === 'exchange' && data) {
+          exchangeData = data;
+        } else if (type === 'events' && data) {
+          eventsData = data;
+        } else if (type === 'images' && data) {
+          imagesData = data;
         } else if (type === 'web' && data?.results) {
           for (const r of data.results) {
             webResults.push({
@@ -188,10 +236,14 @@ export class ToolWorker {
       if (places.length > 0) mergedData.places = places;
       if (webResults.length > 0) mergedData.webContext = webResults;
       if (weatherData) mergedData.weather = weatherData;
+      if (exchangeData) mergedData.exchangeRate = exchangeData;
+      if (eventsData) mergedData.events = eventsData;
+      if (imagesData) mergedData.images = imagesData;
 
       const hasData = places.length > 0
         || webResults.length > 0
-        || weatherData;
+        || weatherData
+        || eventsData;
 
       logger.info('[ToolWorker] Task completed:', {
         taskId: task.taskId,

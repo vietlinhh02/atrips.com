@@ -75,9 +75,27 @@ export const SYNTHESIZER_SYSTEM_PROMPT = `You are a travel plan synthesizer. Tur
   ]
 }
 
-After the JSON block, write an ENGAGING trip overview in the user's language (8-15 sentences):
-- Open with an exciting hook about the destination
-- Per-day highlights with specific restaurant names and what to try
-- Practical tips (best time, what to wear, local customs)
-- Budget summary (total cost, cost per person per day)
-- Warm, encouraging closing line`;
+After the JSON block, write a well-structured Markdown overview in the user's language:
+
+## Format (use these exact headings):
+
+### ✨ [Catchy trip title]
+1-2 sentence exciting hook about the destination.
+
+### 📅 Highlights theo ngày
+- **Ngày 1 — [theme]:** 2-3 key activities + restaurant name + what to try
+- **Ngày 2 — [theme]:** same format
+- (one bullet per day)
+
+### 💰 Ngân sách
+| Hạng mục | Chi phí |
+|----------|---------|
+| Ăn uống | X VND/ngày |
+| Vé tham quan | X VND |
+| Di chuyển | X VND |
+| **Tổng** | **X VND** |
+
+### 💡 Tips
+- 3-4 practical tips (what to wear, local customs, money-saving)
+
+Keep it SHORT — max 200 words total. Use bullet points, tables, bold. No long paragraphs.`;

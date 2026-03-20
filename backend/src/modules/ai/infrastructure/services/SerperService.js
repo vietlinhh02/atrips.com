@@ -241,6 +241,48 @@ class SerperService {
   }
 
   /**
+   * Search images via Google (Serper).
+   */
+  async searchImages(options) {
+    const { query, limit = 5 } = options;
+
+    if (!this.apiKey) return null;
+
+    const cacheKey = `serper:images:${query}:${limit}`;
+    const cached = await cacheService.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const response = await fetch(`${SERPER_BASE_URL}/images`, {
+        method: 'POST',
+        headers: {
+          'X-API-KEY': this.apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ q: query, num: limit }),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+
+      if (!response.ok) return null;
+
+      const data = await response.json();
+      const images = (data.images || []).slice(0, limit).map(img => ({
+        title: img.title || '',
+        url: img.imageUrl || '',
+        source: img.link || '',
+        width: img.imageWidth,
+        height: img.imageHeight,
+      }));
+
+      const result = { images, source: 'serper-images' };
+      await cacheService.set(cacheKey, result, CACHE_TTL);
+      return result;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Normalize Serper web search response to match existing format.
    */
   _normalizeResults(data, query) {
