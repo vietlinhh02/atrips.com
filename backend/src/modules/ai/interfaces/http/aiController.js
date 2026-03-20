@@ -211,6 +211,16 @@ export const chat = asyncHandler(async (req, res) => {
   });
 });
 
+// Worker task type → Vietnamese display labels for frontend
+const TASK_TYPE_LABELS = {
+  attractions: 'Tìm điểm tham quan',
+  restaurants: 'Tìm nhà hàng',
+  hotels: 'Tìm khách sạn',
+  activities: 'Tìm hoạt động',
+  transport: 'Tìm phương tiện',
+  nightlife: 'Tìm giải trí đêm',
+};
+
 // ─── Chat (streaming) ───
 
 export const chatStream = asyncHandler(async (req, res) => {
@@ -291,21 +301,45 @@ export const chatStream = asyncHandler(async (req, res) => {
           break;
         case 'planning_started':
           sendEvent({ type: 'planning_started', tasks: chunk.tasks });
+          // Also send as tool_call so frontend shows progress
+          for (const t of (chunk.tasks || [])) {
+            sendEvent({
+              type: 'tool_call',
+              name: TASK_TYPE_LABELS[t.taskType] || t.taskType,
+              arguments: { query: t.query },
+            });
+          }
           break;
         case 'worker_started':
           sendEvent({ type: 'worker_started', taskId: chunk.taskId, taskType: chunk.taskType });
           break;
         case 'worker_completed':
           sendEvent({ type: 'worker_completed', taskId: chunk.taskId, preview: chunk.preview });
+          // Map to tool_result so frontend updates progress badge
+          sendEvent({
+            type: 'tool_result',
+            name: TASK_TYPE_LABELS[chunk.taskType] || chunk.taskType,
+            result: { success: true, preview: chunk.preview },
+          });
           break;
         case 'worker_failed':
           sendEvent({ type: 'worker_failed', taskId: chunk.taskId, error: chunk.error });
+          sendEvent({
+            type: 'tool_result',
+            name: TASK_TYPE_LABELS[chunk.taskType] || chunk.taskType,
+            result: { success: false, error: chunk.error },
+          });
           break;
         case 'synthesizing':
           sendEvent({ type: 'synthesizing' });
+          sendEvent({
+            type: 'tool_call',
+            name: 'Tạo lịch trình',
+            arguments: {},
+          });
           break;
         case 'tool_call_start':
-          sendEvent({ type: 'tool_call_start', name: chunk.name });
+          sendEvent({ type: 'tool_call', name: chunk.name, arguments: {} });
           break;
         case 'tool_result':
           toolCalls.push({ name: chunk.name, result: chunk.result });
@@ -319,6 +353,12 @@ export const chatStream = asyncHandler(async (req, res) => {
           }
 
           if (chunk.name === 'create_trip_plan') {
+            // Close the "Tạo lịch trình" progress badge
+            sendEvent({
+              type: 'tool_result',
+              name: 'Tạo lịch trình',
+              result: { success: true },
+            });
             if (chunk.result?.success && chunk.result?.data?.draftId) {
               draftId = chunk.result.data.draftId;
               sendEvent({

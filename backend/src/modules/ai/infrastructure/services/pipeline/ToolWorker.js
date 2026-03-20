@@ -100,6 +100,17 @@ export class ToolWorker {
         );
       }
 
+      // Weather forecast for travel dates
+      if (ctx.destination && ctx.startDate) {
+        promises.push(
+          toolExecutor.execute('get_weather', {
+            location: ctx.destination,
+            date: ctx.startDate,
+          }).then(r => r?.success ? { type: 'weather', data: r.data } : null)
+            .catch(() => null),
+        );
+      }
+
       // Transport: also search for flights via Serper if applicable
       if (task.taskType === 'transport' && serperService.isAvailable) {
         const hasOrigin = task.query.match(/from\s+(\w+)|từ\s+(\w+)/i);
@@ -123,6 +134,7 @@ export class ToolWorker {
       // Merge results
       const places = [];
       const webResults = [];
+      let weatherData = null;
       const seenNames = new Set();
 
       for (const outcome of results) {
@@ -158,6 +170,8 @@ export class ToolWorker {
               snippet: r.content || r.snippet || '',
             });
           }
+        } else if (type === 'weather' && data) {
+          weatherData = data;
         } else if (type === 'web' && data?.results) {
           for (const r of data.results) {
             webResults.push({
@@ -173,8 +187,11 @@ export class ToolWorker {
       const mergedData = {};
       if (places.length > 0) mergedData.places = places;
       if (webResults.length > 0) mergedData.webContext = webResults;
+      if (weatherData) mergedData.weather = weatherData;
 
-      const hasData = places.length > 0 || webResults.length > 0;
+      const hasData = places.length > 0
+        || webResults.length > 0
+        || weatherData;
 
       logger.info('[ToolWorker] Task completed:', {
         taskId: task.taskId,

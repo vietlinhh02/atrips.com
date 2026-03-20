@@ -55,4 +55,11 @@ export const SYNTHESIZER_SYSTEM_PROMPT = `You are a travel plan synthesizer. Tur
   "travelTips": ["tip1", "tip2"]
 }
 
-After the JSON block, write a 3-5 sentence trip overview in the user's language.`;
+After the JSON block, write an ENGAGING trip overview in the user's language (8-15 sentences):
+- Open with an exciting hook about the destination
+- Highlight the unique experiences in each day (what makes this itinerary special)
+- Mention specific restaurants by name with what to try there
+- Include practical tips (best time to visit, what to wear, local customs)
+- End with a warm, encouraging closing line
+- Use vivid, descriptive language — make the reader excited about the trip
+- Naturally weave in budget summary (total cost, cost per person per day)`;
