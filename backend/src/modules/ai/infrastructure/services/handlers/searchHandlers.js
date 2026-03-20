@@ -508,51 +508,66 @@ async function searchPlaces(args) {
     return result;
   }
 
-  if (!this.mapboxToken) {
-    return searchPlacesFallback(args);
+  // Primary: Serper Places (Google Maps data — reliable, rich)
+  if (serperService.isAvailable) {
+    try {
+      const searchTerm = query || getDefaultSearchTerm(type);
+      const searchQuery = `${searchTerm} ${location}`;
+      const serperResult = await serperService.searchPlaces({ query: searchQuery });
+
+      if (serperResult?.places?.length > 0) {
+        const places = await Promise.all(
+          serperResult.places.slice(0, effectiveLimit).map(p => addImagesToPlace({
+            name: p.name,
+            address: p.address || '',
+            latitude: p.latitude,
+            longitude: p.longitude,
+            coordinates: p.latitude ? { lat: p.latitude, lng: p.longitude } : null,
+            rating: p.rating,
+            ratingCount: p.ratingCount,
+            type: type || inferTypeFromCategory(p.category),
+            category: p.category,
+            phone: p.phone,
+            website: p.website,
+            source: 'serper',
+          }, location)),
+        );
+
+        const result = { success: true, source: 'serper', places, query: searchQuery };
+        await cacheService.set(cacheKey, result, TOOL_CACHE_TTL.PLACES);
+        return result;
+      }
+    } catch (error) {
+      logger.warn('[searchPlaces] Serper failed, trying Mapbox', { error: error.message });
+    }
   }
 
-  try {
-    const searchTerm = query || getDefaultSearchTerm(type);
-    const searchQuery = `${searchTerm} ${location}`;
-
-    // Use Mapbox Search Box API v1 (supports POI search)
-    // Fallback to Geocoding v5 if Search Box fails
-    let rawPlaces = await searchViaMapboxSearchBox(
-      searchQuery, this.mapboxToken, effectiveLimit, args, type,
-    );
-
-    // Fallback: try Geocoding v5 with types=poi
-    if (rawPlaces.length === 0) {
-      rawPlaces = await searchViaMapboxGeocoding(
+  // Fallback: Mapbox (if token available)
+  if (this.mapboxToken) {
+    try {
+      const searchTerm = query || getDefaultSearchTerm(type);
+      const searchQuery = `${searchTerm} ${location}`;
+      let rawPlaces = await searchViaMapboxSearchBox(
         searchQuery, this.mapboxToken, effectiveLimit, args, type,
       );
+      if (rawPlaces.length === 0) {
+        rawPlaces = await searchViaMapboxGeocoding(
+          searchQuery, this.mapboxToken, effectiveLimit, args, type,
+        );
+      }
+      if (rawPlaces.length > 0) {
+        const places = await Promise.all(rawPlaces.map(p => addImagesToPlace(p, location)));
+        const result = { success: true, source: 'mapbox', places, query: searchQuery };
+        await cacheService.set(cacheKey, result, TOOL_CACHE_TTL.PLACES);
+        savePlacesToDB(rawPlaces, location);
+        return result;
+      }
+    } catch (error) {
+      logger.warn('[searchPlaces] Mapbox failed', { error: error.message });
     }
-
-    if (rawPlaces.length === 0) {
-      logger.warn('[searchPlaces] Mapbox returned 0 results', { query: searchQuery.substring(0, 50) });
-      return searchPlacesFallback(args);
-    }
-
-    // Enrich all places with images in parallel
-    const places = await Promise.all(rawPlaces.map(p => addImagesToPlace(p, location)));
-
-    const result = {
-      success: true,
-      source: 'mapbox',
-      places,
-      query: searchQuery,
-    };
-
-    await cacheService.set(cacheKey, result, TOOL_CACHE_TTL.PLACES);
-
-    savePlacesToDB(rawPlaces, location);
-
-    return result;
-  } catch (error) {
-    logger.error('[searchPlaces] Mapbox search error', { error: error.message });
-    return searchPlacesFallback(args);
   }
+
+  return searchPlacesFallback(args);
 }
 
 async function searchPlacesFromDB(args) {
@@ -816,6 +831,17 @@ async function searchViaMapboxGeocoding(
     logger.warn('[searchPlaces] Mapbox Geocoding v5 error', { error: err.message });
     return [];
   }
+}
+
+function inferTypeFromCategory(category) {
+  if (!category) return 'attraction';
+  const c = category.toLowerCase();
+  if (/restaurant|food|ăn|quán|nhà hàng|cafe|coffee/i.test(c)) return 'restaurant';
+  if (/hotel|khách sạn|resort|hostel|homestay/i.test(c)) return 'hotel';
+  if (/bar|club|nightlife|pub/i.test(c)) return 'nightlife';
+  if (/tour|activity|experience/i.test(c)) return 'activity';
+  if (/shop|market|mall|chợ/i.test(c)) return 'shopping';
+  return 'attraction';
 }
 
 function searchPlacesFallback(args) {
