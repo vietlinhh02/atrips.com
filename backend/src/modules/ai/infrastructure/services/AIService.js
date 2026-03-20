@@ -253,13 +253,16 @@ class AIService {
         }
 
         // Full pipeline with progress streaming
+        const progressEvents = [];
         const result = await pipeline.plan(
           clarification.context,
-          (event) => {
-            // This callback not used in current streaming
-            // but events are logged
-          },
+          (event) => { progressEvents.push(event); },
         );
+
+        // Emit buffered progress events
+        for (const event of progressEvents) {
+          yield event;
+        }
 
         // Emit tool calls
         for (const tc of (result.toolCalls || [])) {

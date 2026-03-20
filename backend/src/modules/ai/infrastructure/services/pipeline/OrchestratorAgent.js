@@ -6,7 +6,7 @@
 
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { randomUUID } from 'node:crypto';
-import { getModel } from '../provider.js';
+import { getFastModel } from '../provider.js';
 import { ORCHESTRATOR_SYSTEM_PROMPT } from '../../../domain/prompts/orchestratorPrompt.js';
 import { logger } from '../../../../../shared/services/LoggerService.js';
 
@@ -34,8 +34,8 @@ function extractJSON(text) {
  */
 
 export class OrchestratorAgent {
-  constructor(modelId) {
-    this.model = getModel(modelId);
+  constructor() {
+    this.model = getFastModel();
   }
 
   /**

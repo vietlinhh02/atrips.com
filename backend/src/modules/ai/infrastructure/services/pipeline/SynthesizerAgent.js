@@ -6,14 +6,13 @@
  */
 
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
-import { getModel } from '../provider.js';
+import { getSynthesisModel } from '../provider.js';
 import { SYNTHESIZER_SYSTEM_PROMPT } from '../../../domain/prompts/synthesizerPrompt.js';
 import toolExecutor from '../ToolExecutor.js';
 import { logger } from '../../../../../shared/services/LoggerService.js';
 
 export class SynthesizerAgent {
-  constructor(modelId, executionContext = {}) {
-    this.modelId = modelId;
+  constructor(executionContext = {}) {
     this.executionContext = executionContext;
   }
 
@@ -25,12 +24,13 @@ export class SynthesizerAgent {
    * @returns {Promise<{content: string, toolCalls: Array, usage: Object, draftId?: string}>}
    */
   async synthesize(context, funnelResult) {
-    const model = getModel(this.modelId);
+    const model = getSynthesisModel();
 
-    // Format worker results for LLM
+    // Format worker results for LLM — compact, essential fields only
     const workerSummary = funnelResult.results.map(r => {
       if (r.status === 'success') {
-        return `## ${r.taskType} (SUCCESS)\n${JSON.stringify(r.data, null, 2)}`;
+        const compacted = compactWorkerData(r.data);
+        return `## ${r.taskType} (SUCCESS)\n${compacted}`;
       }
       return `## ${r.taskType} (${r.status.toUpperCase()})\nError: ${r.error || 'No data'}`;
     }).join('\n\n');
@@ -45,94 +45,26 @@ export class SynthesizerAgent {
       return m ? parseInt(m[1], 10) : 3;
     })();
 
-    const userPrompt = `
-# Trip Context
-- Destination: ${context.destination}
-- Dates: ${context.startDate || 'flexible'} to ${context.endDate || 'flexible'}
-- Duration: ${numDays} days
-- Group size: ${context.groupSize || 1}
-- Budget: ${context.budget || 'mid-range'}
-- Interests: ${(context.interests || []).join(', ') || 'general sightseeing'}
-- Travel style: ${context.travelStyle || 'comfort'}
-- Notes: ${context.freeformNotes || 'none'}
+    const userPrompt = `# Trip: ${context.destination}, ${numDays} days
+Dates: ${context.startDate || 'flexible'} → ${context.endDate || 'flexible'}
+Group: ${context.groupSize || 1} | Budget: ${context.budget || 'mid-range'} | Style: ${context.travelStyle || 'comfort'}
+Interests: ${(context.interests || []).join(', ') || 'general sightseeing'}
 
-# Research Results (${funnelResult.summary.succeeded}/${funnelResult.summary.total} workers succeeded)
+# Research (${funnelResult.summary.succeeded}/${funnelResult.summary.total} OK)
 ${workerSummary}
 
-# Instructions
-Create a COMPLETE ${numDays}-day itinerary using the research data above.
-
-PART 1 — JSON itinerary inside a \`\`\`json code block. Required structure:
-{
-  "title": "Trip title in user's language",
-  "destination": "${context.destination}",
-  "startDate": "${context.startDate || ''}",
-  "endDate": "${context.endDate || ''}",
-  "days": [
-    {
-      "dayNumber": 1,
-      "date": "YYYY-MM-DD",
-      "theme": "Day theme",
-      "activities": [
-        {
-          "name": "Exact place name from research data",
-          "type": "ATTRACTION|RESTAURANT|HOTEL|CAFE|ACTIVITY|SHOPPING",
-          "time": "09:00",
-          "duration": 90,
-          "description": "What to do here",
-          "address": "Full address",
-          "location": "Venue, Area, City",
-          "estimatedCost": 150000,
-          "notes": "Tips, opening hours",
-          "latitude": 16.46,
-          "longitude": 107.59,
-          "openingHours": "08:00-17:00",
-          "transportFromPrevious": {
-            "distance": 1.2, "duration": 15,
-            "mode": "WALK|BIKE|TAXI|BUS",
-            "cost": 0,
-            "instructions": "Walk south along X street"
-          }
-        }
-      ],
-      "meals": {
-        "breakfast": "Specific place",
-        "lunch": "Specific place",
-        "dinner": "Specific place"
-      },
-      "dailyCost": 850000
-    }
-  ],
-  "totalEstimatedCost": 5000000,
-  "currency": "VND",
-  "budgetBreakdown": {
-    "accommodation": {"total": 0, "perDay": 0},
-    "food": {"total": 0, "perDay": 0},
-    "transportation": {"total": 0, "perDay": 0},
-    "activities": {"total": 0, "perDay": 0},
-    "miscellaneous": {"total": 0, "perDay": 0}
-  },
-  "travelTips": ["tip1", "tip2"]
-}
-
-SCHEDULING RULES (violations are detected automatically):
-- Every activity needs a specific "time" in HH:MM format
-- No overlaps: activity must END before the next one STARTS
-- Include travel time between activities (WALK <=1.2km, BIKE <=6km, TAXI <=25km)
-- Day span: 8-14 hours (07:00-21:00 range)
-- Cluster nearby places on the same day, total daily travel < 40km
-- Include meals as RESTAURANT activities in the timeline
-- MUST output exactly ${numDays} days — no truncation
-
-PART 2 — Natural-language summary in the user's language.
-`.trim();
+Create a ${numDays}-day itinerary JSON (see system prompt for schema) + brief summary. Include 4-6 activities per day with meals as RESTAURANT type. Output ALL ${numDays} days.`.trim();
 
     try {
+      const inputChars = SYNTHESIZER_SYSTEM_PROMPT.length + userPrompt.length;
       logger.info('[SynthesizerAgent] Starting synthesis:', {
         workerResults: funnelResult.summary,
         destination: context.destination,
+        inputChars,
+        estimatedInputTokens: Math.ceil(inputChars / 4),
       });
 
+      const startTime = Date.now();
       const response = await model.invoke([
         new SystemMessage(SYNTHESIZER_SYSTEM_PROMPT),
         new HumanMessage(userPrompt),
@@ -145,6 +77,13 @@ PART 2 — Natural-language summary in the user's language.
         inputTokens: response.usage_metadata?.input_tokens || 0,
         outputTokens: response.usage_metadata?.output_tokens || 0,
       };
+
+      logger.info('[SynthesizerAgent] LLM call complete:', {
+        durationMs: Date.now() - startTime,
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        outputChars: content.length,
+      });
 
       // Extract itinerary JSON from response
       const itineraryData = extractItineraryJSON(content);
@@ -196,6 +135,42 @@ PART 2 — Natural-language summary in the user's language.
       throw error;
     }
   }
+}
+
+/**
+ * Compact worker data to reduce LLM input tokens.
+ * Keeps only fields essential for itinerary creation.
+ */
+function compactWorkerData(data) {
+  if (!data) return 'No data';
+  if (typeof data === 'string') return data.substring(0, 3000);
+
+  const MAX_ITEMS = 15;
+  const KEEP_FIELDS = [
+    'name', 'type', 'address', 'latitude', 'longitude',
+    'rating', 'price', 'cost', 'estimatedCost', 'description',
+    'openingHours', 'category', 'url', 'distance',
+  ];
+
+  function slim(obj) {
+    if (Array.isArray(obj)) {
+      return obj.slice(0, MAX_ITEMS).map(slim);
+    }
+    if (obj && typeof obj === 'object') {
+      const out = {};
+      for (const key of Object.keys(obj)) {
+        if (KEEP_FIELDS.includes(key) || key === 'results' || key === 'places') {
+          out[key] = slim(obj[key]);
+        }
+      }
+      return Object.keys(out).length > 0 ? out : obj;
+    }
+    return obj;
+  }
+
+  const compacted = slim(data);
+  const json = JSON.stringify(compacted);
+  return json.length > 4000 ? json.substring(0, 4000) + '...' : json;
 }
 
 function extractItineraryJSON(content) {

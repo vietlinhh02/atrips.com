@@ -5,7 +5,7 @@
  */
 
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
-import { getModel } from '../provider.js';
+import { getFastModel } from '../provider.js';
 import { CLARIFICATION_SYSTEM_PROMPT } from '../../../domain/prompts/clarificationPrompt.js';
 import { logger } from '../../../../../shared/services/LoggerService.js';
 
@@ -53,8 +53,8 @@ function extractJSON(text) {
  */
 
 export class ClarificationAgent {
-  constructor(modelId) {
-    this.model = getModel(modelId);
+  constructor() {
+    this.model = getFastModel();
   }
 
   /**

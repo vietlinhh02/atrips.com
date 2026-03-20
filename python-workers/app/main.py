@@ -39,12 +39,7 @@ async def health() -> HealthResponse:
 async def create_task(request: TaskRequest) -> TaskResult:
     global _active_tasks
 
-    if _active_tasks >= MAX_CONCURRENT_BROWSERS:
-        raise HTTPException(
-            status_code=429,
-            detail=f"Max concurrent tasks reached ({MAX_CONCURRENT_BROWSERS})",
-        )
-
+    # Queue tasks via semaphore instead of rejecting
     async with _semaphore:
         _active_tasks += 1
         try:

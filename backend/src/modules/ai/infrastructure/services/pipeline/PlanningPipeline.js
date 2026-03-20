@@ -7,7 +7,7 @@
 
 import { ClarificationAgent } from './ClarificationAgent.js';
 import { OrchestratorAgent } from './OrchestratorAgent.js';
-import { WorkerClient } from './WorkerClient.js';
+import { ToolWorker } from './ToolWorker.js';
 import { Funnel } from './Funnel.js';
 import { SynthesizerAgent } from './SynthesizerAgent.js';
 import { verifyItinerary } from '../../../domain/algorithms/ItineraryVerifier.js';
@@ -26,15 +26,14 @@ export class PlanningPipeline {
    * @param {PipelineOptions} options
    */
   constructor(options = {}) {
-    const { modelId, userId, conversationId, userProfile } = options;
-    this.modelId = modelId;
+    const { userId, conversationId, userProfile } = options;
     this.executionContext = { userId, conversationId, userProfile };
 
-    this.clarifier = new ClarificationAgent(modelId);
-    this.orchestrator = new OrchestratorAgent(modelId);
-    this.workerClient = new WorkerClient();
-    this.funnel = new Funnel(this.workerClient);
-    this.synthesizer = new SynthesizerAgent(modelId, this.executionContext);
+    this.clarifier = new ClarificationAgent();
+    this.orchestrator = new OrchestratorAgent();
+    this.toolWorker = new ToolWorker();
+    this.funnel = new Funnel(this.toolWorker);
+    this.synthesizer = new SynthesizerAgent(this.executionContext);
   }
 
   /**
@@ -59,35 +58,62 @@ export class PlanningPipeline {
    */
   async plan(context, onProgress) {
     const emit = onProgress || (() => {});
+    const pipelineStart = Date.now();
 
     // Layer 2: Create work plan
     logger.info('[Pipeline] Layer 2 — Creating work plan');
+    let stepStart = Date.now();
     const workPlan = await this.orchestrator.createWorkPlan(context);
+    logger.info('[Pipeline] Layer 2 done', {
+      durationMs: Date.now() - stepStart,
+    });
+
+    // Inject trip context into each task for ToolWorker
+    const tasksWithContext = workPlan.tasks.map(t => ({
+      ...t,
+      context: {
+        destination: context.destination,
+        startDate: context.startDate,
+        endDate: context.endDate,
+        groupSize: context.groupSize,
+        budget: context.budget,
+        interests: context.interests,
+        travelStyle: context.travelStyle,
+      },
+    }));
 
     emit({
       type: 'planning_started',
-      tasks: workPlan.tasks.map(t => ({
+      tasks: tasksWithContext.map(t => ({
         taskId: t.taskId,
         taskType: t.taskType,
         query: t.query,
       })),
     });
 
-    // Layer 2.5 + 3A: Execute workers and collect results
-    logger.info('[Pipeline] Layer 2.5 — Dispatching workers');
+    // Layer 2.5 + 3A: Execute tool workers and collect results
+    logger.info('[Pipeline] Layer 2.5 — Dispatching tool workers');
+    stepStart = Date.now();
     const funnelResult = await this.funnel.collect(
-      workPlan.tasks,
+      tasksWithContext,
       emit,
     );
+    logger.info('[Pipeline] Layer 2.5 done', {
+      durationMs: Date.now() - stepStart,
+    });
 
     // Layer 3B: Synthesize
     logger.info('[Pipeline] Layer 3 — Synthesizing results');
     emit({ type: 'synthesizing' });
+    stepStart = Date.now();
 
     const result = await this.synthesizer.synthesize(
       context,
       funnelResult,
     );
+    logger.info('[Pipeline] Layer 3 done', {
+      durationMs: Date.now() - stepStart,
+    });
 
     // Layer 4: Verify itinerary feasibility
     if (result.itineraryData) {
@@ -111,6 +137,10 @@ export class PlanningPipeline {
       }
     }
 
+    logger.info('[Pipeline] Total pipeline duration', {
+      durationMs: Date.now() - pipelineStart,
+    });
+
     return result;
   }
 
@@ -124,7 +154,12 @@ export class PlanningPipeline {
    */
   async run(messages, onProgress) {
     // Step 1: Clarification
+    const stepStart = Date.now();
     const clarification = await this.clarify(messages);
+    logger.info('[Pipeline] Layer 1.5 (Clarification) done', {
+      durationMs: Date.now() - stepStart,
+      complete: clarification.complete,
+    });
 
     if (clarification.notTravelQuery) {
       return { type: 'not_travel', clarification };
