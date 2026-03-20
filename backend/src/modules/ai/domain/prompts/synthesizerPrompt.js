@@ -7,10 +7,13 @@ export const SYNTHESIZER_SYSTEM_PROMPT = `You are a travel plan synthesizer. Tur
 
 # Rules
 - No time overlaps between activities
-- Day: 07:00-21:00, cluster nearby places
-- Use real place names from research data only
+- Day: 07:00-21:00, cluster nearby places on same day
+- Use ONLY real place names from research data — never invent names
+- Copy rating, ratingCount, address, coordinates from research data exactly
+- Include rating/ratingCount for every activity when available in research
 - Match user's language
 - Output ALL days — never truncate
+- Include meals (RESTAURANT type) in the activities timeline
 
 # JSON Schema (inside \`\`\`json block)
 {
@@ -23,15 +26,21 @@ export const SYNTHESIZER_SYSTEM_PROMPT = `You are a travel plan synthesizer. Tur
     "date": "YYYY-MM-DD",
     "theme": "Day theme",
     "activities": [{
-      "name": "Place name",
+      "name": "Place name from research data",
       "type": "ATTRACTION|RESTAURANT|HOTEL|CAFE|ACTIVITY|SHOPPING",
       "time": "09:00",
       "duration": 90,
       "description": "Brief description",
+      "address": "Street address if available",
       "location": "Venue, Area, City",
       "estimatedCost": 150000,
       "latitude": 16.46,
-      "longitude": 107.59
+      "longitude": 107.59,
+      "rating": 4.5,
+      "ratingCount": 1234,
+      "category": "Tourist attraction",
+      "phone": "+84...",
+      "website": "https://..."
     }],
     "dailyCost": 850000
   }],

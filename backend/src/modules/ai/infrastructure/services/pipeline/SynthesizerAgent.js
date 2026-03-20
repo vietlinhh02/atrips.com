@@ -148,8 +148,9 @@ function compactWorkerData(data) {
   const MAX_ITEMS = 15;
   const KEEP_FIELDS = [
     'name', 'type', 'address', 'latitude', 'longitude',
-    'rating', 'price', 'cost', 'estimatedCost', 'description',
-    'openingHours', 'category', 'url', 'distance',
+    'rating', 'ratingCount', 'price', 'cost', 'estimatedCost',
+    'description', 'openingHours', 'category', 'url', 'distance',
+    'phone', 'website', 'title', 'snippet', 'cid',
   ];
 
   function slim(obj) {
@@ -159,7 +160,7 @@ function compactWorkerData(data) {
     if (obj && typeof obj === 'object') {
       const out = {};
       for (const key of Object.keys(obj)) {
-        if (KEEP_FIELDS.includes(key) || key === 'results' || key === 'places') {
+        if (KEEP_FIELDS.includes(key) || key === 'results' || key === 'places' || key === 'webContext' || key === 'hotels') {
           out[key] = slim(obj[key]);
         }
       }
