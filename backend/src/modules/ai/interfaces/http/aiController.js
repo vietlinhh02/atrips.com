@@ -355,7 +355,7 @@ export const chatStream = asyncHandler(async (req, res) => {
           toolCalls.push({ name: chunk.name, result: chunk.result });
           sendEvent({ type: 'tool_result', name: chunk.name, result: chunk.result });
 
-          if (chunk.name === 'web_search') {
+          if (chunk.name === 'web_search' || chunk.name === 'search_flights' || chunk.name === 'search_hotels') {
             const searchResults = extractWebSearchResults(chunk.result);
             for (const r of searchResults) {
               if (r?.url && r?.title) sources.push({ url: r.url, title: r.title });
@@ -589,7 +589,14 @@ function buildMessageHistory(aiMessages) {
 
 function getToolResultPayload(result) {
   if (!result || typeof result !== 'object') return null;
-  // Handle LangChain ToolMessage from streamEvents (lc serialized format)
+  // Handle LangChain ToolMessage instance from streamEvents (in-process object)
+  // ToolMessage has .content as JSON string, .name, .tool_call_id
+  if (typeof result.content === 'string' && result.tool_call_id) {
+    try {
+      return JSON.parse(result.content);
+    } catch { return null; }
+  }
+  // Handle LangChain serialized format (lc JSON after JSON.stringify round-trip)
   if (result.lc && result.kwargs?.content) {
     try {
       return JSON.parse(result.kwargs.content);
