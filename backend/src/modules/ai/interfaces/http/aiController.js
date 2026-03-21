@@ -247,9 +247,18 @@ export const chatStream = asyncHandler(async (req, res) => {
   res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders();
 
-  const sendEvent = (data) => {
-    res.write(`data: ${JSON.stringify(data)}\n\n`);
-  };
+    // Abort signal for client disconnect
+    const abortController = new AbortController();
+    req.on('close', () => {
+      abortController.abort();
+      logger.info('[ChatStream] Client disconnected, aborting pipeline');
+    });
+
+    const sendEvent = (data) => {
+      if (!abortController.signal.aborted) {
+        res.write(`data: ${JSON.stringify(data)}\n\n`);
+      }
+    };
 
   try {
     let conversation;
@@ -283,6 +292,7 @@ export const chatStream = asyncHandler(async (req, res) => {
       enableTools: enableTools !== 'false',
       userId,
       conversationId: activeConversationId,
+      signal: abortController.signal,
     });
 
     for await (const chunk of stream) {
@@ -378,6 +388,12 @@ export const chatStream = asyncHandler(async (req, res) => {
           break;
         case 'usage':
           usage = chunk.usage;
+          break;
+        case 'verification':
+          sendEvent({ type: 'verification', result: chunk.result });
+          break;
+        case 'error':
+          sendEvent({ type: 'error', error: chunk.error });
           break;
         case 'finish':
           sendEvent({ type: 'finish', reason: chunk.reason });
