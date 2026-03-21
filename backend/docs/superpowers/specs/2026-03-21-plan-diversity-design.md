@@ -289,18 +289,39 @@ toolExecutor.execute('search_places', { query, location: ctx.destination }, { no
 toolExecutor.execute('web_search', { query, numResults: 5 }, { noCache: true })
 ```
 
-This centralizes cache control in one place. ToolWorker no longer calls `serperService.searchPlaces()` directly. The existing `search_places` handler in ToolExecutor already chains Serper → Mapbox, which means the 1d Mapbox parallel merge is handled by the existing handler (with the session_token fix from 1b).
+**Important: two cache layers must both be bypassed.** ToolExecutor has its own cache (1h/24h TTL), and SerperService has a second cache layer (30min TTL) inside `searchPlaces()`, `searchWeb()`, `searchImages()`. The `noCache` flag must propagate through both layers:
+
+1. **ToolExecutor.execute()** — skips its cache when `options.noCache` is true
+2. **ToolExecutor passes `noCache` to handler context** — handlers receive it via `this._noCache` or a forwarded arg
+3. **searchHandlers.searchPlaces()** — forwards `skipCache` to `serperService.searchPlaces({ skipCache: true })`
+4. **SerperService.searchPlaces()** — skips its internal `cacheService.get()` when `skipCache` is true
+
+```js
+// SerperService — add skipCache to searchPlaces, searchWeb, searchImages:
+async searchPlaces(options = {}) {
+  const { query, gl, hl, skipCache } = options;
+  // ...
+  if (!skipCache) {
+    const cached = await cacheService.get(cacheKey);
+    if (cached) return { ...cached, source: 'cache' };
+  }
+  // ... fetch from Serper API, still WRITE to cache after fetch
+}
+```
+
+Still writes to cache after fetch — so standalone calls benefit from planning calls warming the cache, but planning calls always get fresh data.
 
 Standalone tool calls (DirectAgent, user chat) continue using cache normally — they don't pass `noCache`.
 
-**File:** `ToolExecutor.js`, `ToolWorker.js`
+**File:** `ToolExecutor.js`, `ToolWorker.js`, `SerperService.js`, `searchHandlers.js`
 
 ## Files Changed
 
 | File | Changes |
 |------|---------|
 | `src/modules/ai/infrastructure/services/pipeline/ToolWorker.js` | Use task.query for Serper Places; route all calls through ToolExecutor with noCache |
-| `src/modules/ai/infrastructure/services/handlers/searchHandlers.js` | Add session_token to Mapbox Search Box; remove Geocoding v5 fallback |
+| `src/modules/ai/infrastructure/services/handlers/searchHandlers.js` | Add session_token to Mapbox Search Box; remove Geocoding v5 fallback; forward skipCache to SerperService |
+| `src/modules/ai/infrastructure/services/SerperService.js` | Add skipCache option to searchPlaces(), searchWeb(), searchImages() |
 | `src/modules/ai/infrastructure/services/pipeline/PlanningPipeline.js` | Add POIRecommender diversity step (flattenPlaces + rebuildFunnelResult) |
 | `src/modules/ai/infrastructure/services/pipeline/OrchestratorAgent.js` | Add random angle hint to user prompt |
 | `src/modules/ai/infrastructure/services/provider.js` | Add temperature parameter to createModel, set per model tier |
