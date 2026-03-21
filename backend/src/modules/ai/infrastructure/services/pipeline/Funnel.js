@@ -91,6 +91,103 @@ export class Funnel {
     logger.info('[Funnel] Collection complete:', summary);
     return { results, summary };
   }
+
+  /**
+   * Stream worker events as each resolves (no Promise.allSettled wait).
+   * Yields: worker_started, worker_completed, worker_failed events.
+   * Returns accumulated FunnelResult via the final yield.
+   *
+   * @param {import('./OrchestratorAgent.js').WorkerTask[]} tasks
+   * @param {Object} [opts]
+   * @param {AbortSignal} [opts.signal]
+   * @returns {AsyncGenerator<Object>}
+   */
+  async *collectStream(tasks, opts = {}) {
+    const { signal } = opts;
+    const results = [];
+    const queue = [];
+    let pending = tasks.length;
+    let wakeUp;
+    let waiting = new Promise(r => { wakeUp = r; });
+
+    // Dispatch all workers in parallel, push results to queue
+    for (const task of tasks) {
+      if (signal?.aborted) return;
+
+      yield {
+        type: 'worker_started',
+        taskId: task.taskId,
+        taskType: task.taskType,
+      };
+
+      this.worker.executeTask(task).then(result => {
+        const enriched = { ...result, taskType: task.taskType };
+        results.push(enriched);
+
+        if (enriched.status === 'success') {
+          queue.push({
+            type: 'worker_completed',
+            taskId: task.taskId,
+            taskType: task.taskType,
+            preview: summarizeResult(enriched.data),
+          });
+        } else {
+          queue.push({
+            type: 'worker_failed',
+            taskId: task.taskId,
+            taskType: task.taskType,
+            error: enriched.error,
+          });
+        }
+        pending--;
+        wakeUp();
+      }).catch(err => {
+        results.push({
+          taskId: task.taskId,
+          taskType: task.taskType,
+          status: 'error',
+          data: null,
+          error: err.message,
+        });
+        queue.push({
+          type: 'worker_failed',
+          taskId: task.taskId,
+          taskType: task.taskType,
+          error: err.message,
+        });
+        pending--;
+        wakeUp();
+      });
+    }
+
+    // Consume results as they arrive (drain queue first, then await)
+    while (pending > 0 || queue.length > 0) {
+      if (signal?.aborted) return;
+      // Drain any already-resolved results
+      while (queue.length > 0) {
+        yield queue.shift();
+      }
+      // Only await if workers still running and queue is empty
+      if (pending > 0) {
+        await waiting;
+        waiting = new Promise(r => { wakeUp = r; });
+      }
+    }
+
+    // Yield final aggregated result for downstream consumers
+    const summary = {
+      total: results.length,
+      succeeded: results.filter(r => r.status === 'success').length,
+      failed: results.filter(r => r.status === 'error').length,
+    };
+
+    logger.info('[Funnel] Stream collection complete:', summary);
+
+    yield {
+      type: '_funnel_done',
+      funnelResult: { results, summary },
+    };
+  }
 }
 
 /**
