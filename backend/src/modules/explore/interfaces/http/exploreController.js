@@ -148,14 +148,16 @@ export const getDestination = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const destination = await destinationRepository.findById(id);
 
-  const [similar, weather] = await Promise.all([
+  const [similar, weather, enrichment] = await Promise.all([
     destinationRepository.findSimilar(destination),
     fetchWeather(destination.cached_place),
+    enhancementService.enrichDetail(destination),
   ]);
 
   return sendSuccess(res, {
     destination,
     weather,
+    enrichment,
     similarDestinations: similar,
   });
 });

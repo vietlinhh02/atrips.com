@@ -96,6 +96,55 @@ For each destination, respond with ONLY valid JSON (no markdown, no code blocks)
 Destination IDs in order: ${idList}`;
   }
 
+  async enrichDetail(destination) {
+    const city = destination.cached_place?.city;
+    const country = destination.cached_place?.country;
+    if (!city) return null;
+
+    const cacheKey = `explore:detail-enrich:${destination.id}`;
+    const cached = await cacheService.get(cacheKey);
+    if (cached) return cached;
+
+    const prompt = `You are a travel guide writer. Write rich content about ${city}, ${country} for a travel destination page.
+
+Tags: ${destination.tags?.join(', ') || 'general'}
+Average daily budget: $${destination.avgDailyBudget || 'unknown'}
+
+Respond with ONLY valid JSON (no markdown, no code blocks):
+{
+  "description": "<2-3 paragraph overview of the destination, what makes it special, the vibe and atmosphere. Write in engaging second person.>",
+  "highlights": ["<top thing to do/see 1>", "<top thing 2>", "<top thing 3>", "<top thing 4>", "<top thing 5>"],
+  "bestFor": "<1 sentence about who this destination is best for>",
+  "localTips": ["<practical tip 1>", "<practical tip 2>", "<practical tip 3>"],
+  "budgetBreakdown": {
+    "accommodation": "<price range per night>",
+    "food": "<price range per meal>",
+    "transport": "<typical daily transport cost>",
+    "activities": "<typical activity cost>"
+  },
+  "knownFor": ["<thing city is famous for 1>", "<thing 2>", "<thing 3>"]
+}`;
+
+    try {
+      const model = this.getModel();
+      const response = await model.invoke(prompt);
+      const cleaned = response.content
+        .replace(/```json\n?/g, '')
+        .replace(/```\n?/g, '')
+        .trim();
+      const parsed = JSON.parse(cleaned);
+
+      await cacheService.set(cacheKey, parsed, CACHE_TTL);
+      return parsed;
+    } catch (error) {
+      logger.warn('[ExploreEnhancement] Detail enrichment failed', {
+        error: error.message,
+        city,
+      });
+      return null;
+    }
+  }
+
   parseResponse(content, destinationIds) {
     try {
       const cleaned = content
