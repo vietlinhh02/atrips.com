@@ -5,9 +5,56 @@ services:
       dockerfile: Dockerfile
     environment:
       NODE_ENV: production
+      PORT: "3000"
       DATABASE_URL: postgresql://${POSTGRES_USER:-atrips}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-atrips}?schema=public
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       SEARXNG_URL: http://searxng:8080
+      # Auth & Security (injected by Coolify or .env file)
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-30d}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      FRONTEND_URL: ${FRONTEND_URL:-}
+      # Google OAuth
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-}
+      # AI
+      AI_PROVIDER_MODE: ${AI_PROVIDER_MODE:-direct}
+      GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY:-}
+      OAI_BASE_URL: ${OAI_BASE_URL:-}
+      OAI_API_KEY: ${OAI_API_KEY:-}
+      OAI_MODEL: ${OAI_MODEL:-}
+      OAI_FALLBACK_MODEL: ${OAI_FALLBACK_MODEL:-}
+      OAI_FAST_MODEL: ${OAI_FAST_MODEL:-}
+      OAI_SYNTHESIS_MODEL: ${OAI_SYNTHESIS_MODEL:-}
+      # External APIs
+      MAPBOX_ACCESS_TOKEN: ${MAPBOX_ACCESS_TOKEN:-}
+      OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY:-}
+      AMADEUS_CLIENT_ID: ${AMADEUS_CLIENT_ID:-}
+      AMADEUS_CLIENT_SECRET: ${AMADEUS_CLIENT_SECRET:-}
+      RAPIDAPI_KEY: ${RAPIDAPI_KEY:-}
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      TICKETMASTER_API_KEY: ${TICKETMASTER_API_KEY:-}
+      GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
+      PEXELS_API_KEY: ${PEXELS_API_KEY:-}
+      # Stripe
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      # Storage
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_BUCKET_NAME: ${R2_BUCKET_NAME:-}
+      R2_PUBLIC_URL: ${R2_PUBLIC_URL:-}
+      # Email
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      # Notifications
+      NOVU_API_KEY: ${NOVU_API_KEY:-}
     ports:
       - "${PORT:-3000}:3000"
     depends_on:
@@ -63,7 +110,7 @@ services:
     restart: unless-stopped
 
   searxng:
-    image: searxng/searxng:2024.12.23-5cc4e4f14
+    image: searxng/searxng:latest@sha256:b6db575bb821d35279474090270db9e53e92432a66d19e7da51c0ef1b5ddb806
     volumes:
       - ./config/searxng:/etc/searxng:ro
     environment:
