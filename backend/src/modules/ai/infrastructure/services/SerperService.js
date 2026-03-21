@@ -175,7 +175,7 @@ class SerperService {
    * Search hotels via Google (Serper web search + places).
    */
   async searchHotels(options) {
-    const { destination, checkin, checkout, guests, budget } = options;
+    const { destination, checkin, checkout, guests, budget, skipCache = false } = options;
 
     const budgetHint = budget === 'luxury' ? 'luxury 5 star'
       : budget === 'budget' ? 'budget cheap'
@@ -184,8 +184,8 @@ class SerperService {
     const query = `${budgetHint} hotels ${destination} ${checkin || ''} ${guests || 2} guests`.trim();
 
     const [webResults, placesResults] = await Promise.allSettled([
-      this.search({ query, limit: 5 }),
-      this.searchPlaces({ query: `hotels ${destination}` }),
+      this.search({ query, limit: 5, skipCache }),
+      this.searchPlaces({ query: `hotels ${destination}`, skipCache }),
     ]);
 
     const hotels = [];

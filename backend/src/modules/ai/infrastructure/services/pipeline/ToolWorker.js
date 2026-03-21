@@ -93,6 +93,7 @@ export class ToolWorker {
             checkout: ctx.endDate || '',
             guests: ctx.groupSize || 2,
             budget: ctx.budget || 'mid-range',
+            skipCache: true,
           }).then(r => ({ type: 'hotels', data: r }))
             .catch(() => null),
         );

@@ -150,13 +150,15 @@ export function createSearchHandlers(executor) {
 const GEMINI_SEARCH_TIMEOUT_MS = parseInt(process.env.GEMINI_SEARCH_TIMEOUT_MS, 10) || 60000;
 const GEMINI_SEARCH_MAX_RETRIES = 1;
 
-async function webSearchViaGemini(args) {
+async function webSearchViaGemini(args, options = {}) {
   const { query } = args;
 
   const cacheKey = `tool:websearch:gemini:${query}`;
-  const cached = await cacheService.get(cacheKey);
-  if (cached) {
-    return { ...cached, source: 'cache' };
+  if (!options.noCache) {
+    const cached = await cacheService.get(cacheKey);
+    if (cached) {
+      return { ...cached, source: 'cache' };
+    }
   }
 
   const baseUrl = process.env.OAI_BASE_URL || 'http://localhost:8317';
@@ -284,7 +286,7 @@ async function webSearchViaGemini(args) {
 async function webSearch(args, options = {}) {
   // Route to Gemini Google Search when enabled
   if (isGeminiSearchEnabled()) {
-    return webSearchViaGemini(args);
+    return webSearchViaGemini(args, options);
   }
 
   const {
