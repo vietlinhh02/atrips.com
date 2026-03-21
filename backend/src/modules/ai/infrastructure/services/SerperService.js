@@ -36,6 +36,7 @@ class SerperService {
       limit = 10,
       gl = 'vn',
       hl = 'vi',
+      skipCache = false,
     } = options;
 
     if (!this.apiKey) {
@@ -43,9 +44,11 @@ class SerperService {
     }
 
     const cacheKey = `serper:web:${query}:${gl}:${hl}:${limit}`;
-    const cached = await cacheService.get(cacheKey);
-    if (cached) {
-      return { ...cached, source: 'cache' };
+    if (!skipCache) {
+      const cached = await cacheService.get(cacheKey);
+      if (cached) {
+        return { ...cached, source: 'cache' };
+      }
     }
 
     const startMs = Date.now();
@@ -100,6 +103,7 @@ class SerperService {
       query,
       gl = 'vn',
       hl = 'vi',
+      skipCache = false,
     } = options;
 
     if (!this.apiKey) {
@@ -107,9 +111,11 @@ class SerperService {
     }
 
     const cacheKey = `serper:places:${query}:${gl}:${hl}`;
-    const cached = await cacheService.get(cacheKey);
-    if (cached) {
-      return { ...cached, source: 'cache' };
+    if (!skipCache) {
+      const cached = await cacheService.get(cacheKey);
+      if (cached) {
+        return { ...cached, source: 'cache' };
+      }
     }
 
     const startMs = Date.now();
@@ -244,13 +250,15 @@ class SerperService {
    * Search images via Google (Serper).
    */
   async searchImages(options) {
-    const { query, limit = 5 } = options;
+    const { query, limit = 5, skipCache = false } = options;
 
     if (!this.apiKey) return null;
 
     const cacheKey = `serper:images:${query}:${limit}`;
-    const cached = await cacheService.get(cacheKey);
-    if (cached) return cached;
+    if (!skipCache) {
+      const cached = await cacheService.get(cacheKey);
+      if (cached) return cached;
+    }
 
     try {
       const response = await fetch(`${SERPER_BASE_URL}/images`, {
