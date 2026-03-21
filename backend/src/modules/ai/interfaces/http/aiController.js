@@ -355,16 +355,8 @@ export const chatStream = asyncHandler(async (req, res) => {
           toolCalls.push({ name: chunk.name, result: chunk.result });
           sendEvent({ type: 'tool_result', name: chunk.name, result: chunk.result });
 
-          if (chunk.name === 'web_search' || chunk.name === 'search_flights' || chunk.name === 'search_hotels') {
+          if (chunk.name === 'web_search' || chunk.name === 'search_flights' || chunk.name === 'search_hotels' || chunk.name === 'search_social_media') {
             const searchResults = extractWebSearchResults(chunk.result);
-            logger.info('[ChatStream] Source extraction:', {
-              toolName: chunk.name,
-              resultType: chunk.result?.constructor?.name || typeof chunk.result,
-              hasContent: typeof chunk.result?.content,
-              hasToolCallId: !!chunk.result?.tool_call_id,
-              hasLc: !!chunk.result?.lc,
-              extractedCount: searchResults.length,
-            });
             for (const r of searchResults) {
               if (r?.url && r?.title) sources.push({ url: r.url, title: r.title });
             }
@@ -617,16 +609,28 @@ function getToolResultPayload(result) {
 function extractWebSearchResults(result) {
   const payload = getToolResultPayload(result);
   if (!payload || payload.success === false) return [];
+  // Handle all tool result formats: results, searchResults, hotels, webContext, bookingLinks
   if (Array.isArray(payload.results)) return payload.results;
+  if (Array.isArray(payload.searchResults)) return payload.searchResults;
   if (Array.isArray(payload.data?.results)) return payload.data.results;
+  // For hotels/flights with webContext (booking links with URLs)
+  if (Array.isArray(payload.webContext)) return payload.webContext;
+  if (Array.isArray(payload.bookingLinks)) return payload.bookingLinks.map(l => ({ url: l.url, title: l.site }));
+  // Hotels from Serper Places have website field
+  if (Array.isArray(payload.hotels)) {
+    return payload.hotels.filter(h => h.website || h.bookingUrl).map(h => ({
+      url: h.website || h.bookingUrl, title: h.name,
+    }));
+  }
   return [];
 }
 
 function extractSourcesFromToolCalls(toolCalls) {
   const sources = [];
   if (!Array.isArray(toolCalls)) return sources;
+  const sourceTools = ['web_search', 'search_flights', 'search_hotels', 'search_social_media'];
   for (const tc of toolCalls) {
-    if (tc.name === 'web_search') {
+    if (sourceTools.includes(tc.name)) {
       for (const r of extractWebSearchResults(tc.result)) {
         if (r?.url && r?.title) sources.push({ url: r.url, title: r.title });
       }
