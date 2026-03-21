@@ -271,10 +271,29 @@ export const MODEL_OUTPUT_SIMPLIFIERS = {
   search_flights: (result) => {
     if (!result?.success || result?.data?.success === false) return result?.data || result;
     const data = result.data || {};
+    // SearXNG handler returns searchResults, Amadeus returns flights/results
+    const rawFlights = data.flights || data.results || data.searchResults || [];
+    if (data.searchResults) {
+      // SearXNG web search results — pass through as search results for AI to interpret
+      return {
+        success: true,
+        source: data.source || 'web_search',
+        resultCount: rawFlights.length,
+        results: rawFlights.slice(0, 5).map(f => ({
+          title: f.title,
+          url: f.url,
+          snippet: f.snippet || f.content || '',
+          site: f.site,
+          prices: f.prices || [],
+        })),
+        bookingLinks: data.bookingLinks || [],
+        note: data.note || '',
+      };
+    }
     return {
       success: true,
-      resultCount: data.flights?.length || data.results?.length || 0,
-      flights: (data.flights || data.results || []).slice(0, 5).map(f => ({
+      resultCount: rawFlights.length,
+      flights: rawFlights.slice(0, 5).map(f => ({
         airline: f.airline,
         price: f.price,
         currency: f.currency,

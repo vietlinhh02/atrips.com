@@ -114,7 +114,11 @@ export async function* streamTripManageAgent(messages, options = {}) {
           usage.outputTokens += chunk.usage_metadata.output_tokens || 0;
         }
       } else if (event.event === 'on_tool_start') {
-        yield { type: 'tool_call_start', name: event.name };
+        yield {
+          type: 'tool_call_start',
+          name: event.name,
+          arguments: event.data?.input || {},
+        };
       } else if (event.event === 'on_tool_end') {
         yield {
           type: 'tool_result',
