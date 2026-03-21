@@ -357,6 +357,14 @@ export const chatStream = asyncHandler(async (req, res) => {
 
           if (chunk.name === 'web_search' || chunk.name === 'search_flights' || chunk.name === 'search_hotels') {
             const searchResults = extractWebSearchResults(chunk.result);
+            logger.info('[ChatStream] Source extraction:', {
+              toolName: chunk.name,
+              resultType: chunk.result?.constructor?.name || typeof chunk.result,
+              hasContent: typeof chunk.result?.content,
+              hasToolCallId: !!chunk.result?.tool_call_id,
+              hasLc: !!chunk.result?.lc,
+              extractedCount: searchResults.length,
+            });
             for (const r of searchResults) {
               if (r?.url && r?.title) sources.push({ url: r.url, title: r.title });
             }
