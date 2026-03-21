@@ -4,6 +4,7 @@
  * Now using SearXNG + Crawlee instead of Exa
  */
 
+import { randomUUID } from 'node:crypto';
 import prisma from '../../../../../config/database.js';
 import cacheService from '../../../../../shared/services/CacheService.js';
 import { logger } from '../../../../../shared/services/LoggerService.js';
@@ -547,14 +548,9 @@ async function searchPlaces(args) {
     try {
       const searchTerm = query || getDefaultSearchTerm(type);
       const searchQuery = `${searchTerm} ${location}`;
-      let rawPlaces = await searchViaMapboxSearchBox(
+      const rawPlaces = await searchViaMapboxSearchBox(
         searchQuery, this.mapboxToken, effectiveLimit, args, type,
       );
-      if (rawPlaces.length === 0) {
-        rawPlaces = await searchViaMapboxGeocoding(
-          searchQuery, this.mapboxToken, effectiveLimit, args, type,
-        );
-      }
       if (rawPlaces.length > 0) {
         const places = await Promise.all(rawPlaces.map(p => addImagesToPlace(p, location)));
         const result = { success: true, source: 'mapbox', places, query: searchQuery };
@@ -720,6 +716,7 @@ async function searchViaMapboxSearchBox(
       limit: String(limit),
       language: 'vi',
       types: 'poi',
+      session_token: randomUUID(),
     });
     if (args.longitude && args.latitude) {
       params.set('proximity', `${args.longitude},${args.latitude}`);
