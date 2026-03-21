@@ -9,13 +9,15 @@ import { ChatOpenAI } from '@langchain/openai';
 const baseURL = (process.env.OAI_BASE_URL || 'http://localhost:8317') + '/v1';
 const proxyApiKey = process.env.OAI_API_KEY || 'dummy';
 
-function createModel(modelId, maxTokens = 16384) {
-  return new ChatOpenAI({
+function createModel(modelId, maxTokens = 16384, temperature) {
+  const opts = {
     model: modelId,
     configuration: { baseURL },
     apiKey: proxyApiKey,
     maxTokens,
-  });
+  };
+  if (temperature !== undefined) opts.temperature = temperature;
+  return new ChatOpenAI(opts);
 }
 
 export function getModel(modelId) {
@@ -29,14 +31,14 @@ export function getModel(modelId) {
 export function getFastModel() {
   const id = process.env.OAI_FAST_MODEL
     || 'kiro-claude-haiku-4-5';
-  return createModel(id, 4096);
+  return createModel(id, 4096, 0.3);
 }
 
 export function getSynthesisModel() {
   const id = process.env.OAI_SYNTHESIS_MODEL
     || process.env.OAI_FALLBACK_MODEL
     || 'kiro-claude-sonnet-4-5';
-  return createModel(id, 16384);
+  return createModel(id, 16384, 0.7);
 }
 
 export function getFallbackModel() {
