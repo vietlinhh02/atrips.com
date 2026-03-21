@@ -80,6 +80,79 @@ export async function runDirectAgent(messages, options = {}) {
   }
 }
 
+/**
+ * Streaming version of runDirectAgent. Yields token-by-token events.
+ *
+ * @param {Array<import('@langchain/core/messages').BaseMessage>} messages
+ * @param {Object} options
+ * @param {AbortSignal} [options.signal]
+ * @returns {AsyncGenerator<{type: string, content?: string, name?: string, result?: any}>}
+ */
+export async function* streamDirectAgent(messages, options = {}) {
+  const {
+    context = {}, userId, conversationId, userProfile, signal,
+  } = options;
+
+  const model = getSynthesisModel();
+  const tools = buildLangChainTools(
+    { taskType: 'research' },
+    { userId, conversationId, userProfile },
+  );
+
+  const systemPrompt = buildSystemPrompt({
+    ...context,
+    userProfile,
+  });
+
+  const agent = createReactAgent({
+    llm: model,
+    tools,
+    stateModifier: systemPrompt,
+  });
+
+  try {
+    const eventStream = agent.streamEvents(
+      { messages },
+      { version: 'v2', signal },
+    );
+
+    let usage = { inputTokens: 0, outputTokens: 0 };
+
+    for await (const event of eventStream) {
+      if (signal?.aborted) return;
+
+      if (event.event === 'on_chat_model_stream') {
+        const chunk = event.data?.chunk;
+        const token = chunk?.content;
+        if (typeof token === 'string' && token) {
+          yield { type: 'content', content: token };
+        }
+        if (chunk?.usage_metadata) {
+          usage.inputTokens += chunk.usage_metadata.input_tokens || 0;
+          usage.outputTokens += chunk.usage_metadata.output_tokens || 0;
+        }
+      } else if (event.event === 'on_tool_start') {
+        yield { type: 'tool_call_start', name: event.name };
+      } else if (event.event === 'on_tool_end') {
+        yield {
+          type: 'tool_result',
+          name: event.name,
+          result: safeParseJSON(event.data?.output),
+        };
+      }
+    }
+
+    yield { type: 'usage', usage };
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      logger.info('[DirectAgent] Stream aborted by client');
+      return;
+    }
+    logger.error('[DirectAgent] Stream failed:', { error: error.message });
+    throw error;
+  }
+}
+
 function safeParseJSON(str) {
   if (typeof str !== 'string') return str;
   try { return JSON.parse(str); } catch { return str; }
