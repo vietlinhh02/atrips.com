@@ -15,7 +15,7 @@ async function getUserContext(userId) {
   const [travelProfile, userTrips] = await Promise.all([
     prisma.travel_profiles.findUnique({ where: { userId } }),
     prisma.trips.findMany({
-      where: { userId, status: { in: ['COMPLETED', 'ACTIVE'] } },
+      where: { ownerId: userId, status: { in: ['COMPLETED', 'ACTIVE'] } },
       select: {
         endDate: true,
         itinerary_days: {
