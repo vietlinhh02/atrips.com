@@ -44,6 +44,8 @@ function getPlacesQueries(task) {
   const queries = [];
   if (task.query) queries.push(task.query);
   if (generic && generic !== task.query) queries.push(generic);
+  // Catch-all: never return empty — always search for something
+  if (queries.length === 0) queries.push(`points of interest ${ctx.destination}`);
   return queries;
 }
 
@@ -100,7 +102,7 @@ Per task:
   Merge + dedup                  → ~12-15 unique places
 ```
 
-Mapbox call uses the fixed `searchViaMapboxSearchBox()` directly (not through ToolExecutor, to avoid its cache layer).
+ToolWorker calls Mapbox through ToolExecutor with `{ noCache: true }` — same cache-bypass mechanism as all other planning calls. This avoids breaking encapsulation of the private `searchViaMapboxSearchBox` function. Export a new `searchMapboxPlaces(query, token)` wrapper from searchHandlers if needed, but prefer routing through ToolExecutor for consistency.
 
 **File:** `ToolWorker.js`
 
@@ -115,10 +117,60 @@ Mapbox call uses the fixed `searchViaMapboxSearchBox()` directly (not through To
 ```
 Funnel.collect(tasks)
   → raw results (30-40 places across all tasks)
-  → flattenPlaces(funnelResult)
+  → flattenPlaces(funnelResult)     // extract places from all task results
   → POIRecommender.getDiverseRecommendations(allPlaces, userProfile, 25)
-  → rebuildFunnelResult(diversePlaces, funnelResult)
+  → rebuildFunnelResult(diversePlaces, funnelResult)  // put back into task structure
   → SynthesizerAgent.synthesize(context, diversifiedResult)
+```
+
+**flattenPlaces(funnelResult):**
+```js
+function flattenPlaces(funnelResult) {
+  const allPlaces = [];
+  for (const r of funnelResult.results) {
+    if (r.status !== 'success' || !r.data) continue;
+    const places = r.data.places || [];
+    for (const p of places) {
+      // Normalize type to uppercase for POIRecommender compatibility
+      // Serper returns lowercase category, ToolWorker sets type: 'hotel'
+      const normalizedType = (p.type || inferTypeFromCategory(p.category))
+        .toUpperCase();
+      allPlaces.push({
+        ...p,
+        type: normalizedType,
+        _originalTaskType: r.taskType,  // preserve for rebuild
+      });
+    }
+  }
+  return allPlaces;
+}
+```
+
+**rebuildFunnelResult(diversePlaces, funnelResult):**
+```js
+function rebuildFunnelResult(diversePlaces, originalResult) {
+  // Group selected places back by their original task type
+  const byTask = {};
+  for (const p of diversePlaces) {
+    const taskType = p._originalTaskType;
+    if (!byTask[taskType]) byTask[taskType] = [];
+    byTask[taskType].push(p);
+  }
+  // Rebuild: replace places in each result, preserve non-place data
+  return {
+    ...originalResult,
+    results: originalResult.results.map(r => {
+      if (r.status !== 'success' || !r.data) return r;
+      return {
+        ...r,
+        data: {
+          ...r.data,                    // webContext, weather, events, images pass through
+          places: byTask[r.taskType] || r.data.places,  // replaced places only
+        },
+      };
+    }),
+  };
+}
 ```
 
 `getDiverseRecommendations` uses greedy selection:
@@ -166,7 +218,7 @@ export function getSynthesisModel() {
   const id = process.env.OAI_SYNTHESIS_MODEL
     || process.env.OAI_FALLBACK_MODEL
     || 'kiro-claude-sonnet-4-5';
-  return createModel(id, 16384, 0.9);  // High temp for creative variety
+  return createModel(id, 16384, 0.7);  // Moderate temp — enough variety without risking JSON errors
 }
 ```
 
@@ -188,43 +240,72 @@ export function getSynthesisModel() {
 
 **File:** `synthesizerPrompt.js`
 
+#### 2d. Orchestrator query randomization
+
+**Current:** Orchestrator uses `getFastModel()` at temperature 0.3. Same input context → same work plan queries every time. Even with cache bypass, Serper returns the same ranked list for identical queries.
+
+**Change:** Inject a random "angle" hint into the Orchestrator user prompt so it generates different query angles each time:
+
+```js
+const ANGLES = [
+  'hidden gems and local favorites',
+  'popular landmarks and must-see spots',
+  'seasonal specialties and current events',
+  'off-the-beaten-path and unique experiences',
+  'food-focused and culinary exploration',
+  'nature and outdoor activities',
+  'culture, history, and architecture',
+];
+const angle = ANGLES[Math.floor(Math.random() * ANGLES.length)];
+
+// Append to user prompt:
+`Focus angle for this plan: ${angle}. Bias your search queries toward this theme while still covering essentials.`
+```
+
+This keeps Orchestrator temperature low (0.3, deterministic JSON output) but varies the input, producing different queries each time.
+
+**File:** `OrchestratorAgent.js`
+
 ### Section 3: Cache awareness (bugs 6)
 
 #### 3a. ToolWorker bypasses cache for planning pipeline
 
 **Current:** ToolWorker calls `serperService.searchPlaces()` and `toolExecutor.execute('web_search')` — both are cached (30min and 1h respectively). Same destination within cache window = identical data for all users.
 
-**Change:** Add `noCache` option to ToolExecutor.execute():
+**Change:** Single unified cache-bypass mechanism via `ToolExecutor.execute()`:
 
 ```js
 async execute(toolName, args, options = {}) {
   const cacheable = !options.noCache && isCacheable(toolName, args);
-  // ... rest of logic
+  // ... rest of logic unchanged
 }
 ```
 
-ToolWorker passes `{ noCache: true }` for all calls:
+ToolWorker routes ALL calls through ToolExecutor with `{ noCache: true }`:
 ```js
+// Serper Places — now via ToolExecutor instead of direct serperService call
+toolExecutor.execute('search_places', { query, location: ctx.destination }, { noCache: true })
+// Web search
 toolExecutor.execute('web_search', { query, numResults: 5 }, { noCache: true })
 ```
 
-For Serper Places (called directly, not through ToolExecutor), ToolWorker calls a new `serperService.searchPlaces({ query, skipCache: true })` option that bypasses the internal cache.
+This centralizes cache control in one place. ToolWorker no longer calls `serperService.searchPlaces()` directly. The existing `search_places` handler in ToolExecutor already chains Serper → Mapbox, which means the 1d Mapbox parallel merge is handled by the existing handler (with the session_token fix from 1b).
 
-Standalone tool calls (DirectAgent, user chat) continue using cache normally.
+Standalone tool calls (DirectAgent, user chat) continue using cache normally — they don't pass `noCache`.
 
-**File:** `ToolExecutor.js`, `ToolWorker.js`, `SerperService.js`
+**File:** `ToolExecutor.js`, `ToolWorker.js`
 
 ## Files Changed
 
 | File | Changes |
 |------|---------|
-| `src/modules/ai/infrastructure/services/pipeline/ToolWorker.js` | Use task.query for Serper Places; add Mapbox parallel; pass noCache flag |
+| `src/modules/ai/infrastructure/services/pipeline/ToolWorker.js` | Use task.query for Serper Places; route all calls through ToolExecutor with noCache |
 | `src/modules/ai/infrastructure/services/handlers/searchHandlers.js` | Add session_token to Mapbox Search Box; remove Geocoding v5 fallback |
-| `src/modules/ai/infrastructure/services/pipeline/PlanningPipeline.js` | Add POIRecommender diversity step between Funnel and Synthesizer |
+| `src/modules/ai/infrastructure/services/pipeline/PlanningPipeline.js` | Add POIRecommender diversity step (flattenPlaces + rebuildFunnelResult) |
+| `src/modules/ai/infrastructure/services/pipeline/OrchestratorAgent.js` | Add random angle hint to user prompt |
 | `src/modules/ai/infrastructure/services/provider.js` | Add temperature parameter to createModel, set per model tier |
 | `src/modules/ai/domain/prompts/synthesizerPrompt.js` | Add diversity instructions |
 | `src/modules/ai/infrastructure/services/ToolExecutor.js` | Add noCache option to execute() |
-| `src/modules/ai/infrastructure/services/SerperService.js` | Add skipCache option to searchPlaces() |
 
 ## Data Flow After Changes
 
@@ -234,11 +315,11 @@ User: "Plan 3 days in Da Lat"
 Layer 1.5: ClarificationAgent (temp 0.3)
   → {destination: "Đà Lạt", duration: "3 days", interests: [...]}
 
-Layer 2: OrchestratorAgent (temp 0.3)
-  → tasks with SPECIFIC queries:
+Layer 2: OrchestratorAgent (temp 0.3, random angle: "food-focused")
+  → tasks with SPECIFIC queries biased by angle:
     t1: attractions — "điểm tham quan Đà Lạt 2026, thung lũng tình yêu, hồ Tuyền Lâm"
-    t2: restaurants — "đặc sản Đà Lạt 2026, bánh tráng nướng, lẩu gà lá é"
-    t3: activities — "trải nghiệm Đà Lạt 2026, cắm trại, cưỡi ngựa"
+    t2: restaurants — "đặc sản Đà Lạt 2026, bánh tráng nướng, lẩu gà lá é, quán ăn địa phương"
+    t3: activities — "trải nghiệm ẩm thực Đà Lạt 2026, cooking class, chợ đêm"
 
 Layer 2.5: ToolWorker (per task, parallel, NO CACHE)
   ├── Serper Places(task.query)  → ~10 places    ← NEW: uses Orchestrator query
@@ -251,7 +332,7 @@ Layer 2.75: POIRecommender (NEW STEP)
   → getDiverseRecommendations(places, userProfile, 25)
   → 25 diverse, relevant places
 
-Layer 3: SynthesizerAgent (temp 0.9, diversity prompt)
+Layer 3: SynthesizerAgent (temp 0.7, diversity prompt)
   → Varied itinerary JSON + markdown
 
 Layer 4: ItineraryVerifier
@@ -265,9 +346,10 @@ Layer 4: ItineraryVerifier
 3. **Diversity** — integration test: run pipeline 3 times for same destination, compare place overlap. Target: < 70% overlap between any 2 runs
 4. **Cache bypass** — verify ToolWorker calls don't hit cache; standalone search_places still uses cache
 5. **POIRecommender** — unit test: given 30 raw places, verify getDiverseRecommendations returns mix of types, not all same category
+6. **Cache regression** — verify `toolExecutor.execute('search_places', args)` (without noCache) still caches; `toolExecutor.execute('search_places', args, { noCache: true })` does not
 
 ## Risks
 
-- **Increased API costs**: bypassing cache + adding Mapbox calls ≈ 2x Serper calls per plan. Mitigate by keeping cache for non-planning flows.
-- **Latency**: Mapbox parallel adds ~200-500ms per task but runs alongside Serper (no net increase if Serper is slower). POIRecommender scoring is in-memory, negligible.
-- **Temperature 0.9 may cause occasional hallucination**: Synthesizer prompt strictly says "use ONLY real place names from research data" — this constraint should hold even at high temperature. Monitor first few days.
+- **Increased API costs**: bypassing cache + Mapbox calls ≈ 1.5x API usage per plan. Mitigated by keeping cache for non-planning flows (DirectAgent, standalone tools).
+- **Latency**: Mapbox runs alongside Serper in parallel (no net increase). POIRecommender scoring is in-memory, negligible.
+- **Temperature 0.7**: moderate — should preserve JSON validity while adding variety. Monitor JSON parse failures in first week.
