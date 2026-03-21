@@ -90,7 +90,7 @@ export async function processImageIngestJob(job) {
       // Same content already exists — link and clean up
       logger.info(`[ImageIngest] Content hash match (${hashDup.id}), dedup`);
       await linkAssetToEntity(hashDup.id, entityType, entityId);
-      await imageAssetRepository.delete(asset.id);
+      try { await imageAssetRepository.delete(asset.id); } catch { /* may already be deleted */ }
       return { status: 'hash_dedup', assetId: hashDup.id };
     }
 
@@ -118,7 +118,7 @@ export async function processImageIngestJob(job) {
         const winner = await imageAssetRepository.findByContentHash(contentHash);
         if (winner) {
           await linkAssetToEntity(winner.id, entityType, entityId);
-          await imageAssetRepository.delete(asset.id);
+          try { await imageAssetRepository.delete(asset.id); } catch { /* may already be deleted */ }
           logger.info(`[ImageIngest] Race dedup → ${winner.id}`);
           return { status: 'race_dedup', assetId: winner.id };
         }
@@ -133,7 +133,12 @@ export async function processImageIngestJob(job) {
     return { status: 'uploaded', assetId: asset.id, r2Key };
   } catch (error) {
     logger.error(`[ImageIngest] Failed for ${sourceUrl}: ${error.message}`);
-    await imageAssetRepository.markFailed(asset.id, error.message, asset.attempts);
+    try {
+      await imageAssetRepository.markFailed(asset.id, error.message, asset.attempts);
+    } catch (markErr) {
+      // Record may have been deleted by race dedup — safe to ignore
+      logger.warn(`[ImageIngest] Could not mark failed (record may be deleted): ${markErr.message}`);
+    }
     throw error; // Let BullMQ handle retry
   }
 }
