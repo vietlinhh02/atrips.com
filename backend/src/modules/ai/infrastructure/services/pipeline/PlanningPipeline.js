@@ -11,7 +11,54 @@ import { ToolWorker } from './ToolWorker.js';
 import { Funnel } from './Funnel.js';
 import { SynthesizerAgent } from './SynthesizerAgent.js';
 import { verifyItinerary } from '../../../domain/algorithms/ItineraryVerifier.js';
+import { getDiverseRecommendations } from '../../../domain/algorithms/POIRecommender.js';
 import { logger } from '../../../../../shared/services/LoggerService.js';
+
+/**
+ * Extract all places from funnel results into a flat array.
+ * Normalizes type to uppercase for POIRecommender compatibility.
+ */
+function flattenPlaces(funnelResult) {
+  const allPlaces = [];
+  for (const r of funnelResult.results) {
+    if (r.status !== 'success' || !r.data?.places) continue;
+    for (const p of r.data.places) {
+      const normalizedType = (p.type || 'ATTRACTION').toUpperCase();
+      allPlaces.push({
+        ...p,
+        type: normalizedType,
+        _originalTaskType: r.taskType,
+      });
+    }
+  }
+  return allPlaces;
+}
+
+/**
+ * Put diversity-selected places back into funnel result structure.
+ * Preserves non-place data (webContext, weather, events, images).
+ */
+function rebuildFunnelResult(diversePlaces, originalResult) {
+  const byTask = {};
+  for (const p of diversePlaces) {
+    const taskType = p._originalTaskType;
+    if (!byTask[taskType]) byTask[taskType] = [];
+    byTask[taskType].push(p);
+  }
+  return {
+    ...originalResult,
+    results: originalResult.results.map(r => {
+      if (r.status !== 'success' || !r.data) return r;
+      return {
+        ...r,
+        data: {
+          ...r.data,
+          places: byTask[r.taskType] || r.data.places,
+        },
+      };
+    }),
+  };
+}
 
 /**
  * @typedef {Object} PipelineOptions
@@ -102,6 +149,33 @@ export class PlanningPipeline {
       durationMs: Date.now() - stepStart,
     });
 
+    // Layer 2.75: Diversity selection via POIRecommender
+    logger.info('[Pipeline] Layer 2.75 — Diversity selection');
+    stepStart = Date.now();
+    const allPlaces = flattenPlaces(funnelResult);
+    let diversifiedResult = funnelResult;
+
+    if (allPlaces.length > 0) {
+      const userProfile = {
+        interests: context.interests || [],
+        travelStyle: context.travelStyle || 'comfort',
+        prioritizeDiversity: true,
+        prioritizeRating: true,
+      };
+      const TARGET_PLACES = 25;
+      const diversePlaces = getDiverseRecommendations(
+        allPlaces, userProfile, Math.min(TARGET_PLACES, allPlaces.length),
+      );
+      diversifiedResult = rebuildFunnelResult(diversePlaces, funnelResult);
+      logger.info('[Pipeline] Layer 2.75 done', {
+        durationMs: Date.now() - stepStart,
+        inputPlaces: allPlaces.length,
+        outputPlaces: diversePlaces.length,
+      });
+    } else {
+      logger.warn('[Pipeline] Layer 2.75 skipped — no places to diversify');
+    }
+
     // Layer 3B: Synthesize
     logger.info('[Pipeline] Layer 3 — Synthesizing results');
     emit({ type: 'synthesizing' });
@@ -109,7 +183,7 @@ export class PlanningPipeline {
 
     const result = await this.synthesizer.synthesize(
       context,
-      funnelResult,
+      diversifiedResult,
     );
     logger.info('[Pipeline] Layer 3 done', {
       durationMs: Date.now() - stepStart,
