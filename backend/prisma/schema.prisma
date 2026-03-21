@@ -283,6 +283,7 @@ model cached_places {
   updatedAt       DateTime          @updatedAt
   activities      activities[]
   affiliate_links affiliate_links[]
+  destinations    destinations[]
   photos_rel      photos[]
   place_reviews   place_reviews[]
   saved_places    saved_places[]
@@ -293,6 +294,28 @@ model cached_places {
   @@index([latitude, longitude])
   @@index([rating])
   @@index([type])
+}
+
+model destinations {
+  id                 String            @id @default(uuid())
+  cachedPlaceId      String
+  region             DestinationRegion
+  tagline            String?
+  bestSeasons        String[]          @default([])
+  avgDailyBudget     Decimal?          @db.Decimal(10, 2)
+  tags               String[]          @default([])
+  coverImageAssetIds String[]          @default([])
+  popularityScore    Float             @default(0)
+  isActive           Boolean           @default(true)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  cached_place       cached_places     @relation(fields: [cachedPlaceId], references: [id])
+
+  @@index([region])
+  @@index([isActive])
+  @@index([popularityScore])
+  @@index([cachedPlaceId])
 }
 
 model chat_messages {
@@ -1696,6 +1719,17 @@ enum ImageSourceProvider {
   PICSUM
   MAPBOX
   USER_UPLOAD
+}
+
+enum DestinationRegion {
+  SOUTHEAST_ASIA
+  EAST_ASIA
+  SOUTH_ASIA
+  EUROPE
+  AMERICAS
+  MIDDLE_EAST
+  AFRICA
+  OCEANIA
 }
 
 model image_assets {
