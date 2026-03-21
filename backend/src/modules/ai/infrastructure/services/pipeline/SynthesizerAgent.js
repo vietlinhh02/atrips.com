@@ -65,6 +65,10 @@ Create a ${numDays}-day itinerary JSON (see system prompt for schema) + brief su
       });
 
       const startTime = Date.now();
+      logger.info('[SynthesizerAgent] Calling LLM...', {
+        model: model.model,
+        estimatedInputTokens: Math.ceil(inputChars / 4),
+      });
       const response = await model.invoke([
         new SystemMessage(SYNTHESIZER_SYSTEM_PROMPT),
         new HumanMessage(userPrompt),
@@ -83,6 +87,7 @@ Create a ${numDays}-day itinerary JSON (see system prompt for schema) + brief su
         inputTokens: usage.inputTokens,
         outputTokens: usage.outputTokens,
         outputChars: content.length,
+        responsePreview: content.substring(0, 500),
       });
 
       // Extract itinerary JSON from response

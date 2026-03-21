@@ -84,9 +84,18 @@ export class ClarificationAgent {
     }
 
     try {
+      logger.info('[ClarificationAgent] Calling LLM...', {
+        model: this.model.model,
+        messageCount: lcMessages.length,
+      });
+      const startTime = Date.now();
       const response = await this.model.invoke(lcMessages);
       const content = typeof response.content === 'string'
         ? response.content : '';
+      logger.info('[ClarificationAgent] LLM responded:', {
+        durationMs: Date.now() - startTime,
+        responseLength: content.length,
+      });
 
       logger.info('[ClarificationAgent] Raw response:', {
         preview: content.substring(0, 200),
