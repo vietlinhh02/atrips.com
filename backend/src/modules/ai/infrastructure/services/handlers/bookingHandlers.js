@@ -7,6 +7,7 @@ import prisma from '../../../../../config/database.js';
 import cacheService from '../../../../../shared/services/CacheService.js';
 import { geocodeLocation } from './infoHandlers.js';
 import { searchFlightsViaSearxng, searchHotelsViaSearxng, searchLocalEventsViaSearxng } from './webScraperHandlers.js';
+import serperService from '../SerperService.js';
 
 // Cache TTL for tool results (in seconds)
 const TOOL_CACHE_TTL = {
@@ -55,7 +56,48 @@ async function searchFlights(args) {
     }
   }
 
-  // Try SearXNG web search as alternative
+  // Try Serper (Google search) — best web results
+  if (serperService.isAvailable) {
+    try {
+      console.log('[Serper] Google search for flights');
+      const serperResult = await serperService.searchFlights({
+        origin, destination,
+        departureDate: departure_date,
+        returnDate: return_date,
+        passengers,
+      });
+      if (serperResult?.results?.length > 0) {
+        const result = {
+          source: 'serper',
+          origin,
+          destination,
+          departureDate: departure_date,
+          returnDate: return_date,
+          passengers,
+          searchResults: serperResult.results.map(r => ({
+            title: r.title,
+            url: r.url,
+            content: r.content || '',
+            snippet: (r.content || '').substring(0, 300),
+            site: r.url ? new URL(r.url).hostname.replace('www.', '') : '',
+          })),
+          knowledgeGraph: serperResult.knowledgeGraph || null,
+          bookingLinks: serperResult.results
+            .filter(r => r.url)
+            .map(r => ({
+              site: r.url ? new URL(r.url).hostname.replace('www.', '') : '',
+              url: r.url,
+            })),
+        };
+        await cacheService.set(cacheKey, result, TOOL_CACHE_TTL.FLIGHTS);
+        return result;
+      }
+    } catch (error) {
+      console.error('Serper flight search failed:', error.message);
+    }
+  }
+
+  // Fallback: SearXNG web search
   console.log('[SearXNG] Web search for flights');
   try {
     return await searchFlightsViaSearxng(args);
