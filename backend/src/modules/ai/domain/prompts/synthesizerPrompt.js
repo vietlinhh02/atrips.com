@@ -17,6 +17,12 @@ export const SYNTHESIZER_SYSTEM_PROMPT = `You are a travel plan synthesizer. Tur
 - Include meals (RESTAURANT type) in the activities timeline
 - EVERY field in the schema below MUST have a value — NO nulls allowed
 
+# Diversity
+- Do NOT always pick the highest-rated places. Mix popular landmarks with lesser-known local favorites.
+- Vary your thematic angle: sometimes lean into food, sometimes culture, sometimes nature — based on what the research data offers, not always the same pattern.
+- Shuffle activity ordering across days. Don't always follow the same morning-attraction → lunch → afternoon-attraction → dinner pattern.
+- When multiple restaurants/cafes have similar ratings, prefer variety in cuisine type over rating.
+
 # JSON Schema (inside \`\`\`json block)
 {
   "title": "Trip title",
