@@ -281,7 +281,7 @@ async function webSearchViaGemini(args) {
  * Serper: Google Search API, structured data, no rate limits.
  * SearXNG: Self-hosted fallback when Serper key not configured.
  */
-async function webSearch(args) {
+async function webSearch(args, options = {}) {
   // Route to Gemini Google Search when enabled
   if (isGeminiSearchEnabled()) {
     return webSearchViaGemini(args);
@@ -300,9 +300,11 @@ async function webSearch(args) {
   const currentYear = new Date().getFullYear();
 
   const cacheKey = `tool:websearch:${query}:${type}:${limit}:${recency}`;
-  const cached = await cacheService.get(cacheKey);
-  if (cached) {
-    return { ...cached, source: 'cache' };
+  if (!options.noCache) {
+    const cached = await cacheService.get(cacheKey);
+    if (cached) {
+      return { ...cached, source: 'cache' };
+    }
   }
 
   // ── Try Serper.dev first (fast, reliable Google results) ──
@@ -312,6 +314,7 @@ async function webSearch(args) {
       const serperResult = await serperService.search({
         query: searchQuery,
         limit,
+        skipCache: options.noCache,
       });
 
       let filteredResults = serperResult.results || [];
@@ -490,14 +493,16 @@ async function scrapeUrl(args) {
 /**
  * Search Places - Mapbox Search API
  */
-async function searchPlaces(args) {
+async function searchPlaces(args, options = {}) {
   const { query, location, type, limit = 5 } = args;
 
   const effectiveLimit = Math.min(Math.max(1, limit), 10);
   const cacheKey = `tool:places:${location}:${type || 'all'}:${query || ''}:${effectiveLimit}`;
-  const cached = await cacheService.get(cacheKey);
-  if (cached) {
-    return { ...cached, source: 'cache' };
+  if (!options.noCache) {
+    const cached = await cacheService.get(cacheKey);
+    if (cached) {
+      return { ...cached, source: 'cache' };
+    }
   }
 
   const rawDbPlaces = await searchPlacesFromDB(args);
@@ -514,7 +519,7 @@ async function searchPlaces(args) {
     try {
       const searchTerm = query || getDefaultSearchTerm(type);
       const searchQuery = `${searchTerm} ${location}`;
-      const serperResult = await serperService.searchPlaces({ query: searchQuery });
+      const serperResult = await serperService.searchPlaces({ query: searchQuery, skipCache: options.noCache });
 
       if (serperResult?.places?.length > 0) {
         const places = await Promise.all(
