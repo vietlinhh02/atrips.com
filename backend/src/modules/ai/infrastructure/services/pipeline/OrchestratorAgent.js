@@ -6,9 +6,19 @@
 
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { randomUUID } from 'node:crypto';
-import { getModel } from '../provider.js';
+import { getFastModel } from '../provider.js';
 import { ORCHESTRATOR_SYSTEM_PROMPT } from '../../../domain/prompts/orchestratorPrompt.js';
 import { logger } from '../../../../../shared/services/LoggerService.js';
+
+const PLAN_ANGLES = [
+  'hidden gems and local favorites',
+  'popular landmarks and must-see spots',
+  'seasonal specialties and current events',
+  'off-the-beaten-path and unique experiences',
+  'food-focused and culinary exploration',
+  'nature and outdoor activities',
+  'culture, history, and architecture',
+];
 
 function extractJSON(text) {
   if (!text) return null;
@@ -34,8 +44,8 @@ function extractJSON(text) {
  */
 
 export class OrchestratorAgent {
-  constructor(modelId) {
-    this.model = getModel(modelId);
+  constructor() {
+    this.model = getFastModel();
   }
 
   /**
@@ -45,12 +55,15 @@ export class OrchestratorAgent {
    * @returns {Promise<WorkPlan>}
    */
   async createWorkPlan(context) {
+    const angle = PLAN_ANGLES[Math.floor(Math.random() * PLAN_ANGLES.length)];
     const lcMessages = [
       new SystemMessage(ORCHESTRATOR_SYSTEM_PROMPT),
       new HumanMessage(
-        `Create a research work plan for this trip:\n${JSON.stringify(context, null, 2)}`
+        `Create a research work plan for this trip:\n${JSON.stringify(context, null, 2)}\n\nFocus angle for this plan: ${angle}. Bias your search queries toward this theme while still covering essentials.`
       ),
     ];
+
+    logger.info('[OrchestratorAgent] Using angle:', { angle });
 
     try {
       const response = await this.model.invoke(lcMessages);

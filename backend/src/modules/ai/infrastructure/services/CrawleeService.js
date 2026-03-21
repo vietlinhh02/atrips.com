@@ -198,6 +198,7 @@ function scrapeWithPlaywright(url, extractors, timeoutMs = PLAYWRIGHT_TIMEOUT_MS
       },
       launchContext: {
         launchOptions: {
+          executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined,
           args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',

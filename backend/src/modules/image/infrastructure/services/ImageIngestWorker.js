@@ -90,11 +90,7 @@ export async function processImageIngestJob(job) {
       // Same content already exists — link and clean up
       logger.info(`[ImageIngest] Content hash match (${hashDup.id}), dedup`);
       await linkAssetToEntity(hashDup.id, entityType, entityId);
-      // Remove the duplicate record
-      await imageAssetRepository.updateStatus(asset.id, 'READY', {
-        contentHash,
-        lastError: `Deduped to ${hashDup.id}`,
-      });
+      try { await imageAssetRepository.delete(asset.id); } catch { /* may already be deleted */ }
       return { status: 'hash_dedup', assetId: hashDup.id };
     }
 
@@ -106,15 +102,29 @@ export async function processImageIngestJob(job) {
     // 8. Generate variant URLs
     const variants = r2StorageService.getVariantUrls(r2Key);
 
-    // 9. Update DB → READY
-    await imageAssetRepository.markReady(asset.id, {
-      contentHash,
-      r2Key,
-      r2Bucket: bucket,
-      fileSize: buffer.length,
-      mimeType: contentType,
-      variants,
-    });
+    // 9. Update DB → READY (handle race with other jobs)
+    try {
+      await imageAssetRepository.markReady(asset.id, {
+        contentHash,
+        r2Key,
+        r2Bucket: bucket,
+        fileSize: buffer.length,
+        mimeType: contentType,
+        variants,
+      });
+    } catch (err) {
+      if (err.code === 'P2002') {
+        // Another job wrote the same contentHash — dedup
+        const winner = await imageAssetRepository.findByContentHash(contentHash);
+        if (winner) {
+          await linkAssetToEntity(winner.id, entityType, entityId);
+          try { await imageAssetRepository.delete(asset.id); } catch { /* may already be deleted */ }
+          logger.info(`[ImageIngest] Race dedup → ${winner.id}`);
+          return { status: 'race_dedup', assetId: winner.id };
+        }
+      }
+      throw err;
+    }
 
     // 10. Link to entity
     await linkAssetToEntity(asset.id, entityType, entityId);
@@ -123,7 +133,12 @@ export async function processImageIngestJob(job) {
     return { status: 'uploaded', assetId: asset.id, r2Key };
   } catch (error) {
     logger.error(`[ImageIngest] Failed for ${sourceUrl}: ${error.message}`);
-    await imageAssetRepository.markFailed(asset.id, error.message, asset.attempts);
+    try {
+      await imageAssetRepository.markFailed(asset.id, error.message, asset.attempts);
+    } catch (markErr) {
+      // Record may have been deleted by race dedup — safe to ignore
+      logger.warn(`[ImageIngest] Could not mark failed (record may be deleted): ${markErr.message}`);
+    }
     throw error; // Let BullMQ handle retry
   }
 }

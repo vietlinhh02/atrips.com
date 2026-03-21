@@ -71,6 +71,10 @@ export class ImageAssetRepository {
     });
   }
 
+  async delete(id) {
+    return prisma.image_assets.delete({ where: { id } }).catch(() => null);
+  }
+
   async getByStatus(status, limit = 50) {
     return prisma.image_assets.findMany({
       where: { status },

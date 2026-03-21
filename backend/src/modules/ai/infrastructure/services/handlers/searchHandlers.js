@@ -4,9 +4,11 @@
  * Now using SearXNG + Crawlee instead of Exa
  */
 
+import { randomUUID } from 'node:crypto';
 import prisma from '../../../../../config/database.js';
 import cacheService from '../../../../../shared/services/CacheService.js';
 import { logger } from '../../../../../shared/services/LoggerService.js';
+import serperService from '../SerperService.js';
 import searxngService from '../SearxngService.js';
 import crawleeService from '../CrawleeService.js';
 import { isGeminiSearchEnabled } from '../../../domain/tools/index.js';
@@ -148,13 +150,15 @@ export function createSearchHandlers(executor) {
 const GEMINI_SEARCH_TIMEOUT_MS = parseInt(process.env.GEMINI_SEARCH_TIMEOUT_MS, 10) || 60000;
 const GEMINI_SEARCH_MAX_RETRIES = 1;
 
-async function webSearchViaGemini(args) {
+async function webSearchViaGemini(args, options = {}) {
   const { query } = args;
 
   const cacheKey = `tool:websearch:gemini:${query}`;
-  const cached = await cacheService.get(cacheKey);
-  if (cached) {
-    return { ...cached, source: 'cache' };
+  if (!options.noCache) {
+    const cached = await cacheService.get(cacheKey);
+    if (cached) {
+      return { ...cached, source: 'cache' };
+    }
   }
 
   const baseUrl = process.env.OAI_BASE_URL || 'http://localhost:8317';
@@ -275,14 +279,14 @@ async function webSearchViaGemini(args) {
 }
 
 /**
- * Web Search - SearXNG + Crawlee (Exa replacement)
- * No rate limits when self-hosted
- * Default: Current year enhanced search
+ * Web Search — Serper.dev (primary) → SearXNG (fallback)
+ * Serper: Google Search API, structured data, no rate limits.
+ * SearXNG: Self-hosted fallback when Serper key not configured.
  */
-async function webSearch(args) {
+async function webSearch(args, options = {}) {
   // Route to Gemini Google Search when enabled
   if (isGeminiSearchEnabled()) {
-    return webSearchViaGemini(args);
+    return webSearchViaGemini(args, options);
   }
 
   const {
@@ -298,13 +302,57 @@ async function webSearch(args) {
   const currentYear = new Date().getFullYear();
 
   const cacheKey = `tool:websearch:${query}:${type}:${limit}:${recency}`;
-  const cached = await cacheService.get(cacheKey);
-  if (cached) {
-    return { ...cached, source: 'cache' };
+  if (!options.noCache) {
+    const cached = await cacheService.get(cacheKey);
+    if (cached) {
+      return { ...cached, source: 'cache' };
+    }
   }
 
+  // ── Try Serper.dev first (fast, reliable Google results) ──
+  if (serperService.isAvailable) {
+    try {
+      const searchQuery = enhanceQueryWithYear(query, currentYear);
+      const serperResult = await serperService.search({
+        query: searchQuery,
+        limit,
+        skipCache: options.noCache,
+      });
+
+      let filteredResults = serperResult.results || [];
+      if (excludeDomains.length > 0) {
+        filteredResults = filteredResults.filter(r =>
+          !excludeDomains.some(d => r.url.includes(d)),
+        );
+      }
+      if (includeDomains.length > 0) {
+        const domainMatches = filteredResults.filter(r =>
+          includeDomains.some(d => r.url.includes(d)),
+        );
+        if (domainMatches.length > 0) filteredResults = domainMatches;
+      }
+
+      const result = {
+        source: 'serper',
+        query,
+        searchType: type,
+        results: filteredResults.slice(0, limit),
+        totalResults: filteredResults.length,
+        knowledgeGraph: serperResult.knowledgeGraph,
+        peopleAlsoAsk: serperResult.peopleAlsoAsk,
+      };
+
+      await cacheService.set(cacheKey, result, TOOL_CACHE_TTL.WEB_SEARCH);
+      return result;
+    } catch (error) {
+      logger.warn('[WebSearch] Serper failed, falling back to SearXNG', {
+        error: error.message,
+      });
+    }
+  }
+
+  // ── Fallback: SearXNG ──
   try {
-    // Build search query with domain filters
     let searchQuery = enhanceQueryWithYear(query, currentYear);
 
     if (includeDomains.length > 0) {
@@ -314,10 +362,9 @@ async function webSearch(args) {
 
     logger.info('[SearXNG] Search', { query: searchQuery.substring(0, 50), limit });
 
-    // 1. Get search results from SearXNG
     const searchResults = await searxngService.search({
       query: searchQuery,
-      limit: limit * 2, // Get more results for better selection
+      limit: limit * 2,
       language: 'vi',
       category: 'general',
     });
@@ -326,7 +373,6 @@ async function webSearch(args) {
       return webSearchFallback(query, currentYear);
     }
 
-    // 2. Filter by excluded domains
     let filteredResults = searchResults.results;
     if (excludeDomains.length > 0) {
       filteredResults = filteredResults.filter(r => {
@@ -334,7 +380,6 @@ async function webSearch(args) {
       });
     }
 
-    // 3. Limit results
     filteredResults = filteredResults.slice(0, limit);
 
     // 4. Enrich top results with Crawlee (with timeout to avoid blocking)
@@ -450,14 +495,16 @@ async function scrapeUrl(args) {
 /**
  * Search Places - Mapbox Search API
  */
-async function searchPlaces(args) {
+async function searchPlaces(args, options = {}) {
   const { query, location, type, limit = 5 } = args;
 
   const effectiveLimit = Math.min(Math.max(1, limit), 10);
   const cacheKey = `tool:places:${location}:${type || 'all'}:${query || ''}:${effectiveLimit}`;
-  const cached = await cacheService.get(cacheKey);
-  if (cached) {
-    return { ...cached, source: 'cache' };
+  if (!options.noCache) {
+    const cached = await cacheService.get(cacheKey);
+    if (cached) {
+      return { ...cached, source: 'cache' };
+    }
   }
 
   const rawDbPlaces = await searchPlacesFromDB(args);
@@ -469,51 +516,61 @@ async function searchPlaces(args) {
     return result;
   }
 
-  if (!this.mapboxToken) {
-    return searchPlacesFallback(args);
+  // Primary: Serper Places (Google Maps data — reliable, rich)
+  if (serperService.isAvailable) {
+    try {
+      const searchTerm = query || getDefaultSearchTerm(type);
+      const searchQuery = `${searchTerm} ${location}`;
+      const serperResult = await serperService.searchPlaces({ query: searchQuery, skipCache: options.noCache });
+
+      if (serperResult?.places?.length > 0) {
+        const places = await Promise.all(
+          serperResult.places.slice(0, effectiveLimit).map(p => addImagesToPlace({
+            name: p.name,
+            address: p.address || '',
+            latitude: p.latitude,
+            longitude: p.longitude,
+            coordinates: p.latitude ? { lat: p.latitude, lng: p.longitude } : null,
+            rating: p.rating,
+            ratingCount: p.ratingCount,
+            type: type || inferTypeFromCategory(p.category),
+            category: p.category,
+            phone: p.phone,
+            website: p.website,
+            source: 'serper',
+          }, location)),
+        );
+
+        const result = { success: true, source: 'serper', places, query: searchQuery };
+        await cacheService.set(cacheKey, result, TOOL_CACHE_TTL.PLACES);
+        return result;
+      }
+    } catch (error) {
+      logger.warn('[searchPlaces] Serper failed, trying Mapbox', { error: error.message });
+    }
   }
 
-  try {
-    const searchTerm = query || getDefaultSearchTerm(type);
-    const searchQuery = `${searchTerm} ${location}`;
-
-    // Use Mapbox Search Box API v1 (supports POI search)
-    // Fallback to Geocoding v5 if Search Box fails
-    let rawPlaces = await searchViaMapboxSearchBox(
-      searchQuery, this.mapboxToken, effectiveLimit, args, type,
-    );
-
-    // Fallback: try Geocoding v5 with types=poi
-    if (rawPlaces.length === 0) {
-      rawPlaces = await searchViaMapboxGeocoding(
+  // Fallback: Mapbox (if token available)
+  if (this.mapboxToken) {
+    try {
+      const searchTerm = query || getDefaultSearchTerm(type);
+      const searchQuery = `${searchTerm} ${location}`;
+      const rawPlaces = await searchViaMapboxSearchBox(
         searchQuery, this.mapboxToken, effectiveLimit, args, type,
       );
+      if (rawPlaces.length > 0) {
+        const places = await Promise.all(rawPlaces.map(p => addImagesToPlace(p, location)));
+        const result = { success: true, source: 'mapbox', places, query: searchQuery };
+        await cacheService.set(cacheKey, result, TOOL_CACHE_TTL.PLACES);
+        savePlacesToDB(rawPlaces, location);
+        return result;
+      }
+    } catch (error) {
+      logger.warn('[searchPlaces] Mapbox failed', { error: error.message });
     }
-
-    if (rawPlaces.length === 0) {
-      logger.warn('[searchPlaces] Mapbox returned 0 results', { query: searchQuery.substring(0, 50) });
-      return searchPlacesFallback(args);
-    }
-
-    // Enrich all places with images in parallel
-    const places = await Promise.all(rawPlaces.map(p => addImagesToPlace(p, location)));
-
-    const result = {
-      success: true,
-      source: 'mapbox',
-      places,
-      query: searchQuery,
-    };
-
-    await cacheService.set(cacheKey, result, TOOL_CACHE_TTL.PLACES);
-
-    savePlacesToDB(rawPlaces, location);
-
-    return result;
-  } catch (error) {
-    logger.error('[searchPlaces] Mapbox search error', { error: error.message });
-    return searchPlacesFallback(args);
   }
+
+  return searchPlacesFallback(args);
 }
 
 async function searchPlacesFromDB(args) {
@@ -666,6 +723,7 @@ async function searchViaMapboxSearchBox(
       limit: String(limit),
       language: 'vi',
       types: 'poi',
+      session_token: randomUUID(),
     });
     if (args.longitude && args.latitude) {
       params.set('proximity', `${args.longitude},${args.latitude}`);
@@ -779,6 +837,17 @@ async function searchViaMapboxGeocoding(
   }
 }
 
+function inferTypeFromCategory(category) {
+  if (!category) return 'attraction';
+  const c = category.toLowerCase();
+  if (/restaurant|food|ăn|quán|nhà hàng|cafe|coffee/i.test(c)) return 'restaurant';
+  if (/hotel|khách sạn|resort|hostel|homestay/i.test(c)) return 'hotel';
+  if (/bar|club|nightlife|pub/i.test(c)) return 'nightlife';
+  if (/tour|activity|experience/i.test(c)) return 'activity';
+  if (/shop|market|mall|chợ/i.test(c)) return 'shopping';
+  return 'attraction';
+}
+
 function searchPlacesFallback(args) {
   const { query, location, type } = args;
   const errorMsg = `Không tìm thấy địa điểm "${query || type || 'all'}" tại ${location}. Hãy thử dùng web_search để tìm từ internet.`;
@@ -844,6 +913,14 @@ function getDefaultSearchTerm(type) {
 }
 
 // Mock places generation removed to prevent AI Hallucination
+
+/**
+ * Direct Mapbox POI search — for use by ToolWorker in parallel with Serper.
+ */
+export async function searchMapboxPlaces(query, token, limit = 5) {
+  if (!token) return [];
+  return searchViaMapboxSearchBox(query, token, limit, {}, null);
+}
 
 // Export helper functions for use in other handlers
 export {

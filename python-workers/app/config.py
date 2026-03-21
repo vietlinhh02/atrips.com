@@ -2,8 +2,13 @@
 
 import os
 
-# LLM provider — mirrors backend OAI_* env vars
-LLM_MODEL = os.getenv("OAI_MODEL", os.getenv("LLM_MODEL", "gpt-4o"))
+# LLM provider — use dedicated fast model for browser navigation.
+# WORKER_LLM_MODEL takes priority over OAI_MODEL (which may be a
+# slow "thinking" model unsuitable for rapid browser step decisions).
+LLM_MODEL = os.getenv(
+    "WORKER_LLM_MODEL",
+    os.getenv("OAI_FAST_MODEL", os.getenv("OAI_MODEL", "gpt-4o")),
+)
 LLM_API_KEY = os.getenv("OAI_API_KEY", os.getenv("OPENAI_API_KEY", "dummy"))
 LLM_BASE_URL = os.getenv("OAI_BASE_URL", os.getenv("LLM_BASE_URL", None))
 if LLM_BASE_URL and not LLM_BASE_URL.endswith("/v1"):

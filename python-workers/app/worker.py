@@ -117,6 +117,24 @@ def _get_start_url(task: TaskRequest) -> str | None:
     return config.get("start_url")
 
 
+def _extract_partial_data(agent: Agent) -> str | None:
+    """Extract whatever data the agent collected so far."""
+    try:
+        history = agent.history if hasattr(agent, 'history') else None
+        if not history:
+            return None
+        extracted = []
+        items = history.history if hasattr(history, 'history') else history
+        for item in items:
+            if hasattr(item, 'result') and item.result:
+                for r in item.result:
+                    if hasattr(r, 'extracted_content') and r.extracted_content:
+                        extracted.append(r.extracted_content)
+        return "\n\n".join(extracted) if extracted else None
+    except Exception:
+        return None
+
+
 async def run_browser_task(task: TaskRequest) -> dict[str, Any]:
     """Run a single browser-use agent task with timeout."""
     prompt = _build_prompt(task)
@@ -128,6 +146,7 @@ async def run_browser_task(task: TaskRequest) -> dict[str, Any]:
     if start_url:
         prompt = f"Go to {start_url} first, then: {prompt}"
 
+    agent = None
     try:
         agent = Agent(
             task=prompt,
@@ -161,6 +180,15 @@ async def run_browser_task(task: TaskRequest) -> dict[str, Any]:
         logger.warning(
             "Task %s timed out after %ds", task.task_id, TASK_TIMEOUT_SECONDS,
         )
+        # Try to salvage partial data
+        partial = _extract_partial_data(agent) if agent else None
+        if partial:
+            logger.info("Task %s: salvaged partial data on timeout", task.task_id)
+            return {
+                "taskId": task.task_id,
+                "status": "success",
+                "data": partial,
+            }
         return {
             "taskId": task.task_id,
             "status": "timeout",

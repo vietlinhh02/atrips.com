@@ -1024,7 +1024,7 @@ function completeTripDays(aiDays, startDate, endDate, destination) {
  * FLOW: Step 5 - Draft Storage (via Tool)
  */
 async function createTripPlan(args) {
-  const {
+  let {
     title,
     destination,
     description,
@@ -1037,6 +1037,19 @@ async function createTripPlan(args) {
     budgetBreakdown,
     bookingSuggestions,
   } = args;
+
+  // Generate default dates when not provided
+  if (!startDate && itineraryData?.days?.length > 0) {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    startDate = itineraryData.startDate
+      || tomorrow.toISOString().split('T')[0];
+    const numDays = itineraryData.days.length;
+    const end = new Date(startDate);
+    end.setDate(end.getDate() + numDays - 1);
+    endDate = itineraryData.endDate
+      || end.toISOString().split('T')[0];
+  }
 
   const resolvedDestination = destination
     || itineraryData?.destination
@@ -1521,13 +1534,14 @@ async function enrichItineraryWithImages(days, destination) {
  * Get images for an activity - tries Pexels first, falls back to Lorem Picsum
  */
 async function getActivityImages(activity, destination, width = 800, height = 600) {
-  if (PEXELS_API_KEY) {
+  const apiKey = process.env.PEXELS_API_KEY;
+  if (apiKey) {
     try {
       const searchTerms = buildImageSearchTerms(activity, destination);
       const cacheKey = `${searchTerms}_${width}x${height}`;
       if (imageCache.has(cacheKey)) return imageCache.get(cacheKey);
 
-      const pexelsImage = await fetchPexelsImage(searchTerms, width, height);
+      const pexelsImage = await fetchPexelsImage(searchTerms, width, height, apiKey);
       if (pexelsImage) {
         const result = {
           image: pexelsImage.large,
@@ -1536,9 +1550,12 @@ async function getActivityImages(activity, destination, width = 800, height = 60
         imageCache.set(cacheKey, result);
         return result;
       }
+      console.warn(`[Pexels] No results for: "${searchTerms}"`);
     } catch (error) {
-      console.warn('Pexels API failed, falling back to placeholder:', error.message);
+      console.warn('[Pexels] API failed, falling back to placeholder:', error.message);
     }
+  } else {
+    console.warn('[Pexels] PEXELS_API_KEY not set — using placeholder images');
   }
 
   // Fallback to Lorem Picsum
@@ -1552,13 +1569,13 @@ async function getActivityImages(activity, destination, width = 800, height = 60
 /**
  * Fetch image from Pexels API
  */
-async function fetchPexelsImage(query, _width, _height) {
+async function fetchPexelsImage(query, _width, _height, apiKey) {
   try {
     const response = await fetch(
       `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=1&orientation=landscape`,
       {
         headers: {
-          Authorization: PEXELS_API_KEY,
+          Authorization: apiKey || process.env.PEXELS_API_KEY,
         },
       }
     );

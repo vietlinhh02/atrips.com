@@ -13,9 +13,12 @@ import { TOOL_DEFINITIONS, getToolsForContext } from '../../domain/tools/index.j
 import toolExecutor from './ToolExecutor.js';
 import { runDirectAgent } from './agents/directAgent.js';
 import { runTripManageAgent } from './agents/tripManageAgent.js';
+import { streamDirectAgent } from './agents/directAgent.js';
+import { streamTripManageAgent } from './agents/tripManageAgent.js';
 import { PlanningPipeline } from './pipeline/PlanningPipeline.js';
 import { compressMessages } from './contextCompressor.js';
 import { logger } from '../../../../shared/services/LoggerService.js';
+import { guardMessage } from './guards/PromptGuard.js';
 
 const CACHE_TTL = { CHAT: 3600, MODELS: 86400, STATUS: 300 };
 
@@ -131,6 +134,22 @@ class AIService {
 
       logger.info('[AIService] Intent:', { intent, message: lastMessage.substring(0, 60) });
 
+      // PromptGuard: check for injection/leak attempts
+      // Note: requestIp not passed here — falls back to userId or 'anonymous' for proxy requests.
+      const guardResult = await guardMessage(lastMessage, {
+        conversationId, userId,
+      });
+      if (guardResult.action !== 'pass') {
+        return {
+          content: guardResult.content,
+          usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+          model,
+          finishReason: 'stop',
+          fromCache: false,
+          guarded: true,
+        };
+      }
+
       let result;
 
       switch (intent) {
@@ -205,7 +224,11 @@ class AIService {
 
   /**
    * Chat with AI (streaming).
-   * Yields SSE events for the frontend.
+   * Yields SSE events via async generator pipe-through.
+   *
+   * @param {Array} messages
+   * @param {Object} options
+   * @param {AbortSignal} [options.signal]
    */
   async *chatStream(messages, options = {}) {
     const {
@@ -214,6 +237,7 @@ class AIService {
       enableTools = this.toolsEnabled,
       userId = null,
       conversationId = null,
+      signal,
     } = options;
 
     const userMessages = messages.filter(m => m.role !== 'system');
@@ -223,9 +247,21 @@ class AIService {
 
     logger.info('[AIService Stream] Intent:', { intent });
 
+    // PromptGuard
+    const guardResult = await guardMessage(lastMessage, {
+      conversationId, userId,
+    });
+    if (guardResult.action !== 'pass') {
+      yield { type: 'content', content: guardResult.content };
+      yield { type: 'finish', reason: 'guarded' };
+      return;
+    }
+
+    const compressedMessages = compressMessages(userMessages);
+    const lcMessages = toLangChainMessages(compressedMessages);
+
     try {
       if (intent === 'complex') {
-        // Planning pipeline with progress events
         const pipeline = new PlanningPipeline({
           modelId: model, userId, conversationId, userProfile,
         });
@@ -233,10 +269,10 @@ class AIService {
         const clarification = await pipeline.clarify(userMessages);
 
         if (clarification.notTravelQuery) {
-          // Fall through to direct agent
-          yield* this._streamDirectAgent(userMessages, {
-            model, context, userId, conversationId, userProfile,
+          yield* streamDirectAgent(lcMessages, {
+            context, userId, conversationId, userProfile, signal,
           });
+          yield { type: 'finish', reason: 'stop' };
           return;
         }
 
@@ -252,78 +288,30 @@ class AIService {
           return;
         }
 
-        // Full pipeline with progress streaming
-        const result = await pipeline.plan(
-          clarification.context,
-          (event) => {
-            // This callback not used in current streaming
-            // but events are logged
-          },
-        );
+        // Stream the full planning pipeline
+        yield* pipeline.planStream(clarification.context, { signal });
+        yield { type: 'finish', reason: 'stop' };
 
-        // Emit tool calls
-        for (const tc of (result.toolCalls || [])) {
-          yield { type: 'tool_call_start', name: tc.name };
-          yield { type: 'tool_result', name: tc.name, result: tc.result };
-        }
-
-        if (result.content) {
-          yield { type: 'content', content: result.content };
-        }
-
-        if (result.draftId) {
-          yield {
-            type: 'draft_created',
-            draftId: result.draftId,
-            message: 'Draft created! You can apply it to a trip.',
-          };
-        }
-
-        yield { type: 'usage', usage: formatUsage(result.usage) };
-      } else {
-        // Simple or trip_manage — use direct/tripManage agent
-        yield* this._streamDirectAgent(userMessages, {
-          model, context, userId, conversationId, userProfile, intent,
+      } else if (intent === 'trip_manage') {
+        yield* streamTripManageAgent(lcMessages, {
+          modelId: model, userId, conversationId, userProfile, signal,
         });
+        yield { type: 'finish', reason: 'stop' };
+
+      } else {
+        yield* streamDirectAgent(lcMessages, {
+          context, userId, conversationId, userProfile, signal,
+        });
+        yield { type: 'finish', reason: 'stop' };
       }
     } catch (error) {
+      if (error.name === 'AbortError') {
+        logger.info('[AIService Stream] Aborted by client');
+        return;
+      }
       logger.error('[AIService Stream] Error:', { error: error.message });
       yield { type: 'error', error: error.message };
     }
-
-    yield { type: 'finish', reason: 'stop' };
-  }
-
-  /**
-   * Stream results from direct or trip manage agent.
-   */
-  async *_streamDirectAgent(userMessages, options) {
-    const {
-      model, context, userId, conversationId, userProfile,
-      intent = 'simple',
-    } = options;
-
-    const compressedMessages = compressMessages(userMessages);
-    const lcMessages = toLangChainMessages(compressedMessages);
-
-    const agentFn = intent === 'trip_manage'
-      ? runTripManageAgent
-      : runDirectAgent;
-
-    const result = await agentFn(lcMessages, {
-      modelId: model, context, userId, conversationId, userProfile,
-    });
-
-    for (const tc of (result.toolCalls || [])) {
-      yield { type: 'tool_call_start', name: tc.name };
-      yield { type: 'tool_result', name: tc.name, result: tc.result };
-    }
-
-    if (result.content) {
-      yield { type: 'content', content: result.content };
-    }
-
-    yield { type: 'usage', usage: formatUsage(result.usage) };
   }
 
   // ─── Delegate methods ───

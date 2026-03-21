@@ -17,6 +17,18 @@ import { AppError } from '../../../../shared/errors/AppError.js';
 import prisma from '../../../../config/database.js';
 import { logger } from '../../../../shared/services/LoggerService.js';
 
+const VALID_BOOKING_TYPES = new Set([
+  'HOTEL', 'FLIGHT', 'RESTAURANT', 'TOUR', 'TRANSPORT', 'OTHER',
+]);
+const BOOKING_TYPE_ALIASES = { activity: 'TOUR', tour: 'TOUR' };
+
+function normalizeBookingType(raw) {
+  if (!raw) return 'OTHER';
+  const upper = raw.toUpperCase();
+  if (VALID_BOOKING_TYPES.has(upper)) return upper;
+  return BOOKING_TYPE_ALIASES[raw.toLowerCase()] || 'OTHER';
+}
+
 /**
  * Extract the city name from a day's first activity address.
  * e.g. "Ubud, Gianyar" → "Ubud" | "Jl. Monkey Forest, Ubud" → "Ubud"
@@ -166,8 +178,8 @@ export class ApplyAIDraftUseCase {
             await prisma.trip_bookings.create({
               data: {
                 tripId: trip.id,
-                bookingType: booking.type || 'OTHER',
-                title: booking.title,
+                bookingType: normalizeBookingType(booking.type),
+                title: booking.title || booking.name || `${booking.type || 'Booking'} suggestion`,
                 provider: booking.provider || null,
                 bookingUrl: booking.bookingUrl || null,
                 status: 'PENDING',
@@ -175,11 +187,11 @@ export class ApplyAIDraftUseCase {
                 currency: booking.currency || 'VND',
                 checkInDate: booking.checkIn ? new Date(booking.checkIn) : null,
                 checkOutDate: booking.checkOut ? new Date(booking.checkOut) : null,
-                notes: booking.notes || null,
+                description: booking.notes || booking.reason || null,
               },
             });
           } catch (bookingError) {
-            logger.warn(`  Failed to create booking: ${booking.title}`, { error: bookingError.message });
+            logger.warn(`  Failed to create booking: ${booking.title || booking.name}`, { error: bookingError.message });
           }
         }
         logger.info('  Bookings created successfully');

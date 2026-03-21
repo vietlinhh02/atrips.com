@@ -5,7 +5,7 @@
  */
 
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
-import { getModel } from '../provider.js';
+import { getFastModel } from '../provider.js';
 import { CLARIFICATION_SYSTEM_PROMPT } from '../../../domain/prompts/clarificationPrompt.js';
 import { logger } from '../../../../../shared/services/LoggerService.js';
 
@@ -53,8 +53,8 @@ function extractJSON(text) {
  */
 
 export class ClarificationAgent {
-  constructor(modelId) {
-    this.model = getModel(modelId);
+  constructor() {
+    this.model = getFastModel();
   }
 
   /**
@@ -84,9 +84,18 @@ export class ClarificationAgent {
     }
 
     try {
+      logger.info('[ClarificationAgent] Calling LLM...', {
+        model: this.model.model,
+        messageCount: lcMessages.length,
+      });
+      const startTime = Date.now();
       const response = await this.model.invoke(lcMessages);
       const content = typeof response.content === 'string'
         ? response.content : '';
+      logger.info('[ClarificationAgent] LLM responded:', {
+        durationMs: Date.now() - startTime,
+        responseLength: content.length,
+      });
 
       logger.info('[ClarificationAgent] Raw response:', {
         preview: content.substring(0, 200),

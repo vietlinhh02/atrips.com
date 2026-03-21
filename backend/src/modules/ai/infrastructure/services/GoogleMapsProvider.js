@@ -775,6 +775,7 @@ class GoogleMapsProvider {
         },
         launchContext: {
           launchOptions: {
+            executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined,
             args: [
               '--no-sandbox',
               '--disable-setuid-sandbox',
@@ -876,6 +877,7 @@ class GoogleMapsProvider {
         },
         launchContext: {
           launchOptions: {
+            executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined,
             args: [
               '--no-sandbox',
               '--disable-setuid-sandbox',
@@ -972,6 +974,7 @@ class GoogleMapsProvider {
           },
           launchContext: {
             launchOptions: {
+              executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined,
               args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',

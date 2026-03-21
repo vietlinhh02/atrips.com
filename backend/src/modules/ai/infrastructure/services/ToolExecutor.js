@@ -209,7 +209,7 @@ class ToolExecutor {
    * FLOW: Step 2 - Context Enrichment Tools
    *       Step 5 - Draft Storage (create_trip_plan)
    */
-  async execute(toolName, args) {
+  async execute(toolName, args, options = {}) {
     const handlers = {
       // Search & Info tools (Step 2: Context Enrichment)
       get_current_datetime: this.getCurrentDatetime,
@@ -264,7 +264,7 @@ class ToolExecutor {
     else if (step7bTools.includes(toolName)) stepLabel = '[STEP 7B: Modify]';
     else stepLabel = '[TOOL]';
 
-    const cacheable = isCacheable(toolName, args);
+    const cacheable = !options.noCache && isCacheable(toolName, args);
     let cacheKey;
 
     if (cacheable) {
@@ -288,7 +288,7 @@ class ToolExecutor {
     try {
       logger.info(`${stepLabel} Executing: ${toolName}`);
       const startTime = Date.now();
-      const result = await handler(args);
+      const result = await handler(args, options);
       const duration = Date.now() - startTime;
 
       // Handlers may return { success: false, error } without throwing.
