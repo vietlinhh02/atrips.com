@@ -43,6 +43,8 @@ import weatherRoutes from './modules/weather/interfaces/http/weatherRoutes.js';
 import gamificationRoutes from './modules/gamification/interfaces/http/gamificationRoutes.js';
 import flightRoutes from './modules/flight/interfaces/http/flightRoutes.js';
 import eventRoutes from './modules/event/interfaces/http/eventRoutes.js';
+import exploreRoutes from './modules/explore/interfaces/http/exploreRoutes.js';
+import exploreEnrichmentJob from './modules/explore/application/jobs/ExploreEnrichmentJob.js';
 
 /**
  * Create and configure Express application
@@ -254,6 +256,9 @@ function createApp() {
   // Event routes
   app.use('/api/events', eventRoutes);
 
+  // Explore routes
+  app.use('/api/explore', exploreRoutes);
+
   // Root endpoint
   app.get('/', (req, res) => {
     res.json({
@@ -290,6 +295,9 @@ async function startServer() {
       imageQueueService.init(processImageIngestJob);
     }
 
+    // Initialize explore enrichment job
+    exploreEnrichmentJob.init();
+
     // Create app
     const app = createApp();
 
@@ -316,6 +324,9 @@ async function startServer() {
         try {
           await imageQueueService.close();
           logger.info('[Shutdown] Image queue closed');
+        } catch { /* ignore */ }
+        try {
+          await exploreEnrichmentJob.close();
         } catch { /* ignore */ }
         try {
           await prisma.$disconnect();
