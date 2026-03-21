@@ -219,6 +219,125 @@ export class PlanningPipeline {
   }
 
   /**
+   * Streaming version of plan(). Yields events as they happen.
+   * Use with `yield*` in AIService.chatStream().
+   *
+   * @param {import('./ClarificationAgent.js').ClarifiedContext} context
+   * @param {Object} [opts]
+   * @param {AbortSignal} [opts.signal]
+   * @returns {AsyncGenerator<Object>}
+   */
+  async *planStream(context, opts = {}) {
+    const { signal } = opts;
+    const pipelineStart = Date.now();
+
+    // Layer 2: Create work plan (batch, fast)
+    logger.info('[Pipeline] Layer 2 — Creating work plan');
+    const workPlan = await this.orchestrator.createWorkPlan(context);
+
+    const tasksWithContext = workPlan.tasks.map(t => ({
+      ...t,
+      context: {
+        destination: context.destination,
+        startDate: context.startDate,
+        endDate: context.endDate,
+        groupSize: context.groupSize,
+        budget: context.budget,
+        interests: context.interests,
+        travelStyle: context.travelStyle,
+      },
+    }));
+
+    yield {
+      type: 'planning_started',
+      tasks: tasksWithContext.map(t => ({
+        taskId: t.taskId,
+        taskType: t.taskType,
+        query: t.query,
+      })),
+    };
+
+    if (signal?.aborted) return;
+
+    // Layer 2.5: Workers — yield events as each completes
+    logger.info(
+      '[Pipeline] Layer 2.5 — Dispatching tool workers (streaming)',
+    );
+    let funnelResult = null;
+
+    for await (
+      const event of this.funnel.collectStream(
+        tasksWithContext, { signal },
+      )
+    ) {
+      if (event.type === '_funnel_done') {
+        funnelResult = event.funnelResult;
+      } else {
+        yield event;
+      }
+    }
+
+    if (!funnelResult || signal?.aborted) return;
+
+    // Layer 2.75: Diversity selection (sync, fast)
+    logger.info('[Pipeline] Layer 2.75 — Diversity selection');
+    const allPlaces = flattenPlaces(funnelResult);
+    let diversifiedResult = funnelResult;
+
+    if (allPlaces.length > 0) {
+      const userProfile = {
+        interests: context.interests || [],
+        travelStyle: context.travelStyle || 'comfort',
+        prioritizeDiversity: true,
+        prioritizeRating: true,
+      };
+      const TARGET_PLACES = 25;
+      const diversePlaces = getDiverseRecommendations(
+        allPlaces,
+        userProfile,
+        Math.min(TARGET_PLACES, allPlaces.length),
+      );
+      diversifiedResult = rebuildFunnelResult(
+        diversePlaces, funnelResult,
+      );
+    }
+
+    if (signal?.aborted) return;
+
+    // Layer 3: Synthesizer — split stream
+    yield { type: 'synthesizing' };
+    logger.info('[Pipeline] Layer 3 — Synthesizing (streaming)');
+
+    let itineraryData = null;
+    for await (
+      const event of this.synthesizer.synthesizeStream(
+        context, diversifiedResult, { signal },
+      )
+    ) {
+      if (event.type === 'draft_created') {
+        itineraryData = event.itineraryData;
+      }
+      yield event;
+    }
+
+    // Layer 4: Verify itinerary (sync, fast)
+    if (itineraryData) {
+      logger.info('[Pipeline] Layer 4 — Verifying itinerary');
+      const verification = verifyItinerary(itineraryData, {
+        budget: context.budget ?? null,
+        currency: context.currency ?? 'VND',
+      });
+      if (!verification.isValid) {
+        yield { type: 'verification', result: verification };
+      }
+    }
+
+    logger.info('[Pipeline] Streaming pipeline complete', {
+      durationMs: Date.now() - pipelineStart,
+    });
+  }
+
+  /**
    * Run the complete flow: clarify → plan.
    * For multi-turn clarification, use clarify() separately.
    *
