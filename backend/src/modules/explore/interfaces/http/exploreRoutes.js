@@ -14,6 +14,7 @@ const enhanceRateLimiter = rateLimit({
   keyGenerator: (req) => req.user?.id ?? req.ip,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { keyGeneratorIpFallback: false },
   message: {
     success: false,
     error: {
