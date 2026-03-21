@@ -7,29 +7,25 @@
 
 import toolExecutor from '../ToolExecutor.js';
 import serperService from '../SerperService.js';
+import { searchMapboxPlaces } from '../handlers/searchHandlers.js';
 import { logger } from '../../../../../shared/services/LoggerService.js';
 
-/**
- * Serper Places query templates per task type.
- * Returns real Google Maps data: name, rating, ratingCount, address,
- * latitude, longitude, category, phone, website, cid.
- */
-const SERPER_PLACES_QUERIES = {
-  attractions: (ctx) => [
-    `tourist attractions ${ctx.destination}`,
-    `things to do ${ctx.destination}`,
-  ],
-  restaurants: (ctx) => [
-    `best restaurants ${ctx.destination}`,
-    `local food ${ctx.destination}`,
-  ],
-  activities: (ctx) => [
-    `activities tours experiences ${ctx.destination}`,
-  ],
-  nightlife: (ctx) => [
-    `nightlife bars night market ${ctx.destination}`,
-  ],
+const GENERIC_FALLBACK = {
+  attractions: (ctx) => `things to do ${ctx.destination}`,
+  restaurants: (ctx) => `local food ${ctx.destination}`,
+  activities: (ctx) => `tours experiences ${ctx.destination}`,
+  nightlife: (ctx) => `nightlife ${ctx.destination}`,
 };
+
+function getPlacesQueries(task) {
+  const ctx = task.context || {};
+  const generic = GENERIC_FALLBACK[task.taskType]?.(ctx);
+  const queries = [];
+  if (task.query) queries.push(task.query);
+  if (generic && generic !== task.query) queries.push(generic);
+  if (queries.length === 0) queries.push(`points of interest ${ctx.destination}`);
+  return queries;
+}
 
 /**
  * Web search queries for enrichment context.
@@ -62,13 +58,27 @@ export class ToolWorker {
 
       const promises = [];
 
-      // 1. Serper Places (if applicable — structured Google data)
-      const placeQueries = SERPER_PLACES_QUERIES[task.taskType];
-      if (placeQueries && serperService.isAvailable) {
-        for (const q of placeQueries(ctx)) {
+      // 1. Serper Places + Mapbox (parallel — wider data pool)
+      const placeQueries = getPlacesQueries(task);
+      const mapboxToken = process.env.MAPBOX_ACCESS_TOKEN;
+
+      for (const q of placeQueries) {
+        // Serper Places — primary source, skip cache
+        if (serperService.isAvailable) {
           promises.push(
-            serperService.searchPlaces({ query: q })
+            serperService.searchPlaces({ query: q, skipCache: true })
               .then(r => ({ type: 'places', data: r }))
+              .catch(() => null),
+          );
+        }
+
+        // Mapbox Search Box — secondary source, runs in parallel
+        if (mapboxToken) {
+          promises.push(
+            searchMapboxPlaces(q, mapboxToken, 5)
+              .then(places => places.length > 0
+                ? { type: 'places', data: { places, source: 'mapbox' } }
+                : null)
               .catch(() => null),
           );
         }
@@ -95,7 +105,7 @@ export class ToolWorker {
           toolExecutor.execute('web_search', {
             query: webQuery(task.query, ctx),
             numResults: 5,
-          }).then(r => r?.success ? { type: 'web', data: r.data } : null)
+          }, { noCache: true }).then(r => r?.success ? { type: 'web', data: r.data } : null)
             .catch(() => null),
         );
       }
@@ -106,7 +116,7 @@ export class ToolWorker {
           toolExecutor.execute('get_weather', {
             location: ctx.destination,
             date: ctx.startDate,
-          }).then(r => r?.success ? { type: 'weather', data: r.data } : null)
+          }, { noCache: true }).then(r => r?.success ? { type: 'weather', data: r.data } : null)
             .catch(() => null),
         );
       }
@@ -119,7 +129,7 @@ export class ToolWorker {
             toolExecutor.execute('get_exchange_rate', {
               from: 'USD',
               to: 'VND',
-            }).then(r => r?.success ? { type: 'exchange', data: r.data } : null)
+            }, { noCache: true }).then(r => r?.success ? { type: 'exchange', data: r.data } : null)
               .catch(() => null),
           );
         }
@@ -132,7 +142,7 @@ export class ToolWorker {
             location: ctx.destination,
             startDate: ctx.startDate,
             endDate: ctx.endDate || ctx.startDate,
-          }).then(r => r?.success && r.data?.events?.length > 0
+          }, { noCache: true }).then(r => r?.success && r.data?.events?.length > 0
             ? { type: 'events', data: r.data }
             : null,
           ).catch(() => null),
@@ -145,6 +155,7 @@ export class ToolWorker {
           serperService.searchImages?.({
             query: `${ctx.destination} travel photography`,
             limit: 5,
+            skipCache: true,
           }).then(r => r ? { type: 'images', data: r } : null)
             .catch(() => null),
         );

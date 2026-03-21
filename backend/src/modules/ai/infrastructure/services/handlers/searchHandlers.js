@@ -912,6 +912,14 @@ function getDefaultSearchTerm(type) {
 
 // Mock places generation removed to prevent AI Hallucination
 
+/**
+ * Direct Mapbox POI search — for use by ToolWorker in parallel with Serper.
+ */
+export async function searchMapboxPlaces(query, token, limit = 5) {
+  if (!token) return [];
+  return searchViaMapboxSearchBox(query, token, limit, {}, null);
+}
+
 // Export helper functions for use in other handlers
 export {
   mapPlaceTypeToDB,
