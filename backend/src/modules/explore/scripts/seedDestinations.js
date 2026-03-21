@@ -1,5 +1,7 @@
 import prisma from '../../../config/database.js';
 
+const PEXELS_API_KEY = process.env.PEXELS_API_KEY;
+
 const SEED_DESTINATIONS = [
   {
     city: 'Bangkok', country: 'Thailand', region: 'SOUTHEAST_ASIA',
@@ -7,7 +9,6 @@ const SEED_DESTINATIONS = [
     bestSeasons: ['winter', 'autumn'], avgDailyBudget: 35,
     tags: ['food', 'culture', 'nightlife', 'shopping'],
     lat: 13.7563, lng: 100.5018,
-    photos: ['https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=600&q=80'],
   },
   {
     city: 'Hanoi', country: 'Vietnam', region: 'SOUTHEAST_ASIA',
@@ -15,7 +16,6 @@ const SEED_DESTINATIONS = [
     bestSeasons: ['spring', 'autumn'], avgDailyBudget: 30,
     tags: ['culture', 'food', 'history'],
     lat: 21.0285, lng: 105.8542,
-    photos: ['https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=600&q=80'],
   },
   {
     city: 'Bali', country: 'Indonesia', region: 'SOUTHEAST_ASIA',
@@ -23,7 +23,6 @@ const SEED_DESTINATIONS = [
     bestSeasons: ['spring', 'summer'], avgDailyBudget: 45,
     tags: ['beach', 'culture', 'nature', 'romantic'],
     lat: -8.3405, lng: 115.092,
-    photos: ['https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=600&q=80'],
   },
   {
     city: 'Singapore', country: 'Singapore', region: 'SOUTHEAST_ASIA',
@@ -31,7 +30,6 @@ const SEED_DESTINATIONS = [
     bestSeasons: ['spring', 'winter'], avgDailyBudget: 80,
     tags: ['food', 'shopping', 'culture'],
     lat: 1.3521, lng: 103.8198,
-    photos: ['https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=600&q=80'],
   },
   {
     city: 'Tokyo', country: 'Japan', region: 'EAST_ASIA',
@@ -39,7 +37,6 @@ const SEED_DESTINATIONS = [
     bestSeasons: ['spring', 'autumn'], avgDailyBudget: 70,
     tags: ['culture', 'food', 'shopping', 'history'],
     lat: 35.6762, lng: 139.6503,
-    photos: ['https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=600&q=80'],
   },
   {
     city: 'Seoul', country: 'South Korea', region: 'EAST_ASIA',
@@ -47,7 +44,6 @@ const SEED_DESTINATIONS = [
     bestSeasons: ['spring', 'autumn'], avgDailyBudget: 55,
     tags: ['culture', 'food', 'shopping', 'nightlife'],
     lat: 37.5665, lng: 126.978,
-    photos: ['https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?w=600&q=80'],
   },
   {
     city: 'Taipei', country: 'Taiwan', region: 'EAST_ASIA',
@@ -55,7 +51,6 @@ const SEED_DESTINATIONS = [
     bestSeasons: ['spring', 'autumn'], avgDailyBudget: 40,
     tags: ['food', 'culture', 'nature', 'nightlife'],
     lat: 25.033, lng: 121.5654,
-    photos: ['https://images.unsplash.com/photo-1470004914212-05527e49370b?w=600&q=80'],
   },
   {
     city: 'Paris', country: 'France', region: 'EUROPE',
@@ -63,15 +58,13 @@ const SEED_DESTINATIONS = [
     bestSeasons: ['spring', 'summer', 'autumn'], avgDailyBudget: 120,
     tags: ['culture', 'food', 'romantic', 'history'],
     lat: 48.8566, lng: 2.3522,
-    photos: ['https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=600&q=80'],
   },
   {
     city: 'Barcelona', country: 'Spain', region: 'EUROPE',
-    tagline: "Gaud\u00ed's playground by the Mediterranean",
+    tagline: "Gaudi's playground by the Mediterranean",
     bestSeasons: ['spring', 'summer'], avgDailyBudget: 80,
     tags: ['beach', 'culture', 'food', 'nightlife'],
     lat: 41.3874, lng: 2.1686,
-    photos: ['https://images.unsplash.com/photo-1583422409516-2895a77efded?w=600&q=80'],
   },
   {
     city: 'Rome', country: 'Italy', region: 'EUROPE',
@@ -79,7 +72,6 @@ const SEED_DESTINATIONS = [
     bestSeasons: ['spring', 'autumn'], avgDailyBudget: 90,
     tags: ['history', 'food', 'culture', 'romantic'],
     lat: 41.9028, lng: 12.4964,
-    photos: ['https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=600&q=80'],
   },
   {
     city: 'London', country: 'United Kingdom', region: 'EUROPE',
@@ -87,7 +79,6 @@ const SEED_DESTINATIONS = [
     bestSeasons: ['spring', 'summer'], avgDailyBudget: 130,
     tags: ['culture', 'history', 'shopping', 'nightlife'],
     lat: 51.5074, lng: -0.1278,
-    photos: ['https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=600&q=80'],
   },
   {
     city: 'New York', country: 'United States', region: 'AMERICAS',
@@ -95,7 +86,6 @@ const SEED_DESTINATIONS = [
     bestSeasons: ['spring', 'autumn'], avgDailyBudget: 150,
     tags: ['culture', 'food', 'shopping', 'nightlife'],
     lat: 40.7128, lng: -74.006,
-    photos: ['https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=600&q=80'],
   },
   {
     city: 'Cancun', country: 'Mexico', region: 'AMERICAS',
@@ -103,7 +93,6 @@ const SEED_DESTINATIONS = [
     bestSeasons: ['winter', 'spring'], avgDailyBudget: 70,
     tags: ['beach', 'adventure', 'nightlife', 'history'],
     lat: 21.1619, lng: -86.8515,
-    photos: ['https://images.unsplash.com/photo-1510097467424-192d713fd8b2?w=600&q=80'],
   },
   {
     city: 'Dubai', country: 'UAE', region: 'MIDDLE_EAST',
@@ -111,7 +100,6 @@ const SEED_DESTINATIONS = [
     bestSeasons: ['winter', 'autumn'], avgDailyBudget: 120,
     tags: ['shopping', 'adventure', 'culture'],
     lat: 25.2048, lng: 55.2708,
-    photos: ['https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=600&q=80'],
   },
   {
     city: 'Istanbul', country: 'Turkey', region: 'MIDDLE_EAST',
@@ -119,7 +107,6 @@ const SEED_DESTINATIONS = [
     bestSeasons: ['spring', 'autumn'], avgDailyBudget: 50,
     tags: ['culture', 'food', 'history', 'shopping'],
     lat: 41.0082, lng: 28.9784,
-    photos: ['https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?w=600&q=80'],
   },
   {
     city: 'Cape Town', country: 'South Africa', region: 'AFRICA',
@@ -127,7 +114,6 @@ const SEED_DESTINATIONS = [
     bestSeasons: ['summer', 'spring'], avgDailyBudget: 55,
     tags: ['nature', 'adventure', 'beach', 'food'],
     lat: -33.9249, lng: 18.4241,
-    photos: ['https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=600&q=80'],
   },
   {
     city: 'Marrakech', country: 'Morocco', region: 'AFRICA',
@@ -135,7 +121,6 @@ const SEED_DESTINATIONS = [
     bestSeasons: ['spring', 'autumn'], avgDailyBudget: 40,
     tags: ['culture', 'food', 'shopping', 'history'],
     lat: 31.6295, lng: -7.9811,
-    photos: ['https://images.unsplash.com/photo-1597212618440-806262de4f6b?w=600&q=80'],
   },
   {
     city: 'Sydney', country: 'Australia', region: 'OCEANIA',
@@ -143,7 +128,6 @@ const SEED_DESTINATIONS = [
     bestSeasons: ['summer', 'spring'], avgDailyBudget: 110,
     tags: ['beach', 'culture', 'food', 'nature'],
     lat: -33.8688, lng: 151.2093,
-    photos: ['https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=600&q=80'],
   },
   {
     city: 'Queenstown', country: 'New Zealand', region: 'OCEANIA',
@@ -151,7 +135,6 @@ const SEED_DESTINATIONS = [
     bestSeasons: ['summer', 'autumn'], avgDailyBudget: 100,
     tags: ['adventure', 'nature', 'romantic'],
     lat: -45.0312, lng: 168.6626,
-    photos: ['https://images.unsplash.com/photo-1589871973318-9ca1258faa96?w=600&q=80'],
   },
   {
     city: 'Da Nang', country: 'Vietnam', region: 'SOUTHEAST_ASIA',
@@ -159,37 +142,68 @@ const SEED_DESTINATIONS = [
     bestSeasons: ['spring', 'summer'], avgDailyBudget: 30,
     tags: ['beach', 'food', 'culture', 'nature'],
     lat: 16.0544, lng: 108.2022,
-    photos: ['https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=600&q=80'],
   },
 ];
+
+async function fetchPexelsPhotos(query, count = 3) {
+  if (!PEXELS_API_KEY) {
+    console.warn('[Seed] PEXELS_API_KEY not set, skipping photo fetch');
+    return [];
+  }
+
+  try {
+    const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=${count}&orientation=landscape`;
+    const response = await fetch(url, {
+      headers: { Authorization: PEXELS_API_KEY },
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (!response.ok) {
+      console.warn(`[Seed] Pexels API error for "${query}": ${response.status}`);
+      return [];
+    }
+
+    const data = await response.json();
+    return (data.photos ?? []).map((p) => p.src.large2x || p.src.large);
+  } catch (err) {
+    console.warn(`[Seed] Pexels fetch failed for "${query}": ${err.message}`);
+    return [];
+  }
+}
 
 export async function seedDestinations() {
   console.log('Seeding destinations...');
   let created = 0;
   let skipped = 0;
+  let photosUpdated = 0;
 
   for (const dest of SEED_DESTINATIONS) {
     const existingPlace = await prisma.cached_places.findFirst({
-      where: {
-        city: dest.city,
-        country: dest.country,
-      },
+      where: { city: dest.city, country: dest.country },
     });
 
     let placeId;
     if (existingPlace) {
       placeId = existingPlace.id;
-      if (existingPlace.photos.length === 0 && dest.photos?.length > 0) {
-        await prisma.cached_places.update({
-          where: { id: placeId },
-          data: { photos: dest.photos },
-        });
+
+      if (existingPlace.photos.length === 0) {
+        console.log(`  Fetching photos for ${dest.city}...`);
+        const photos = await fetchPexelsPhotos(`${dest.city} ${dest.country} travel`);
+        if (photos.length > 0) {
+          await prisma.cached_places.update({
+            where: { id: placeId },
+            data: { photos },
+          });
+          photosUpdated++;
+        }
       }
     } else {
+      console.log(`  Creating + fetching photos for ${dest.city}...`);
+      const photos = await fetchPexelsPhotos(`${dest.city} ${dest.country} travel`);
+
       const newPlace = await prisma.cached_places.create({
         data: {
-          externalId:
-            `seed-${dest.city.toLowerCase().replace(/\s+/g, '-')}`,
+          externalId: `seed-${dest.city.toLowerCase().replace(/\s+/g, '-')}`,
           provider: 'seed',
           name: dest.city,
           type: 'ATTRACTION',
@@ -197,7 +211,7 @@ export async function seedDestinations() {
           country: dest.country,
           latitude: dest.lat,
           longitude: dest.lng,
-          photos: dest.photos ?? [],
+          photos,
           categories: dest.tags,
         },
       });
@@ -229,7 +243,7 @@ export async function seedDestinations() {
     created++;
   }
 
-  console.log(`Seed complete: ${created} created, ${skipped} skipped`);
+  console.log(`Seed complete: ${created} created, ${skipped} skipped, ${photosUpdated} photos updated`);
 }
 
 const isDirectRun = process.argv[1]?.includes('seedDestinations');
