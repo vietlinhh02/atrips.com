@@ -56,7 +56,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY . .
 # Install prisma CLI for runtime migrations
-RUN npm install --no-save prisma@6
+RUN npm install --no-save "prisma@^6.1.0"
 RUN chown -R appuser:appgroup /app
 USER appuser
 EXPOSE 3000
@@ -69,7 +69,7 @@ Key decisions:
 - **Chromium** installed via `apt-get` for PlaywrightCrawler (used by CrawleeService and GoogleMapsProvider)
 - **`tini`** as PID 1 init — properly reaps zombie processes from BullMQ workers and Crawlee
 - **Non-root user** (`appuser`) — container does not run as root
-- **`prisma@6`** installed at runtime for `prisma migrate deploy` in entrypoint
+- **`prisma@^6.1.0`** installed at runtime for `prisma migrate deploy` (matches `@prisma/client` version)
 - **`wget`** installed for health check probe
 - No `.env` copied — Coolify injects env vars at runtime
 
