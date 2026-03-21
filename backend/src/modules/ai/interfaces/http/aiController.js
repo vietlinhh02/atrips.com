@@ -437,6 +437,10 @@ export const chatStream = asyncHandler(async (req, res) => {
       }
     }
 
+    if (sources.length > 0) {
+      sendEvent({ type: 'sources', sources });
+    }
+
     if (suggestions.length > 0) {
       sendEvent({ type: 'suggestions', suggestions });
     }
@@ -449,6 +453,7 @@ export const chatStream = asyncHandler(async (req, res) => {
       draftId,
       hasItinerary: !!structuredData,
       suggestions,
+      sources: sources.length > 0 ? sources : undefined,
       usage: usage || undefined,
     });
 
@@ -584,6 +589,12 @@ function buildMessageHistory(aiMessages) {
 
 function getToolResultPayload(result) {
   if (!result || typeof result !== 'object') return null;
+  // Handle LangChain ToolMessage from streamEvents (lc serialized format)
+  if (result.lc && result.kwargs?.content) {
+    try {
+      return JSON.parse(result.kwargs.content);
+    } catch { return null; }
+  }
   if (result.data && typeof result.data === 'object') return result.data;
   return result;
 }
