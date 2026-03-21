@@ -308,14 +308,30 @@ export const MODEL_OUTPUT_SIMPLIFIERS = {
   search_hotels: (result) => {
     if (!result?.success || result?.data?.success === false) return result?.data || result;
     const data = result.data || {};
+    // SearXNG returns searchResults, RapidAPI returns hotels
+    if (data.searchResults) {
+      return {
+        success: true,
+        source: data.source || 'web_search',
+        resultCount: data.searchResults.length,
+        results: data.searchResults.slice(0, 5).map(r => ({
+          title: r.title,
+          url: r.url,
+          snippet: r.snippet || r.content || '',
+          site: r.site,
+        })),
+        bookingLinks: data.bookingLinks || [],
+      };
+    }
+    const rawHotels = data.hotels || data.results || [];
     return {
       success: true,
-      resultCount: data.hotels?.length || data.results?.length || 0,
-      hotels: (data.hotels || data.results || []).slice(0, 5).map(h => ({
-        name: h.name,
-        rating: h.rating,
-        price: h.price,
-        currency: h.currency,
+      resultCount: rawHotels.length,
+      hotels: rawHotels.slice(0, 5).map(h => ({
+        name: h.name || h.hotel_name,
+        rating: h.rating || h.review_score,
+        price: h.price || h.pricePerNight || h.min_total_price,
+        currency: h.currency || h.currency_code || 'VND',
         address: h.address,
         amenities: (h.amenities || []).slice(0, 5),
       })),
@@ -329,10 +345,12 @@ export const MODEL_OUTPUT_SIMPLIFIERS = {
       success: true,
       resultCount: data.events?.length || 0,
       events: (data.events || []).slice(0, 5).map(e => ({
-        name: e.name,
-        date: e.date || e.startDate,
+        name: e.name || e.title,
+        date: e.date || e.startDate || e.startTime,
         venue: e.venue,
         category: e.category,
+        ticketUrl: e.ticketUrl || e.url,
+        priceRange: e.priceRange,
       })),
     };
   },
@@ -361,10 +379,11 @@ export const MODEL_OUTPUT_SIMPLIFIERS = {
       videos: (data.videos || []).slice(0, 5).map(v => ({
         title: v.title,
         url: v.url,
-        channelTitle: v.channelTitle,
-        viewCount: v.viewCount,
-        duration: v.duration,
-        publishedAt: v.publishedAt,
+        channelTitle: v.channelTitle || v.channel || null,
+        viewCount: v.viewCount || v.views || null,
+        duration: v.duration || null,
+        publishedAt: v.publishedAt || v.date || null,
+        description: v.description || null,
       })),
     };
   },

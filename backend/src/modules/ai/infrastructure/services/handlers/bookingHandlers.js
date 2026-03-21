@@ -262,7 +262,28 @@ async function searchHotels(args) {
     }
   }
 
-  // Try SearXNG web search as alternative
+  // Try Serper (Google search + places) — best results
+  if (serperService.isAvailable) {
+    try {
+      console.log('[Serper] Google search for hotels');
+      const serperResult = await serperService.searchHotels({
+        destination: location,
+        checkin: check_in,
+        checkout: check_out,
+        guests,
+        budget,
+      });
+      if (serperResult?.hotels?.length > 0) {
+        const result = { source: 'serper', location, hotels: serperResult.hotels, webContext: serperResult.webContext };
+        await cacheService.set(cacheKey, result, TOOL_CACHE_TTL.HOTELS);
+        return result;
+      }
+    } catch (error) {
+      console.error('Serper hotel search failed:', error.message);
+    }
+  }
+
+  // Fallback: SearXNG web search
   console.log('[SearXNG] Web search for hotels');
   try {
     return await searchHotelsViaSearxng(args);
