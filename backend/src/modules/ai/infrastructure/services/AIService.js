@@ -16,6 +16,7 @@ import { runTripManageAgent } from './agents/tripManageAgent.js';
 import { PlanningPipeline } from './pipeline/PlanningPipeline.js';
 import { compressMessages } from './contextCompressor.js';
 import { logger } from '../../../../shared/services/LoggerService.js';
+import { guardMessage } from './guards/PromptGuard.js';
 
 const CACHE_TTL = { CHAT: 3600, MODELS: 86400, STATUS: 300 };
 
@@ -131,6 +132,22 @@ class AIService {
 
       logger.info('[AIService] Intent:', { intent, message: lastMessage.substring(0, 60) });
 
+      // PromptGuard: check for injection/leak attempts
+      // Note: requestIp not passed here — falls back to userId or 'anonymous' for proxy requests.
+      const guardResult = await guardMessage(lastMessage, {
+        conversationId, userId,
+      });
+      if (guardResult.action !== 'pass') {
+        return {
+          content: guardResult.content,
+          usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+          model,
+          finishReason: 'stop',
+          fromCache: false,
+          guarded: true,
+        };
+      }
+
       let result;
 
       switch (intent) {
@@ -224,6 +241,16 @@ class AIService {
     logger.info('[AIService Stream] Intent:', { intent });
 
     try {
+        // PromptGuard: check for injection/leak attempts
+        const guardResult = await guardMessage(lastMessage, {
+          conversationId, userId,
+        });
+        if (guardResult.action !== 'pass') {
+          yield { type: 'content', content: guardResult.content };
+          yield { type: 'finish', reason: 'guarded' };
+          return;
+        }
+
       if (intent === 'complex') {
         // Planning pipeline with progress events
         const pipeline = new PlanningPipeline({
