@@ -13,6 +13,7 @@ import { SynthesizerAgent } from './SynthesizerAgent.js';
 import { verifyItinerary } from '../../../domain/algorithms/ItineraryVerifier.js';
 import { getDiverseRecommendations, mapTravelerTypesToInterests } from '../../../domain/algorithms/POIRecommender.js';
 import { logger } from '../../../../../shared/services/LoggerService.js';
+import recommendationHistoryRepo from '../../repositories/RecommendationHistoryRepository.js';
 
 const SPENDING_TO_STYLE = {
   budget: 'budget',
@@ -155,6 +156,14 @@ export class PlanningPipeline {
       durationMs: Date.now() - stepStart,
     });
 
+    // Fetch recommendation history for diversity penalty
+    const userId = this.executionContext.userId;
+    let previouslyRecommended = null;
+    if (userId) {
+      previouslyRecommended = await recommendationHistoryRepo
+        .getByUserAndDestination(userId, context.destination);
+    }
+
     // Layer 2.75: Diversity selection via POIRecommender
     logger.info('[Pipeline] Layer 2.75 — Diversity selection');
     stepStart = Date.now();
@@ -179,6 +188,10 @@ export class PlanningPipeline {
       const TARGET_PLACES = 35;
       const diversePlaces = getDiverseRecommendations(
         allPlaces, userProfile, Math.min(TARGET_PLACES, allPlaces.length),
+        {
+          previouslyRecommended,
+          destination: context.destination,
+        },
       );
       diversifiedResult = rebuildFunnelResult(diversePlaces, funnelResult);
       logger.info('[Pipeline] Layer 2.75 done', {
@@ -199,6 +212,16 @@ export class PlanningPipeline {
       context,
       diversifiedResult,
     );
+    // Record recommendations for future diversity
+    if (userId && result.draftId && result.itineraryData?.days) {
+      recommendationHistoryRepo.recordRecommendations(
+        userId, context.destination,
+        result.itineraryData.days.flatMap(d => d.activities || []),
+        result.draftId,
+      ).catch(err => logger.warn(
+        '[Pipeline] Failed to record recommendations:', err.message,
+      ));
+    }
     logger.info('[Pipeline] Layer 3 done', {
       durationMs: Date.now() - stepStart,
     });
@@ -293,6 +316,14 @@ export class PlanningPipeline {
 
     if (!funnelResult || signal?.aborted) return;
 
+    // Fetch recommendation history for diversity penalty
+    const userId = this.executionContext.userId;
+    let previouslyRecommended = null;
+    if (userId) {
+      previouslyRecommended = await recommendationHistoryRepo
+        .getByUserAndDestination(userId, context.destination);
+    }
+
     // Layer 2.75: Diversity selection (sync, fast)
     logger.info('[Pipeline] Layer 2.75 — Diversity selection');
     const allPlaces = flattenPlaces(funnelResult);
@@ -318,6 +349,10 @@ export class PlanningPipeline {
         allPlaces,
         userProfile,
         Math.min(TARGET_PLACES, allPlaces.length),
+        {
+          previouslyRecommended,
+          destination: context.destination,
+        },
       );
       diversifiedResult = rebuildFunnelResult(
         diversePlaces, funnelResult,
@@ -338,6 +373,16 @@ export class PlanningPipeline {
     ) {
       if (event.type === 'draft_created') {
         itineraryData = event.itineraryData;
+        if (userId && event.draftId && itineraryData?.days) {
+          recommendationHistoryRepo.recordRecommendations(
+            userId, context.destination,
+            itineraryData.days.flatMap(d => d.activities || []),
+            event.draftId,
+          ).catch(err => logger.warn(
+            '[Pipeline] Failed to record recommendations:',
+            err.message,
+          ));
+        }
       }
       yield event;
     }
