@@ -8,6 +8,7 @@ import prisma from '../../../../config/database.js';
 import aiDraftRepository from '../../infrastructure/repositories/AIItineraryDraftRepository.js';
 import googleMapsProvider from '../../../ai/infrastructure/services/GoogleMapsProvider.js';
 import { logger } from '../../../../shared/services/LoggerService.js';
+import placeEnrichmentService from '../../../place/application/services/PlaceEnrichmentService.js';
 
 // Disabled by default — Serper Places already provides coordinates, ratings.
 // Google Maps Playwright crawl adds 15-20s and often fails in Docker.
@@ -474,6 +475,38 @@ export class DraftCompilerService {
 
       if (!day.weatherData && day.weather) {
         day.weatherData = day.weather;
+      }
+    }
+
+    // ── Level 1 enrichment: link activities to cached_places via Serper ──
+    const activitiesToEnrich = days
+      .flatMap((day) => {
+        const listKey = Array.isArray(day.activities) ? 'activities' : 'schedule';
+        return Array.isArray(day[listKey]) ? day[listKey] : [];
+      })
+      .filter((a) => !a.placeId && a.name);
+
+    if (activitiesToEnrich.length > 0) {
+      try {
+        const enrichResults = await placeEnrichmentService.enrichActivitiesBasic(
+          activitiesToEnrich,
+          destination
+        );
+
+        for (const result of enrichResults) {
+          if (!result) continue;
+          const activity = activitiesToEnrich.find((a) => a.name === result.activityName);
+          if (activity) {
+            activity.placeId = result.placeId;
+            if (result.place.latitude) activity.latitude = result.place.latitude;
+            if (result.place.longitude) activity.longitude = result.place.longitude;
+            if (result.place.address) activity.customAddress = result.place.address;
+          }
+        }
+      } catch (err) {
+        logger.warn('[DraftCompiler] Enrichment failed, continuing without', {
+          error: err.message,
+        });
       }
     }
 
