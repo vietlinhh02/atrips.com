@@ -310,6 +310,16 @@ interface SharedTripResponse {
 
 ---
 
+## Implementation Notes
+
+1. **Duplicate via share token**: Existing `POST /:tripId/duplicate` (TripAdvancedController) handles duplication for trip owners. The new `POST /shared/:shareToken/duplicate` should reuse the same `TripDuplicateService` logic but resolve the trip from the share token instead of tripId, and allow any authenticated user (not just owner).
+
+2. **`trip_shares.sharedWithEmail`**: This column exists in the schema but is unused by this design (we use token-based public sharing only). Leave it nullable and unused — future per-user invite sharing can use it later.
+
+3. **Activity validation**: The existing `addActivityValidation` in tripRoutes.js doesn't validate `bookingUrl` or `notes`. The inline edit form should only submit fields that the backend already accepts. Extend validation if needed during implementation.
+
+---
+
 ## Error Handling
 
 | Scenario | Behavior |
