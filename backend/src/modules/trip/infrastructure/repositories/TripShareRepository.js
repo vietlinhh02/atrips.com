@@ -120,6 +120,13 @@ class TripShareRepository {
 
     if (!trip) return null;
 
+    // Fetch the AI draft that created this trip (for overview, tips, budget breakdown)
+    const draft = await prisma.ai_itinerary_drafts.findFirst({
+      where: { appliedToTripId: trip.id },
+      orderBy: { createdAt: 'desc' },
+      select: { generatedData: true, compiledData: true },
+    });
+
     await prisma.trip_shares.updateMany({
       where: { shareToken },
       data: {
@@ -128,7 +135,7 @@ class TripShareRepository {
       },
     });
 
-    return trip;
+    return { ...trip, aiDraft: draft };
   }
 }
 
