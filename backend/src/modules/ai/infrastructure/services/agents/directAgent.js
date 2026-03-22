@@ -148,7 +148,10 @@ export async function* streamDirectAgent(messages, options = {}) {
 
     yield { type: 'usage', usage };
   } catch (error) {
-    if (error.name === 'AbortError') {
+    const isAbort = error.name === 'AbortError'
+      || error.message === 'Abort'
+      || error.message === 'AbortError';
+    if (isAbort) {
       logger.info('[DirectAgent] Stream aborted by client');
       return;
     }

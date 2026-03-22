@@ -305,7 +305,10 @@ class AIService {
         yield { type: 'finish', reason: 'stop' };
       }
     } catch (error) {
-      if (error.name === 'AbortError') {
+      const isAbort = error.name === 'AbortError'
+        || error.message === 'Abort'
+        || error.message === 'AbortError';
+      if (isAbort) {
         logger.info('[AIService Stream] Aborted by client');
         return;
       }
