@@ -26,7 +26,7 @@ export class ImageAssetRepository {
     return prisma.image_assets.update({
       where: { id },
       data: { status, ...extra },
-    });
+    }).catch((e) => { if (e.code === 'P2025') return null; throw e; });
   }
 
   async markReady(id, { contentHash, r2Key, r2Bucket, width, height, fileSize, mimeType, variants }) {
@@ -43,7 +43,7 @@ export class ImageAssetRepository {
         mimeType,
         variants,
       },
-    });
+    }).catch((e) => { if (e.code === 'P2025') return null; throw e; });
   }
 
   async markFailed(id, error, attempts) {
@@ -54,21 +54,21 @@ export class ImageAssetRepository {
         lastError: String(error).slice(0, 500),
         attempts,
       },
-    });
+    }).catch((e) => { if (e.code === 'P2025') return null; throw e; });
   }
 
   async linkToActivity(activityId, imageAssetId) {
     return prisma.activities.update({
       where: { id: activityId },
       data: { imageAssetId },
-    });
+    }).catch((e) => { if (e.code === 'P2025') return null; throw e; });
   }
 
   async linkToTripCover(tripId, imageAssetId) {
     return prisma.trips.update({
       where: { id: tripId },
       data: { coverImageAssetId: imageAssetId },
-    });
+    }).catch((e) => { if (e.code === 'P2025') return null; throw e; });
   }
 
   async delete(id) {
