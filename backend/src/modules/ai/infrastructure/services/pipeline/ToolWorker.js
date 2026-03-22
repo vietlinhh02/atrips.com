@@ -60,6 +60,31 @@ const DIVERSITY_ANGLES = {
   },
 };
 
+function getSerperLocale(destination) {
+  if (IS_VIETNAM.test(destination)) return { gl: 'vn', hl: 'vi' };
+  const LOCALE_MAP = [
+    [/japan|tokyo|osaka|kyoto|日本/i, { gl: 'jp', hl: 'en' }],
+    [/korea|seoul|busan|한국/i, { gl: 'kr', hl: 'en' }],
+    [/thai|bangkok|phuket|chiang/i, { gl: 'th', hl: 'en' }],
+    [/germany|berlin|munich|münchen|frankfurt|hamburg/i, { gl: 'de', hl: 'en' }],
+    [/france|paris|lyon|marseille/i, { gl: 'fr', hl: 'en' }],
+    [/italy|rome|milan|florence|venezia/i, { gl: 'it', hl: 'en' }],
+    [/spain|madrid|barcelona|seville/i, { gl: 'es', hl: 'en' }],
+    [/uk|london|manchester|edinburgh|england|britain/i, { gl: 'uk', hl: 'en' }],
+    [/us|usa|new york|los angeles|san francisco|chicago|america/i, { gl: 'us', hl: 'en' }],
+    [/australia|sydney|melbourne|brisbane/i, { gl: 'au', hl: 'en' }],
+    [/singapore/i, { gl: 'sg', hl: 'en' }],
+    [/malaysia|kuala lumpur|penang/i, { gl: 'my', hl: 'en' }],
+    [/indonesia|bali|jakarta/i, { gl: 'id', hl: 'en' }],
+    [/china|beijing|shanghai|广州|中国/i, { gl: 'cn', hl: 'en' }],
+    [/taiwan|taipei|台灣/i, { gl: 'tw', hl: 'en' }],
+  ];
+  for (const [pattern, locale] of LOCALE_MAP) {
+    if (pattern.test(destination)) return locale;
+  }
+  return { gl: 'us', hl: 'en' };
+}
+
 function getPlacesQueries(task) {
   const ctx = task.context || {};
   const dest = ctx.destination || '';
@@ -105,6 +130,8 @@ export class ToolWorker {
     const ctx = task.context || {};
 
     try {
+      const locale = getSerperLocale(ctx.destination || '');
+
       logger.info('[ToolWorker] Executing task:', {
         taskId: task.taskId,
         taskType: task.taskType,
@@ -120,7 +147,7 @@ export class ToolWorker {
         // Serper Places — primary source, skip cache
         if (serperService.isAvailable) {
           promises.push(
-            serperService.searchPlaces({ query: q, skipCache: true })
+            serperService.searchPlaces({ query: q, skipCache: true, ...locale })
               .then(r => ({ type: 'places', data: r }))
               .catch(() => null),
           );
@@ -143,6 +170,7 @@ export class ToolWorker {
         promises.push(
           serperService.searchHotels({
             destination: ctx.destination,
+            ...locale,
             checkin: ctx.startDate || '',
             checkout: ctx.endDate || '',
             guests: ctx.groupSize || 2,
