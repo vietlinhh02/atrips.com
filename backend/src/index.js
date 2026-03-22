@@ -45,6 +45,7 @@ import flightRoutes from './modules/flight/interfaces/http/flightRoutes.js';
 import eventRoutes from './modules/event/interfaces/http/eventRoutes.js';
 import exploreRoutes from './modules/explore/interfaces/http/exploreRoutes.js';
 import exploreEnrichmentJob from './modules/explore/application/jobs/ExploreEnrichmentJob.js';
+import placeRoutes from './modules/place/interfaces/http/placeRoutes.js';
 
 /**
  * Create and configure Express application
@@ -258,6 +259,9 @@ function createApp() {
 
   // Explore routes
   app.use('/api/explore', exploreRoutes);
+
+  // Place enrichment and search routes
+  app.use('/api/places', placeRoutes);
 
   // Root endpoint
   app.get('/', (req, res) => {
