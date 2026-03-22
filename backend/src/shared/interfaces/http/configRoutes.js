@@ -58,9 +58,9 @@ router.get('/', asyncHandler(async (req, res) => {
 /**
  * @route GET /api/config/map
  * @desc Get map configuration including Mapbox token
- * @access Private (authenticated users only)
+ * @access Public (token is domain-restricted, safe to expose)
  */
-router.get('/map', authenticate, asyncHandler(async (req, res) => {
+router.get('/map', asyncHandler(async (req, res) => {
   const mapboxToken = config.mapbox?.publicToken || config.mapbox?.accessToken;
 
   if (!mapboxToken) {
