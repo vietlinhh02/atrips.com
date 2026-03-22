@@ -254,6 +254,15 @@ export const chatStream = asyncHandler(async (req, res) => {
       logger.info('[ChatStream] Client disconnected, aborting pipeline');
     });
 
+    // Heartbeat to keep SSE connection alive through proxies
+    const heartbeat = setInterval(() => {
+      if (!abortController.signal.aborted) {
+        res.write(': heartbeat\n\n');
+      } else {
+        clearInterval(heartbeat);
+      }
+    }, 15000);
+
     const sendEvent = (data) => {
       if (!abortController.signal.aborted) {
         res.write(`data: ${JSON.stringify(data)}\n\n`);
@@ -457,8 +466,10 @@ export const chatStream = asyncHandler(async (req, res) => {
       usage: usage || undefined,
     });
 
+    clearInterval(heartbeat);
     res.end();
   } catch (error) {
+    clearInterval(heartbeat);
     logger.error('[chatStream] Error:', { error: error.message });
     sendEvent({ type: 'error', error: error.message });
     res.end();
