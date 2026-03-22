@@ -11,8 +11,14 @@ import { ToolWorker } from './ToolWorker.js';
 import { Funnel } from './Funnel.js';
 import { SynthesizerAgent } from './SynthesizerAgent.js';
 import { verifyItinerary } from '../../../domain/algorithms/ItineraryVerifier.js';
-import { getDiverseRecommendations } from '../../../domain/algorithms/POIRecommender.js';
+import { getDiverseRecommendations, mapTravelerTypesToInterests } from '../../../domain/algorithms/POIRecommender.js';
 import { logger } from '../../../../../shared/services/LoggerService.js';
+
+const SPENDING_TO_STYLE = {
+  budget: 'budget',
+  moderate: 'comfort',
+  luxury: 'luxury',
+};
 
 /**
  * Extract all places from funnel results into a flat array.
@@ -156,13 +162,21 @@ export class PlanningPipeline {
     let diversifiedResult = funnelResult;
 
     if (allPlaces.length > 0) {
+      const onboarding = this.executionContext.userProfile || {};
+      const travelProfile = onboarding.travelProfile || {};
       const userProfile = {
-        interests: context.interests || [],
-        travelStyle: context.travelStyle || 'comfort',
+        interests: mapTravelerTypesToInterests(
+          travelProfile.travelerTypes || [],
+          context.interests || [],
+        ),
+        travelStyle: SPENDING_TO_STYLE[travelProfile.spendingHabits]
+          || context.travelStyle || 'comfort',
+        dietaryRestrictions:
+          onboarding.preferences?.dietaryRestrictions || [],
         prioritizeDiversity: true,
         prioritizeRating: true,
       };
-      const TARGET_PLACES = 25;
+      const TARGET_PLACES = 35;
       const diversePlaces = getDiverseRecommendations(
         allPlaces, userProfile, Math.min(TARGET_PLACES, allPlaces.length),
       );
@@ -285,13 +299,21 @@ export class PlanningPipeline {
     let diversifiedResult = funnelResult;
 
     if (allPlaces.length > 0) {
+      const onboarding = this.executionContext.userProfile || {};
+      const travelProfile = onboarding.travelProfile || {};
       const userProfile = {
-        interests: context.interests || [],
-        travelStyle: context.travelStyle || 'comfort',
+        interests: mapTravelerTypesToInterests(
+          travelProfile.travelerTypes || [],
+          context.interests || [],
+        ),
+        travelStyle: SPENDING_TO_STYLE[travelProfile.spendingHabits]
+          || context.travelStyle || 'comfort',
+        dietaryRestrictions:
+          onboarding.preferences?.dietaryRestrictions || [],
         prioritizeDiversity: true,
         prioritizeRating: true,
       };
-      const TARGET_PLACES = 25;
+      const TARGET_PLACES = 35;
       const diversePlaces = getDiverseRecommendations(
         allPlaces,
         userProfile,
