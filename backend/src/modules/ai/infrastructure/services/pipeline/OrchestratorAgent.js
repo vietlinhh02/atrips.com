@@ -52,14 +52,40 @@ export class OrchestratorAgent {
    * Create a work plan from clarified context.
    *
    * @param {import('./ClarificationAgent.js').ClarifiedContext} context
+   * @param {Object} [userProfile] - Onboarding profile for personalization
    * @returns {Promise<WorkPlan>}
    */
-  async createWorkPlan(context) {
+  async createWorkPlan(context, userProfile) {
     const angle = PLAN_ANGLES[Math.floor(Math.random() * PLAN_ANGLES.length)];
+
+    // Build user profile summary for query personalization
+    let profileBlock = '';
+    if (userProfile?.travelProfile) {
+      const tp = userProfile.travelProfile;
+      const parts = [];
+      if (tp.travelerTypes?.length) {
+        parts.push(`travelerTypes: ${JSON.stringify(tp.travelerTypes)}`);
+      }
+      if (tp.spendingHabits) {
+        parts.push(`spendingHabits: "${tp.spendingHabits}"`);
+      }
+      if (tp.dailyRhythm) {
+        parts.push(`dailyRhythm: "${tp.dailyRhythm}"`);
+      }
+      if (userProfile.preferences?.dietaryRestrictions?.length) {
+        parts.push(
+          `dietaryRestrictions: ${JSON.stringify(userProfile.preferences.dietaryRestrictions)}`,
+        );
+      }
+      if (parts.length > 0) {
+        profileBlock = `\n\nUser profile: { ${parts.join(', ')} }`;
+      }
+    }
+
     const lcMessages = [
       new SystemMessage(ORCHESTRATOR_SYSTEM_PROMPT),
       new HumanMessage(
-        `Create a research work plan for this trip:\n${JSON.stringify(context, null, 2)}\n\nFocus angle for this plan: ${angle}. Bias your search queries toward this theme while still covering essentials.`
+        `Create a research work plan for this trip:\n${JSON.stringify(context, null, 2)}${profileBlock}\n\nFocus angle for this plan: ${angle}. Bias your search queries toward this theme while still covering essentials.`
       ),
     ];
 

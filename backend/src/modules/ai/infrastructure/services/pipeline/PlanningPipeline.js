@@ -114,10 +114,12 @@ export class PlanningPipeline {
     const emit = onProgress || (() => {});
     const pipelineStart = Date.now();
 
-    // Layer 2: Create work plan
+    // Layer 2: Create work plan (with user profile for personalization)
     logger.info('[Pipeline] Layer 2 — Creating work plan');
     let stepStart = Date.now();
-    const workPlan = await this.orchestrator.createWorkPlan(context);
+    const workPlan = await this.orchestrator.createWorkPlan(
+      context, this.executionContext.userProfile,
+    );
     logger.info('[Pipeline] Layer 2 done', {
       durationMs: Date.now() - stepStart,
     });
@@ -268,9 +270,11 @@ export class PlanningPipeline {
     const { signal } = opts;
     const pipelineStart = Date.now();
 
-    // Layer 2: Create work plan (batch, fast)
+    // Layer 2: Create work plan (with user profile for personalization)
     logger.info('[Pipeline] Layer 2 — Creating work plan');
-    const workPlan = await this.orchestrator.createWorkPlan(context);
+    const workPlan = await this.orchestrator.createWorkPlan(
+      context, this.executionContext.userProfile,
+    );
 
     const tasksWithContext = workPlan.tasks.map(t => ({
       ...t,
