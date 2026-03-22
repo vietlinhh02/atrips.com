@@ -403,7 +403,7 @@ function compactWorkerData(data) {
   if (!data) return 'No data';
   if (typeof data === 'string') return data.substring(0, 3000);
 
-  const MAX_ITEMS = 15;
+  const MAX_ITEMS = 20;
   const KEEP_FIELDS = [
     'name', 'type', 'address', 'latitude', 'longitude',
     'rating', 'ratingCount', 'price', 'cost', 'estimatedCost',
@@ -429,7 +429,7 @@ function compactWorkerData(data) {
 
   const compacted = slim(data);
   const json = JSON.stringify(compacted);
-  return json.length > 4000 ? json.substring(0, 4000) + '...' : json;
+  return json.length > 6000 ? json.substring(0, 6000) + '...' : json;
 }
 
 function extractItineraryJSON(content) {
