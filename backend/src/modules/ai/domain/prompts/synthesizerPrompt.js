@@ -16,6 +16,7 @@ export const SYNTHESIZER_SYSTEM_PROMPT = `You are a travel plan synthesizer. Tur
 - Output ALL days — never truncate
 - Include meals (RESTAURANT type) in the activities timeline
 - EVERY field in the schema below MUST have a value — NO nulls allowed
+- Use the currency specified in the trip context (Currency: line). ALL estimatedCost, dailyCost, totalEstimatedCost, and budgetBreakdown values MUST be in this currency. For VND use thousands (e.g., 150000), for EUR/USD use units (e.g., 25), for JPY use hundreds (e.g., 1500).
 
 # Diversity
 - Do NOT always pick the highest-rated places. Mix popular landmarks with lesser-known local favorites.
@@ -59,7 +60,7 @@ export const SYNTHESIZER_SYSTEM_PROMPT = `You are a travel plan synthesizer. Tur
     "dailyCost": 850000
   }],
   "totalEstimatedCost": 5000000,
-  "currency": "VND",
+  "currency": "USE_CURRENCY_FROM_CONTEXT",
   "budgetBreakdown": {
     "accommodation": {"total": 2000000, "perDay": 500000, "notes": "Budget hotel in Old Quarter"},
     "food": {"total": 1500000, "perDay": 375000, "notes": "Mix of street food and restaurants"},

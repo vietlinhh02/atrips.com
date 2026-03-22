@@ -11,6 +11,38 @@ import { SYNTHESIZER_SYSTEM_PROMPT } from '../../../domain/prompts/synthesizerPr
 import toolExecutor from '../ToolExecutor.js';
 import { logger } from '../../../../../shared/services/LoggerService.js';
 
+const DESTINATION_CURRENCY = [
+  [/vi[eệ]t\s*nam|hà\s*n[oộ]i|đ[aà]\s*n[aẵ]ng|sài\s*gòn|hcm|huế|hội\s*an|nha\s*trang|đà\s*lạt|phú\s*quốc/i, 'VND'],
+  [/japan|tokyo|osaka|kyoto|日本/i, 'JPY'],
+  [/korea|seoul|busan|한국/i, 'KRW'],
+  [/thai|bangkok|phuket|chiang/i, 'THB'],
+  [/germany|berlin|munich|münchen|frankfurt|hamburg|đức/i, 'EUR'],
+  [/france|paris|lyon|marseille|pháp/i, 'EUR'],
+  [/italy|rome|milan|florence|ý/i, 'EUR'],
+  [/spain|madrid|barcelona|tây ban nha/i, 'EUR'],
+  [/netherlands|amsterdam|hà lan/i, 'EUR'],
+  [/austria|vienna|áo/i, 'EUR'],
+  [/portugal|lisbon|bồ đào nha/i, 'EUR'],
+  [/uk|london|manchester|edinburgh|england|britain|anh/i, 'GBP'],
+  [/us|usa|new york|los angeles|san francisco|chicago|america|mỹ/i, 'USD'],
+  [/canada|toronto|vancouver/i, 'CAD'],
+  [/australia|sydney|melbourne|úc/i, 'AUD'],
+  [/singapore/i, 'SGD'],
+  [/malaysia|kuala lumpur|penang/i, 'MYR'],
+  [/indonesia|bali|jakarta/i, 'IDR'],
+  [/china|beijing|shanghai|trung quốc/i, 'CNY'],
+  [/taiwan|taipei|đài loan/i, 'TWD'],
+  [/india|mumbai|delhi|ấn độ/i, 'INR'],
+];
+
+function detectCurrency(destination) {
+  if (!destination) return 'USD';
+  for (const [pattern, currency] of DESTINATION_CURRENCY) {
+    if (pattern.test(destination)) return currency;
+  }
+  return 'USD';
+}
+
 export class SynthesizerAgent {
   constructor(executionContext = {}) {
     this.executionContext = executionContext;
@@ -45,9 +77,11 @@ export class SynthesizerAgent {
       return m ? parseInt(m[1], 10) : 3;
     })();
 
+    const currency = detectCurrency(context.destination);
     const userPrompt = `# Trip: ${context.destination}, ${numDays} days
 Dates: ${context.startDate || 'flexible'} → ${context.endDate || 'flexible'}
 Group: ${context.groupSize || 1} | Budget: ${context.budget || 'mid-range'} | Style: ${context.travelStyle || 'comfort'}
+Currency: ${currency}
 Interests: ${(context.interests || []).join(', ') || 'general sightseeing'}
 
 # Research (${funnelResult.summary.succeeded}/${funnelResult.summary.total} OK)
@@ -181,9 +215,11 @@ Create a ${numDays}-day itinerary JSON (see system prompt for schema) + brief su
       return m ? parseInt(m[1], 10) : 3;
     })();
 
+    const currency = detectCurrency(context.destination);
     const userPrompt = `# Trip: ${context.destination}, ${numDays} days
 Dates: ${context.startDate || 'flexible'} → ${context.endDate || 'flexible'}
 Group: ${context.groupSize || 1} | Budget: ${context.budget || 'mid-range'} | Style: ${context.travelStyle || 'comfort'}
+Currency: ${currency}
 Interests: ${(context.interests || []).join(', ') || 'general sightseeing'}
 
 # Research (${funnelResult.summary.succeeded}/${funnelResult.summary.total} OK)
