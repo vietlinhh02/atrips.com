@@ -17,13 +17,67 @@ const GENERIC_FALLBACK = {
   nightlife: (ctx) => `nightlife ${ctx.destination}`,
 };
 
+const IS_VIETNAM = /vi[eệ]t\s*nam|hà\s*n[oộ]i|đ[aà]\s*n[aẵ]ng|sài\s*gòn|hcm|huế|hội\s*an|nha\s*trang|đà\s*lạt|phú\s*quốc/i;
+
+const DIVERSITY_ANGLES = {
+  restaurants: {
+    vi: [
+      (dest) => `${dest} street food chợ đêm quán vỉa hè`,
+      (dest) => `${dest} nhà hàng đặc sản địa phương ngon nổi tiếng`,
+      (dest) => `${dest} quán ăn hidden gem locals yêu thích ít khách du lịch`,
+    ],
+    en: [
+      (dest) => `${dest} street food night market local stalls`,
+      (dest) => `${dest} best local specialty restaurants authentic`,
+      (dest) => `${dest} hidden gem restaurants locals favorite off tourist trail`,
+    ],
+  },
+  activities: {
+    vi: [
+      (dest) => `${dest} workshop cooking class trải nghiệm thủ công`,
+      (dest) => `${dest} thiên nhiên outdoor hiking cycling`,
+    ],
+    en: [
+      (dest) => `${dest} workshop cooking class handcraft experience`,
+      (dest) => `${dest} nature outdoor hiking cycling adventure`,
+    ],
+  },
+  attractions: {
+    vi: [
+      (dest) => `${dest} điểm đến ít người biết hidden gems địa phương`,
+    ],
+    en: [
+      (dest) => `${dest} hidden gems off-the-beaten-path local favorites`,
+    ],
+  },
+  nightlife: {
+    vi: [
+      (dest) => `${dest} rooftop bar live music quán bar đêm`,
+    ],
+    en: [
+      (dest) => `${dest} rooftop bar live music local nightlife`,
+    ],
+  },
+};
+
 function getPlacesQueries(task) {
   const ctx = task.context || {};
+  const dest = ctx.destination || '';
   const generic = GENERIC_FALLBACK[task.taskType]?.(ctx);
   const queries = [];
   if (task.query) queries.push(task.query);
   if (generic && generic !== task.query) queries.push(generic);
-  if (queries.length === 0) queries.push(`points of interest ${ctx.destination}`);
+
+  const angleSet = DIVERSITY_ANGLES[task.taskType];
+  if (angleSet) {
+    const lang = IS_VIETNAM.test(dest) ? 'vi' : 'en';
+    for (const angleFn of angleSet[lang]) {
+      const q = angleFn(dest);
+      if (!queries.includes(q)) queries.push(q);
+    }
+  }
+
+  if (queries.length === 0) queries.push(`points of interest ${dest}`);
   return queries;
 }
 
