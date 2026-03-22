@@ -9,8 +9,12 @@ import * as tripController from './tripController.js';
 import { authenticate } from '../../../../shared/middleware/authenticate.js';
 import tripPhase1Routes from './tripPhase1Routes.js';
 import tripAdvancedRoutes from './tripAdvancedRoutes.js';
+import tripShareRoutes from './tripShareRoutes.js';
 
 const router = Router();
+
+// Share routes (mix of public and authenticated - handles own auth)
+router.use('/', tripShareRoutes);
 
 router.use(authenticate);
 

@@ -208,6 +208,104 @@ export class TripAdvancedRepository {
     });
   }
 
+  async duplicateTripByData(tripData, newOwnerId) {
+    const newTripId = crypto.randomUUID();
+
+    return prisma.$transaction(async (tx) => {
+      const newTrip = await tx.trips.create({
+        data: {
+          id: newTripId,
+          ownerId: newOwnerId,
+          title: `${tripData.title} (Copy)`,
+          description: tripData.description,
+          coverImageUrl: tripData.coverImageUrl,
+          startDate: tripData.startDate,
+          endDate: tripData.endDate,
+          travelersCount: tripData.travelersCount,
+          budgetTotal: tripData.budgetTotal,
+          budgetCurrency: tripData.budgetCurrency,
+          status: 'DRAFT',
+          visibility: 'PRIVATE',
+          overview: tripData.overview,
+          metadata: tripData.metadata,
+        },
+      });
+
+      if (tripData.trip_cities?.length > 0) {
+        await tx.trip_cities.createMany({
+          data: tripData.trip_cities.map((city) => ({
+            id: crypto.randomUUID(),
+            tripId: newTripId,
+            cityName: city.cityName,
+            countryCode: city.countryCode,
+            latitude: city.latitude,
+            longitude: city.longitude,
+            placeId: city.placeId,
+            startDate: city.startDate,
+            endDate: city.endDate,
+            orderIndex: city.orderIndex,
+          })),
+        });
+      }
+
+      for (const day of tripData.itinerary_days || []) {
+        const newDayId = crypto.randomUUID();
+
+        await tx.itinerary_days.create({
+          data: {
+            id: newDayId,
+            tripId: newTripId,
+            date: day.date,
+            cityName: day.cityName,
+            dayNumber: day.dayNumber,
+            notes: day.notes,
+            weatherData: day.weatherData,
+            metadata: day.metadata,
+          },
+        });
+
+        if (day.activities?.length > 0) {
+          await tx.activities.createMany({
+            data: day.activities.map((a) => ({
+              id: crypto.randomUUID(),
+              itineraryDayId: newDayId,
+              name: a.name,
+              type: a.type,
+              description: a.description,
+              startTime: a.startTime,
+              endTime: a.endTime,
+              duration: a.duration,
+              placeId: a.placeId,
+              customAddress: a.customAddress,
+              latitude: a.latitude,
+              longitude: a.longitude,
+              estimatedCost: a.estimatedCost,
+              currency: a.currency,
+              bookingUrl: a.bookingUrl,
+              notes: a.notes,
+              orderIndex: a.orderIndex,
+              transportFromPrevious: a.transportFromPrevious,
+              imageAssetId: a.imageAssetId,
+            })),
+          });
+        }
+      }
+
+      return tx.trips.findUnique({
+        where: { id: newTrip.id },
+        include: {
+          trip_cities: { orderBy: { orderIndex: 'asc' } },
+          itinerary_days: {
+            orderBy: { date: 'asc' },
+            include: {
+              activities: { orderBy: { orderIndex: 'asc' } },
+            },
+          },
+        },
+      });
+    });
+  }
+
   async getStatusHistory(tripId) {
     return prisma.trip_status_history.findMany({
       where: { tripId },
