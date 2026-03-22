@@ -209,48 +209,51 @@ export function calculateFreshnessBonus(place) {
   return 0;
 }
 
-/**
- * Calculate diversity penalty
- * Reduces score for places similar to already selected places
- * @param {Object} place - Place to score
- * @param {Array} selectedPlaces - Already selected places
- * @returns {number} Diversity penalty (0-20)
- */
-export function calculateDiversityPenalty(place, selectedPlaces) {
-  if (!selectedPlaces || selectedPlaces.length === 0) return 0;
+export function calculateDiversityPenalty(
+  place, selectedPlaces, previouslyRecommended, destination,
+) {
+  if (!selectedPlaces || selectedPlaces.length === 0) {
+    if (!previouslyRecommended) return 0;
+  }
 
   let penalty = 0;
 
-  // Check for same type — soft penalty, don't over-penalize
-  // e.g., a food tour trip legitimately has many RESTAURANTs
-  const sameType = selectedPlaces.filter(p => p.type === place.type).length;
-  penalty += sameType * 3; // Reduced from 5
+  const sameType = (selectedPlaces || [])
+    .filter(p => p.type === place.type).length;
+  penalty += sameType * 3;
 
-  // Check for nearby places
   if (place.latitude && place.longitude) {
-    const veryNearby = selectedPlaces.filter(p => {
+    const veryNearby = (selectedPlaces || []).filter(p => {
       if (!p.latitude || !p.longitude) return false;
       const dist = Math.sqrt(
         Math.pow(p.latitude - place.latitude, 2) +
         Math.pow(p.longitude - place.longitude, 2)
       );
-      return dist < 0.005; // Tightened to ~500m (was 1km) — only penalize very close duplicates
+      return dist < 0.005;
     }).length;
-    penalty += veryNearby * 2; // Reduced from 3
+    penalty += veryNearby * 2;
   }
 
-  return Math.min(15, penalty); // Reduced cap from 20
+  if (previouslyRecommended instanceof Map) {
+    const placeKey = generatePlaceKey(
+      place, destination || place._destination,
+    );
+    const lastRecommended = previouslyRecommended.get(placeKey);
+    if (lastRecommended) {
+      const daysSince = (Date.now() - lastRecommended.getTime())
+        / (1000 * 60 * 60 * 24);
+      if (daysSince < 7) penalty += 8;
+      else if (daysSince < 30) penalty += 5;
+      else if (daysSince < 90) penalty += 2;
+    }
+  }
+
+  return Math.min(20, penalty);
 }
 
-/**
- * Main recommendation scoring function
- * Combines all factors into a final score
- * @param {Object} place - Place to score
- * @param {Object} userProfile - User preferences
- * @param {Array} selectedPlaces - Already selected places
- * @returns {Object} Scored place with breakdown
- */
-export function scorePlace(place, userProfile = {}, selectedPlaces = []) {
+export function scorePlace(
+  place, userProfile = {}, selectedPlaces = [], options = {},
+) {
   const {
     interests = [],
     travelStyle = 'comfort',
@@ -259,18 +262,23 @@ export function scorePlace(place, userProfile = {}, selectedPlaces = []) {
     dietaryRestrictions = [],
   } = userProfile;
 
-  // Calculate individual scores
   const interestScore = calculateInterestMatch(place, interests);
   const styleScore = calculateStyleCompatibility(place, travelStyle);
   const ratingScore = calculateRatingScore(place);
   const freshnessBonus = calculateFreshnessBonus(place);
   const diversityPenalty = prioritizeDiversity
-    ? calculateDiversityPenalty(place, selectedPlaces)
+    ? calculateDiversityPenalty(
+        place, selectedPlaces,
+        options.previouslyRecommended,
+        options.destination,
+      )
     : 0;
 
-  // Dietary compatibility bonus/penalty for restaurants
   let dietaryBonus = 0;
-  if (dietaryRestrictions.length > 0 && (place.type === 'RESTAURANT' || place.type === 'CAFE')) {
+  if (
+    dietaryRestrictions.length > 0
+    && (place.type === 'RESTAURANT' || place.type === 'CAFE')
+  ) {
     const placeText = [
       place.name,
       place.description,
@@ -278,7 +286,6 @@ export function scorePlace(place, userProfile = {}, selectedPlaces = []) {
       ...(place.tags || []),
     ].filter(Boolean).join(' ').toLowerCase();
 
-    // Boost places that match dietary keywords
     const dietaryKeywords = {
       vegetarian: ['chay', 'vegetarian', 'vegan', 'plant-based', 'rau'],
       vegan: ['vegan', 'chay', 'plant-based', 'thuần chay'],
@@ -288,14 +295,14 @@ export function scorePlace(place, userProfile = {}, selectedPlaces = []) {
     };
 
     for (const restriction of dietaryRestrictions) {
-      const keywords = dietaryKeywords[restriction.toLowerCase()] || [restriction.toLowerCase()];
+      const keywords = dietaryKeywords[restriction.toLowerCase()]
+        || [restriction.toLowerCase()];
       if (keywords.some(kw => placeText.includes(kw))) {
-        dietaryBonus += 10; // Boost matching restaurants
+        dietaryBonus += 10;
       }
     }
   }
 
-  // Weighted combination
   const weights = {
     interest: 0.35,
     style: 0.20,
@@ -429,32 +436,27 @@ export function getRecommendations(places, userProfile = {}, options = {}) {
   return recommendations;
 }
 
-/**
- * Get diverse recommendations
- * Ensures variety in the recommended places
- * @param {Array} places - All places
- * @param {Object} userProfile - User preferences
- * @param {number} count - Number of recommendations
- * @returns {Array} Diverse recommendations
- */
-export function getDiverseRecommendations(places, userProfile, count = 10) {
+export function getDiverseRecommendations(
+  places, userProfile, count = 10, options = {},
+) {
   const selected = [];
   const availablePlaces = [...places];
 
   while (selected.length < count && availablePlaces.length > 0) {
-    // Score all available places considering already selected
     const scoredPlaces = availablePlaces.map(place =>
-      scorePlace(place, { ...userProfile, prioritizeDiversity: true }, selected)
+      scorePlace(
+        place,
+        { ...userProfile, prioritizeDiversity: true },
+        selected,
+        options,
+      )
     );
 
-    // Sort by score
     scoredPlaces.sort((a, b) => b.score - a.score);
 
-    // Select top place
     const topPlace = scoredPlaces[0];
     selected.push(topPlace);
 
-    // Remove from available
     const index = availablePlaces.findIndex(p =>
       (p.id && p.id === topPlace.id) || p.name === topPlace.name
     );
