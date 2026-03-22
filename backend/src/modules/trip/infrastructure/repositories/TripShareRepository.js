@@ -80,10 +80,40 @@ class TripShareRepository {
               orderBy: { orderIndex: 'asc' },
               include: {
                 cached_places: true,
-                image_assets: true,
+                image_assets: {
+                  select: {
+                    id: true,
+                    status: true,
+                    variants: true,
+                    sourceUrl: true,
+                  },
+                },
               },
             },
           },
+        },
+        coverImageAsset: {
+          select: {
+            id: true,
+            status: true,
+            variants: true,
+            sourceUrl: true,
+          },
+        },
+        trip_members: {
+          include: {
+            User: {
+              select: {
+                id: true,
+                name: true,
+                displayName: true,
+                avatarUrl: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: { ai_conversations: true },
         },
       },
     });
