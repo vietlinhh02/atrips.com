@@ -5,25 +5,36 @@
 
 import { Novu } from '@novu/api';
 
+const NOVU_API_BASE = 'https://api.novu.co';
 const novu = new Novu({
   secretKey: process.env.NOVU_API_KEY,
 });
 
 class NovuService {
   /**
-   * Initialize or update a subscriber in Novu
-   * Call on register and login to keep subscriber in sync
+   * Initialize or update a subscriber in Novu.
+   * Uses direct REST call to bypass SDK response validation bug
+   * (@novu/api v3 Zod schema mismatch with Novu API v2 response).
    */
   async initSubscriber(user) {
     try {
-      await novu.subscribers.create({
-        subscriberId: user.id,
-        firstName: user.name || user.displayName || '',
-        email: user.email,
-        data: {
-          avatarUrl: user.avatarUrl || null,
+      const res = await fetch(`${NOVU_API_BASE}/v2/subscribers`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `ApiKey ${process.env.NOVU_API_KEY}`,
         },
+        body: JSON.stringify({
+          subscriberId: user.id,
+          firstName: user.name || user.displayName || '',
+          email: user.email,
+          data: { avatarUrl: user.avatarUrl || null },
+        }),
       });
+      if (!res.ok) {
+        const body = await res.text();
+        console.error(`Novu: initSubscriber failed (${res.status}):`, body);
+      }
     } catch (error) {
       console.error('Novu: Failed to init subscriber:', error.message);
     }
