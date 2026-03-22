@@ -51,6 +51,41 @@ export const TRAVEL_STYLE_PROFILE = {
   },
 };
 
+export const TRAVELER_TYPE_INTERESTS = {
+  adventurer: ['adventure', 'outdoor', 'hiking', 'extreme'],
+  explorer: ['hidden gems', 'off-beaten-path', 'local'],
+  culture_seeker: ['culture', 'history', 'museum', 'temple', 'art'],
+  foodie: ['food', 'cuisine', 'street food', 'restaurant', 'cooking'],
+  photographer: ['viewpoint', 'scenic', 'photo', 'architecture'],
+  relaxation: ['spa', 'beach', 'park', 'garden', 'cafe'],
+  budget_traveler: ['street food', 'free', 'market', 'local'],
+  luxury_traveler: ['fine dining', 'luxury', 'premium', 'boutique'],
+};
+
+export function mapTravelerTypesToInterests(travelerTypes, contextInterests) {
+  const interests = new Set(contextInterests || []);
+  for (const type of travelerTypes || []) {
+    const keywords = TRAVELER_TYPE_INTERESTS[type];
+    if (keywords) {
+      for (const kw of keywords) interests.add(kw);
+    }
+  }
+  return [...interests];
+}
+
+export function generatePlaceKey(place, destination) {
+  if (place.cid) return `cid:${place.cid}`;
+  const normalized = (place.name || place.title || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\b(restaurant|nha hang|cafe|café|quán|shop)\b/gi, '')
+    .replace(/\s+/g, ' ').trim();
+  const destNorm = (destination || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().trim();
+  return `${normalized}|${destNorm}`;
+}
+
 /**
  * Calculate content-based similarity score
  * @param {Object} place - Place to score
@@ -464,6 +499,9 @@ export default {
   getRecommendations,
   getDiverseRecommendations,
   getBalancedRecommendations,
+  mapTravelerTypesToInterests,
+  generatePlaceKey,
   INTEREST_KEYWORDS,
   TRAVEL_STYLE_PROFILE,
+  TRAVELER_TYPE_INTERESTS,
 };
