@@ -52,13 +52,25 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     fi
     RETRY_COUNT=$((RETRY_COUNT + 1))
     echo -e "${YELLOW}      Waiting for PostgreSQL... (${RETRY_COUNT}/${MAX_RETRIES})${NC}"
-    sleep 1
+    sleep 2
 done
 
 if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
     echo -e "${RED}Error: PostgreSQL failed to start in time.${NC}"
     exit 1
 fi
+
+# Verify PostgreSQL actually accepts connections (pg_isready can return true before accepting queries)
+echo -e "${YELLOW}      Verifying database connection...${NC}"
+RETRY_COUNT=0
+while [ $RETRY_COUNT -lt 10 ]; do
+    if docker exec atrips-postgres psql -U postgres -c "SELECT 1" > /dev/null 2>&1; then
+        echo -e "${GREEN}      Database accepting connections!${NC}"
+        break
+    fi
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+    sleep 1
+done
 
 # Wait for Redis to be ready
 echo -e "${YELLOW}      Checking Redis...${NC}"
@@ -83,10 +95,15 @@ fi
 
 # Run database migrations
 echo -e "${YELLOW}      Running database migrations...${NC}"
-./node_modules/.bin/prisma migrate deploy || ./node_modules/.bin/prisma db push --accept-data-loss
-
-if [ $? -ne 0 ]; then
-    echo -e "${RED}Warning: Database migration may have issues. Check your DATABASE_URL.${NC}"
+if ./node_modules/.bin/prisma migrate deploy 2>&1; then
+    echo -e "${GREEN}      Migrations applied successfully!${NC}"
+else
+    echo -e "${YELLOW}      migrate deploy failed, trying db push...${NC}"
+    if ./node_modules/.bin/prisma db push 2>&1; then
+        echo -e "${GREEN}      Database schema pushed successfully!${NC}"
+    else
+        echo -e "${RED}Warning: Database migration failed. Check your DATABASE_URL.${NC}"
+    fi
 fi
 
 # Enable logging (default to info if not set)

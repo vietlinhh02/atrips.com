@@ -6,7 +6,7 @@
 
 import { ChatOpenAI } from '@langchain/openai';
 
-const baseURL = (process.env.OAI_BASE_URL || 'http://localhost:8317') + '/v1';
+const baseURL = (process.env.OAI_BASE_URL || 'https://r8cwid3.9router.com') + '/v1';
 const proxyApiKey = process.env.OAI_API_KEY || 'dummy';
 
 function createModel(modelId, maxTokens = 16384, temperature) {
@@ -24,24 +24,24 @@ export function getModel(modelId) {
   const id = modelId
     || process.env.OAI_MODEL
     || process.env.AI_MODEL
-    || 'gpt-4-turbo';
+    || 'ag/gemini-3-flash';
   return createModel(id);
 }
 
 export function getFastModel() {
   const id = process.env.OAI_FAST_MODEL
-    || 'kiro-claude-haiku-4-5';
+    || 'ag/gemini-3-flash';
   return createModel(id, 4096, 0.3);
 }
 
 export function getSynthesisModel() {
   const id = process.env.OAI_SYNTHESIS_MODEL
     || process.env.OAI_FALLBACK_MODEL
-    || 'kiro-claude-sonnet-4-5';
+    || 'ag/gemini-3.1-pro-low';
   return createModel(id, 16384, 0.7);
 }
 
 export function getFallbackModel() {
-  const id = process.env.OAI_FALLBACK_MODEL || 'gpt-3.5-turbo';
+  const id = process.env.OAI_FALLBACK_MODEL || 'ag/claude-sonnet-4-6';
   return createModel(id);
 }
