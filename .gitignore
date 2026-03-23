@@ -1,10 +1,74 @@
-# Auto Claude data directory
-.auto-claude/
+# Dependencies
+node_modules/
+.pnp.*
+.yarn/*
 
-# Auto Claude generated files
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+.env.prod*
+*.pem
+.security-key
+
+# Build output
+.next/
+out/
+build/
+dist/
+.prisma/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Runtime
+*.pid
+*.seed
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+*.egg-info/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Auto Claude
+.auto-claude/
 .auto-claude-security.json
 .auto-claude-status
 .claude_settings.json
 .worktrees/
-.security-key
 logs/security/
+
+# Claude Code
+.claude/
+*.lock
+!pnpm-lock.yaml
+!package-lock.json
+
+# Misc
+*.tsbuildinfo
+benchmark-state.json
+certificates/
