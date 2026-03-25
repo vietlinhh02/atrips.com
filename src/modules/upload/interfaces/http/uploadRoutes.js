@@ -31,8 +31,9 @@ const upload = multer({
 const uploadRateLimit = rateLimit({
   windowMs: 60 * 1000,
   max: 10,
-  keyGenerator: (req) => req.user?.id || req.ip,
+  keyGenerator: (req) => req.user?.id || 'anonymous',
   message: { error: 'Upload rate limit exceeded. Try again in a minute.' },
+  validate: { ipv6SubnetOrKeyGenerator: false, keyGeneratorIpFallback: false },
 });
 
 router.post(
