@@ -173,12 +173,14 @@ export class UserRepository {
         },
         subscriptions: {
           create: {
-            tier: 'FREE',
-            status: 'TRIAL',
+            tier: 'PRO',
+            status: 'ACTIVE',
             aiQuotaUsed: 0,
-            aiQuotaLimit: 10,
+            aiQuotaLimit: 100,
             tripsCreated: 0,
-            tripsLimit: 3,
+            tripsLimit: 20,
+            conversationMessageLimit: 50,
+            conversationTokenLimit: 200000,
           },
         },
         UserPreference: {
@@ -220,12 +222,14 @@ export class UserRepository {
         },
         subscriptions: {
           create: {
-            tier: 'FREE',
-            status: 'TRIAL',
+            tier: 'PRO',
+            status: 'ACTIVE',
             aiQuotaUsed: 0,
-            aiQuotaLimit: 10,
+            aiQuotaLimit: 100,
             tripsCreated: 0,
-            tripsLimit: 3,
+            tripsLimit: 20,
+            conversationMessageLimit: 50,
+            conversationTokenLimit: 200000,
           },
         },
         UserPreference: {
