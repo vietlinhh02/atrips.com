@@ -46,6 +46,8 @@ export async function authenticate(req, res, next) {
             aiQuotaLimit: true,
             tripsCreated: true,
             tripsLimit: true,
+            conversationMessageLimit: true,
+            conversationTokenLimit: true,
           },
         },
       },
@@ -77,6 +79,8 @@ export async function authenticate(req, res, next) {
         aiQuotaLimit: 10,
         tripsCreated: 0,
         tripsLimit: 3,
+        conversationMessageLimit: 20,
+        conversationTokenLimit: 80000,
       },
     };
 
@@ -123,6 +127,8 @@ export async function optionalAuth(req, res, next) {
             aiQuotaLimit: true,
             tripsCreated: true,
             tripsLimit: true,
+            conversationMessageLimit: true,
+            conversationTokenLimit: true,
           },
         },
       },
@@ -146,6 +152,8 @@ export async function optionalAuth(req, res, next) {
           aiQuotaLimit: 10,
           tripsCreated: 0,
           tripsLimit: 3,
+          conversationMessageLimit: 20,
+          conversationTokenLimit: 80000,
         },
       };
     } else {
