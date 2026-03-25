@@ -130,6 +130,7 @@ model ai_conversations {
   User                User?                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   ai_itinerary_drafts ai_itinerary_drafts[]
   ai_messages         ai_messages[]
+  file_uploads        file_uploads[]
 
   @@index([createdAt])
   @@index([tripId])
@@ -165,6 +166,7 @@ model ai_messages {
   sources          Json?
   createdAt        DateTime         @default(now())
   ai_conversations ai_conversations @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  file_uploads     file_uploads[]
 
   @@index([conversationId])
   @@index([createdAt])
@@ -1281,6 +1283,7 @@ model trips {
   trip_status_history trip_status_history[]
   User                User                  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   tenants             tenants?              @relation(fields: [tenantId], references: [id])
+  file_uploads        file_uploads[]        @relation("TripFileUploads")
 
   @@index([coverImageAssetId])
   @@index([createdAt])
@@ -1402,6 +1405,7 @@ model User {
   user_following                       user_follows[]             @relation("UserFollowers")
   voice_inputs                         voice_inputs[]
   recommendation_history               recommendation_history[]
+  file_uploads                         file_uploads[]
 
   @@index([createdAt])
   @@index([email])
@@ -1761,16 +1765,73 @@ model image_assets {
 }
 
 model recommendation_history {
-  id            String   @id @default(uuid())
+  id            String   @id @default(uuid()) @db.Uuid
   userId        String
   placeKey      String   @db.VarChar(255)
   destination   String   @db.VarChar(255)
   placeName     String   @db.VarChar(255)
-  draftId       String?
+  draftId       String?  @db.Uuid
   recommendedAt DateTime @default(now()) @db.Timestamptz
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, destination])
   @@map("recommendation_history")
+}
+
+enum FileUploadStatus {
+  UPLOADING
+  PROCESSING
+  READY
+  FAILED
+  DELETED
+}
+
+enum FileUploadType {
+  IMAGE
+  DOCUMENT
+}
+
+enum FileUploadCategory {
+  INSPIRATION
+  REFERENCE_DOC
+  BOOKING
+}
+
+model file_uploads {
+  id              String             @id @default(uuid()) @db.Uuid
+  userId          String
+  conversationId  String?
+  messageId       String?
+  tripId          String?
+
+  fileName        String             @db.VarChar(255)
+  fileType        FileUploadType
+  mimeType        String             @db.VarChar(100)
+  fileSize        Int
+
+  r2Key           String?            @db.VarChar(500)
+  r2Bucket        String?            @db.VarChar(100)
+  publicUrl       String?            @db.VarChar(1000)
+  variants        Json?
+
+  extractedText   String?            @db.Text
+  extractionMeta  Json?
+
+  status          FileUploadStatus   @default(UPLOADING)
+  category        FileUploadCategory @default(INSPIRATION)
+  persist         Boolean            @default(false)
+
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  user            User               @relation(fields: [userId], references: [id])
+  conversation    ai_conversations?  @relation(fields: [conversationId], references: [id])
+  message         ai_messages?       @relation(fields: [messageId], references: [id])
+  trip            trips?             @relation("TripFileUploads", fields: [tripId], references: [id])
+
+  @@index([conversationId])
+  @@index([userId])
+  @@index([tripId])
+  @@index([status, persist, createdAt])
 }
