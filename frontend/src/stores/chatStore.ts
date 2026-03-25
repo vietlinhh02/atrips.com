@@ -5,8 +5,16 @@ import { v4 as uuidv4 } from 'uuid';
 import { type ChatMessage, type SourceItem } from '@/src/components/features/chat/types';
 import aiConversationService, { type TripPlanningContext } from '@/src/services/aiConversationService';
 import tripService, { type TripWithItinerary } from '@/src/services/tripService';
+import {
+  validateFile,
+  isImageType,
+  uploadChatFile,
+  pollUntilReady,
+  getConversationFiles,
+} from '@/src/services/uploadService';
 import useSidebarStore from '@/src/stores/sidebarStore';
 import type { ItineraryStructuredData, SelectedDestination } from '@/src/types/itinerary.types';
+import type { PendingAttachment, FileUploadRecord } from '@/src/types/upload.types';
 
 interface ChatState {
   conversationId: string | null;
@@ -27,6 +35,9 @@ interface ChatState {
   selectedDestination: SelectedDestination | null;
   selectedDayNumber: number | null;
   pendingDraftData: { draftId: string; itinerary: ItineraryStructuredData } | null;
+  // File attachments
+  pendingAttachments: PendingAttachment[];
+  conversationFiles: FileUploadRecord[];
   selectedPlace: {
     placeId: string | null;
     activityData: {
@@ -75,6 +86,11 @@ interface ChatState {
   retryMessage: (userMessageId: string) => Promise<void>;
   createConversation: (tripId?: string, title?: string) => Promise<string | null>;
   loadDraftFromId: (draftId: string) => Promise<void>;
+  // File attachment actions
+  addAttachment: (file: File) => Promise<void>;
+  removeAttachment: (id: string) => void;
+  clearAttachments: () => void;
+  loadConversationFiles: (conversationId: string) => Promise<void>;
 }
 
 let activeController: AbortController | null = null;
@@ -242,6 +258,8 @@ const useChatStore = create<ChatState>()(
       selectedDestination: null,
       selectedDayNumber: null,
       pendingDraftData: null,
+      pendingAttachments: [],
+      conversationFiles: [],
       selectedPlace: null,
       setConversationId: (value) => set({ conversationId: value }),
       setInputValue: (value) => set({ inputValue: value }),
@@ -302,6 +320,112 @@ const useChatStore = create<ChatState>()(
         }
       },
 
+      addAttachment: async (file: File) => {
+        const validationError = validateFile(file);
+        if (validationError) {
+          set({ error: validationError });
+          return;
+        }
+
+        const id = crypto.randomUUID();
+        const fileType = isImageType(file.type) ? 'IMAGE' : 'DOCUMENT';
+        const previewUrl = fileType === 'IMAGE'
+          ? URL.createObjectURL(file)
+          : undefined;
+
+        const attachment: PendingAttachment = {
+          id,
+          file,
+          fileName: file.name,
+          fileType,
+          previewUrl,
+          progress: 0,
+          status: 'UPLOADING',
+        };
+
+        set((state) => ({
+          pendingAttachments: [...state.pendingAttachments, attachment],
+        }));
+
+        // Ensure a conversation exists before uploading
+        let conversationId = get().conversationId;
+        if (!conversationId) {
+          conversationId = await get().createConversation();
+          if (!conversationId) {
+            set((state) => ({
+              pendingAttachments: state.pendingAttachments.map((a) =>
+                a.id === id
+                  ? { ...a, status: 'FAILED' as const, error: 'Failed to create conversation' }
+                  : a
+              ),
+            }));
+            return;
+          }
+        }
+
+        try {
+          const record = await uploadChatFile(file, conversationId);
+          set((state) => ({
+            pendingAttachments: state.pendingAttachments.map((a) =>
+              a.id === id
+                ? { ...a, status: 'PROCESSING' as const, progress: 50, record }
+                : a
+            ),
+          }));
+
+          const finalRecord = await pollUntilReady(record.id);
+          set((state) => ({
+            pendingAttachments: state.pendingAttachments.map((a) =>
+              a.id === id
+                ? {
+                    ...a,
+                    status: finalRecord.status === 'READY' ? 'READY' as const : 'FAILED' as const,
+                    progress: finalRecord.status === 'READY' ? 100 : 0,
+                    record: finalRecord,
+                    error: finalRecord.status === 'FAILED' ? 'File processing failed' : undefined,
+                  }
+                : a
+            ),
+          }));
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : 'Upload failed';
+          set((state) => ({
+            pendingAttachments: state.pendingAttachments.map((a) =>
+              a.id === id ? { ...a, status: 'FAILED' as const, error: errorMsg } : a
+            ),
+          }));
+        }
+      },
+
+      removeAttachment: (id: string) => {
+        set((state) => {
+          const attachment = state.pendingAttachments.find((a) => a.id === id);
+          if (attachment?.previewUrl) {
+            URL.revokeObjectURL(attachment.previewUrl);
+          }
+          return {
+            pendingAttachments: state.pendingAttachments.filter((a) => a.id !== id),
+          };
+        });
+      },
+
+      clearAttachments: () => {
+        const { pendingAttachments } = get();
+        for (const a of pendingAttachments) {
+          if (a.previewUrl) URL.revokeObjectURL(a.previewUrl);
+        }
+        set({ pendingAttachments: [] });
+      },
+
+      loadConversationFiles: async (conversationId: string) => {
+        try {
+          const files = await getConversationFiles(conversationId);
+          set({ conversationFiles: files });
+        } catch {
+          console.error('Failed to load conversation files');
+        }
+      },
+
       resetConversation: () =>
         set(() => {
           activeController?.abort();
@@ -323,6 +447,8 @@ const useChatStore = create<ChatState>()(
             selectedDestination: null,
             selectedDayNumber: null,
             pendingDraftData: null,
+            pendingAttachments: [],
+            conversationFiles: [],
           };
         }),
 
@@ -386,6 +512,8 @@ const useChatStore = create<ChatState>()(
             selectedDestination: null,
             selectedDayNumber: null,
             pendingDraftData: null,
+            pendingAttachments: [],
+            conversationFiles: [],
           });
           return conversation.id;
         } catch (error) {
@@ -400,10 +528,18 @@ const useChatStore = create<ChatState>()(
         const conversationId = get().conversationId;
         if (!trimmed || !conversationId || get().isSubmitting) return;
 
+        // Collect ready file IDs from pending attachments
+        const fileIds = get().pendingAttachments
+          .filter((a) => a.status === 'READY' && a.record?.id)
+          .map((a) => a.record!.id);
+
         // Detect first message to auto-generate conversation title
         const isFirstMessage = get().messages.length === 0;
 
         set({ error: null, isSubmitting: true, suggestions: [] });
+
+        // Clear attachments after collecting fileIds
+        get().clearAttachments();
 
         // Update conversation title with first message (fire-and-forget)
         if (isFirstMessage) {
@@ -438,7 +574,13 @@ const useChatStore = create<ChatState>()(
 
         try {
           await aiConversationService.streamChat(
-            { message: trimmed, conversationId, clientMessageId, context },
+            {
+              message: trimmed,
+              conversationId,
+              clientMessageId,
+              context,
+              fileIds: fileIds.length > 0 ? fileIds : undefined,
+            },
             {
               onChunk: (text) => {
                 set((state) => ({
