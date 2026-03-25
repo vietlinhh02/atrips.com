@@ -99,7 +99,9 @@ class AiConversationService {
     return response.data.data;
   }
 
-  async createConversation(payload: { tripId?: string; title?: string } = {}): Promise<ConversationDetail> {
+  async createConversation(
+    payload: { tripId?: string; title?: string; continueFromId?: string } = {},
+  ): Promise<ConversationDetail> {
     // Always create on server - auth required
     const response = await api.post('/ai/conversations', payload);
     return response.data.data.conversation;
