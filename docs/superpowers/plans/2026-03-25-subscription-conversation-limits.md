@@ -415,7 +415,20 @@ Replace the `addMessage` method (lines 205-244) with:
   }
 ```
 
-- [ ] **Step 2: Verify the repository imports**
+- [ ] **Step 2: Add a lightweight counter query helper**
+
+Add this method to `AIConversationRepository` for use by the controller when building quota responses:
+
+```javascript
+  async getConversationCounters(conversationId) {
+    return prisma.ai_conversations.findUnique({
+      where: { id: conversationId },
+      select: { messageCount: true, totalTokensUsed: true },
+    });
+  }
+```
+
+- [ ] **Step 3: Verify the repository imports**
 
 Ensure `prisma` is imported at the top of the file. It should already be there.
 
@@ -442,14 +455,26 @@ git commit -m "refactor: use prisma.\$transaction in addMessage for atomic count
 In `aiController.js`, find the `sendSuccess` call in the `chat` handler (around line 290). Add `quota` to the response:
 
 ```javascript
-  // Build quota info
-  const quota = req.conversationQuota ? {
-    conversation: req.conversationQuota,
-    monthly: {
-      used: req.user?.subscription?.aiQuotaUsed || 0,
-      limit: req.user?.subscription?.aiQuotaLimit || 10,
-    },
-  } : undefined;
+  // Build quota info from post-save conversation counters (not pre-request middleware data)
+  let quota;
+  const sub = req.user?.subscription;
+  if (sub && activeConversationId) {
+    const freshConversation = await aiConversationRepository.getConversationCounters(activeConversationId);
+    if (freshConversation) {
+      quota = {
+        conversation: {
+          messagesUsed: freshConversation.messageCount,
+          messagesLimit: sub.conversationMessageLimit,
+          tokensUsed: freshConversation.totalTokensUsed,
+          tokensLimit: sub.conversationTokenLimit,
+        },
+        monthly: {
+          used: sub.aiQuotaUsed || 0,
+          limit: sub.aiQuotaLimit || 10,
+        },
+      };
+    }
+  }
 
   return sendSuccess(res, {
     message: aiResponse.content,
@@ -468,19 +493,33 @@ In `aiController.js`, find the `sendSuccess` call in the `chat` handler (around 
 
 - [ ] **Step 2: Add quota SSE event to streaming response**
 
-In the streaming handler, find the `sendEvent({ type: 'done', ... })` call (around line 582). Add a quota event BEFORE the done event:
+In the streaming handler, find the `sendEvent({ type: 'done', ... })` call (around line 582). Add a quota event BEFORE the done event. Use the **post-save** conversation counters from `addMessage` (which returns `{ message, conversation }` after Task 6 refactor) rather than `req.conversationQuota` (which has pre-request counts):
 
 ```javascript
-    // Send quota info
-    if (req.conversationQuota) {
-      sendEvent({
-        type: 'quota',
-        conversation: req.conversationQuota,
-        monthly: {
-          used: req.user?.subscription?.aiQuotaUsed || 0,
-          limit: req.user?.subscription?.aiQuotaLimit || 10,
-        },
+    // Build fresh quota from post-save conversation counters
+    const sub = req.user?.subscription;
+    if (sub && activeConversationId) {
+      // The last addMessage call returns updated conversation counters
+      // Use them for accurate post-request counts
+      const freshConversation = await prisma.ai_conversations.findUnique({
+        where: { id: activeConversationId },
+        select: { messageCount: true, totalTokensUsed: true },
       });
+      if (freshConversation) {
+        sendEvent({
+          type: 'quota',
+          conversation: {
+            messagesUsed: freshConversation.messageCount,
+            messagesLimit: sub.conversationMessageLimit,
+            tokensUsed: freshConversation.totalTokensUsed,
+            tokensLimit: sub.conversationTokenLimit,
+          },
+          monthly: {
+            used: sub.aiQuotaUsed || 0,
+            limit: sub.aiQuotaLimit || 10,
+          },
+        });
+      }
     }
 
     sendEvent({
@@ -599,12 +638,15 @@ In the `chatStream` handler, find where `enrichedContext` is built (around line 
 
 - [ ] **Step 6: Handle `carryOverSummary` in `buildContextPrompt`**
 
-In `src/modules/ai/domain/prompts/index.js`, in the `buildContextPrompt` function (line 704), add before the `return` statement (around line 741):
+In `src/modules/ai/domain/prompts/index.js`, in the `buildContextPrompt` function (line 704), replace the return statement (line 741) with:
 
 ```javascript
+  let carryOver = '';
   if (context.carryOverSummary) {
-    parts.push(`\n## Context from Previous Conversation\n${context.carryOverSummary}`);
+    carryOver = `\n\n## Context from Previous Conversation\n${context.carryOverSummary}`;
   }
+
+  return userProfileContext + tripContext + carryOver;
 ```
 
 - [ ] **Step 7: Commit**
