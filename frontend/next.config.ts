@@ -95,7 +95,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https: blob: https://*.mapbox.com",
               "font-src 'self' data:",
-              "connect-src 'self' http://192.168.100.73:5000 ws://192.168.100.73:3000 ws://localhost:3000 ws://192.168.2.196:3000 http://localhost:5000 http://192.168.2.196:5000 https://192.168.2.196:5000 https://*.trycloudflare.com https://*.mapbox.com https://api.mapbox.com https://events.mapbox.com wss://*.mapbox.com https://api.cloudinary.com https://api.novu.co wss://ws.novu.co wss://socket.novu.co https://api.bigdatacloud.net",
+              "connect-src 'self' http://192.168.100.73:5000 ws://192.168.100.73:3000 ws://localhost:3000 ws://192.168.2.196:3000 http://localhost:5000 http://192.168.2.196:5000 https://192.168.2.196:5000 https://*.trycloudflare.com https://*.mapbox.com https://api.mapbox.com https://events.mapbox.com wss://*.mapbox.com https://api.cloudinary.com https://api.novu.co wss://ws.novu.co wss://socket.novu.co https://api.bigdatacloud.net https://api.visme.tech",
               "worker-src 'self' blob:",
               "child-src 'self' blob:",
               "frame-ancestors 'none'",

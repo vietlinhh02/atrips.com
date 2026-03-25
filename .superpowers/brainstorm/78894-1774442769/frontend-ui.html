@@ -1,0 +1,127 @@
+<h2>Frontend UI — File Upload in Chat</h2>
+<p class="subtitle">Two upload entry points: chat input attach + side panel drag & drop</p>
+
+<div class="section">
+  <div class="split">
+    <!-- Chat Input -->
+    <div class="mockup">
+      <div class="mockup-header">Chat Input — Attach Button</div>
+      <div class="mockup-body" style="background: #0f172a; padding: 16px;">
+        <!-- Chat messages area -->
+        <div style="margin-bottom: 16px;">
+          <div style="background: #1e293b; border-radius: 12px; padding: 12px; margin-bottom: 8px; max-width: 70%;">
+            <div style="color: #94a3b8; font-size: 11px; margin-bottom: 4px;">You</div>
+            <div style="color: #e2e8f0; font-size: 13px;">I want to plan a trip to Japan, here's my booking</div>
+          </div>
+
+          <!-- Attached files preview (before send) -->
+          <div style="display: flex; gap: 8px; margin-bottom: 12px; padding-left: 4px;">
+            <div style="background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 8px; display: flex; align-items: center; gap: 8px; max-width: 200px;">
+              <div style="width: 36px; height: 36px; background: #dc2626; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: bold; flex-shrink: 0;">PDF</div>
+              <div style="overflow: hidden;">
+                <div style="color: #e2e8f0; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">flight-booking.pdf</div>
+                <div style="color: #64748b; font-size: 10px;">2.3 MB</div>
+              </div>
+              <div style="color: #64748b; cursor: pointer; font-size: 14px; flex-shrink: 0;">✕</div>
+            </div>
+            <div style="background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 4px; position: relative; width: 52px; height: 52px; border-radius: 8px; overflow: hidden;">
+              <div style="width: 100%; height: 100%; background: linear-gradient(135deg, #f472b6, #c084fc); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px;">🏯</div>
+              <div style="color: white; cursor: pointer; font-size: 10px; position: absolute; top: 2px; right: 4px; background: rgba(0,0,0,0.5); border-radius: 50%; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center;">✕</div>
+            </div>
+          </div>
+
+          <!-- AI response -->
+          <div style="background: #172554; border-radius: 12px; padding: 12px; margin-left: auto; max-width: 80%;">
+            <div style="color: #94a3b8; font-size: 11px; margin-bottom: 4px;">AI Assistant</div>
+            <div style="color: #e2e8f0; font-size: 13px;">I can see your flight booking to Tokyo (March 15-22) and that beautiful temple photo! Let me plan an itinerary around Kyoto temples...</div>
+          </div>
+        </div>
+
+        <!-- Input area -->
+        <div style="background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 8px;">
+          <div style="width: 32px; height: 32px; background: #2563eb; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; font-size: 16px;" title="Attach file">📎</div>
+          <div style="flex: 1; color: #64748b; font-size: 13px;">Type a message...</div>
+          <div style="width: 32px; height: 32px; background: #2563eb; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; font-size: 14px;">➤</div>
+        </div>
+        <div style="color: #475569; font-size: 10px; margin-top: 6px; text-align: center;">Supports: Images, PDF, Word, Excel, CSV · Max 10MB/file</div>
+      </div>
+    </div>
+
+    <!-- Side Panel -->
+    <div class="mockup">
+      <div class="mockup-header">Side Panel — Drag & Drop Zone</div>
+      <div class="mockup-body" style="background: #0f172a; padding: 16px;">
+        <!-- Trip Planning Side Card header -->
+        <div style="background: #1e293b; border-radius: 12px; padding: 12px; margin-bottom: 12px;">
+          <div style="color: #e2e8f0; font-weight: bold; font-size: 14px; margin-bottom: 4px;">🗾 Japan Trip</div>
+          <div style="color: #94a3b8; font-size: 12px;">March 15 - 22 · 2 travelers</div>
+        </div>
+
+        <!-- Drag & Drop Zone -->
+        <div style="border: 2px dashed #334155; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 12px; transition: all 0.2s;">
+          <div style="font-size: 32px; margin-bottom: 8px;">📁</div>
+          <div style="color: #e2e8f0; font-size: 13px; font-weight: 500;">Drop files here</div>
+          <div style="color: #64748b; font-size: 11px; margin-top: 4px;">or click to browse</div>
+        </div>
+
+        <!-- Uploaded files list -->
+        <div style="color: #94a3b8; font-size: 11px; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Uploaded Files (3)</div>
+
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <!-- Image file -->
+          <div style="background: #1e293b; border-radius: 8px; padding: 8px; display: flex; align-items: center; gap: 8px;">
+            <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #f472b6, #c084fc); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 14px;">🏯</div>
+            <div style="flex: 1; overflow: hidden;">
+              <div style="color: #e2e8f0; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">kyoto-temple.jpg</div>
+              <div style="color: #22c55e; font-size: 10px;">✓ Ready · Inspiration</div>
+            </div>
+          </div>
+
+          <!-- PDF file -->
+          <div style="background: #1e293b; border-radius: 8px; padding: 8px; display: flex; align-items: center; gap: 8px;">
+            <div style="width: 32px; height: 32px; background: #dc2626; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: bold;">PDF</div>
+            <div style="flex: 1; overflow: hidden;">
+              <div style="color: #e2e8f0; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">flight-booking.pdf</div>
+              <div style="color: #22c55e; font-size: 10px;">✓ Extracted · 2.3 MB</div>
+            </div>
+          </div>
+
+          <!-- Processing file -->
+          <div style="background: #1e293b; border-radius: 8px; padding: 8px; display: flex; align-items: center; gap: 8px;">
+            <div style="width: 32px; height: 32px; background: #2563eb; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: bold;">XLS</div>
+            <div style="flex: 1; overflow: hidden;">
+              <div style="color: #e2e8f0; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">budget-plan.xlsx</div>
+              <div style="color: #f59e0b; font-size: 10px;">⟳ Processing...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 16px;">
+  <h3>Upload States</h3>
+  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 12px;">
+    <div style="background: #1e293b; border-radius: 8px; padding: 12px; text-align: center;">
+      <div style="font-size: 24px; margin-bottom: 4px;">⬆️</div>
+      <div style="color: #3b82f6; font-size: 12px; font-weight: 600;">Uploading</div>
+      <div style="color: #64748b; font-size: 10px; margin-top: 4px;">Progress bar<br>Cancel button</div>
+    </div>
+    <div style="background: #1e293b; border-radius: 8px; padding: 12px; text-align: center;">
+      <div style="font-size: 24px; margin-bottom: 4px;">⟳</div>
+      <div style="color: #f59e0b; font-size: 12px; font-weight: 600;">Processing</div>
+      <div style="color: #64748b; font-size: 10px; margin-top: 4px;">Spinner<br>Extracting text...</div>
+    </div>
+    <div style="background: #1e293b; border-radius: 8px; padding: 12px; text-align: center;">
+      <div style="font-size: 24px; margin-bottom: 4px;">✅</div>
+      <div style="color: #22c55e; font-size: 12px; font-weight: 600;">Ready</div>
+      <div style="color: #64748b; font-size: 10px; margin-top: 4px;">Thumbnail/icon<br>Available for AI</div>
+    </div>
+    <div style="background: #1e293b; border-radius: 8px; padding: 12px; text-align: center;">
+      <div style="font-size: 24px; margin-bottom: 4px;">❌</div>
+      <div style="color: #ef4444; font-size: 12px; font-weight: 600;">Failed</div>
+      <div style="color: #64748b; font-size: 10px; margin-top: 4px;">Error message<br>Retry button</div>
+    </div>
+  </div>
+</div>

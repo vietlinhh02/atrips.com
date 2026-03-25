@@ -1,0 +1,124 @@
+<h2>Architecture Overview — File Upload in Plan Creation</h2>
+<p class="subtitle">Approach A: R2-first, unified pipeline</p>
+
+<div class="section">
+  <div class="mockup">
+    <div class="mockup-header">System Flow Diagram</div>
+    <div class="mockup-body" style="padding: 24px; font-family: monospace; font-size: 13px; line-height: 1.8; background: #1a1a2e;">
+      <div style="display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap;">
+
+        <!-- Column 1: Frontend -->
+        <div style="flex: 1; min-width: 200px;">
+          <div style="background: #2d3748; border: 2px solid #4fd1c5; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
+            <div style="color: #4fd1c5; font-weight: bold; margin-bottom: 8px;">📱 FRONTEND</div>
+            <div style="background: #1a202c; border-radius: 4px; padding: 8px; margin-bottom: 6px; color: #e2e8f0; font-size: 11px;">
+              <strong>Chat Input</strong><br>
+              📎 Attach button<br>
+              Drag & drop zone
+            </div>
+            <div style="background: #1a202c; border-radius: 4px; padding: 8px; margin-bottom: 6px; color: #e2e8f0; font-size: 11px;">
+              <strong>Side Panel</strong><br>
+              Drag & drop area<br>
+              File gallery preview
+            </div>
+            <div style="background: #1a202c; border-radius: 4px; padding: 8px; color: #e2e8f0; font-size: 11px;">
+              <strong>Validation</strong><br>
+              Type check · Size check<br>
+              Client-side resize (images)
+            </div>
+          </div>
+          <div style="text-align: center; color: #4fd1c5; font-size: 18px;">⬇️</div>
+          <div style="text-align: center; color: #a0aec0; font-size: 11px;">POST /api/uploads<br>multipart/form-data</div>
+        </div>
+
+        <!-- Column 2: Backend API -->
+        <div style="flex: 1; min-width: 200px;">
+          <div style="background: #2d3748; border: 2px solid #f6ad55; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
+            <div style="color: #f6ad55; font-weight: bold; margin-bottom: 8px;">⚙️ BACKEND API</div>
+            <div style="background: #1a202c; border-radius: 4px; padding: 8px; margin-bottom: 6px; color: #e2e8f0; font-size: 11px;">
+              <strong>Multer Middleware</strong><br>
+              File receive · Type guard<br>
+              Size limit enforcement
+            </div>
+            <div style="background: #1a202c; border-radius: 4px; padding: 8px; margin-bottom: 6px; color: #e2e8f0; font-size: 11px;">
+              <strong>Upload to R2</strong><br>
+              Generate unique key<br>
+              Store original file
+            </div>
+            <div style="background: #1a202c; border-radius: 4px; padding: 8px; color: #e2e8f0; font-size: 11px;">
+              <strong>Create DB Record</strong><br>
+              file_uploads table<br>
+              Status: PENDING
+            </div>
+          </div>
+          <div style="text-align: center; color: #f6ad55; font-size: 18px;">⬇️</div>
+          <div style="text-align: center; color: #a0aec0; font-size: 11px;">Enqueue BullMQ Job</div>
+        </div>
+
+        <!-- Column 3: Processing -->
+        <div style="flex: 1; min-width: 200px;">
+          <div style="background: #2d3748; border: 2px solid #b794f4; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
+            <div style="color: #b794f4; font-weight: bold; margin-bottom: 8px;">🔄 PROCESSING QUEUE</div>
+            <div style="background: #1a202c; border-radius: 4px; padding: 8px; margin-bottom: 6px; color: #e2e8f0; font-size: 11px;">
+              <strong>Image Job</strong><br>
+              Generate variants<br>
+              (thumb, card, hero)<br>
+              → Status: READY
+            </div>
+            <div style="background: #1a202c; border-radius: 4px; padding: 8px; color: #e2e8f0; font-size: 11px;">
+              <strong>Document Job</strong><br>
+              PDF → pdf-parse<br>
+              Word → mammoth<br>
+              Excel/CSV → xlsx<br>
+              Store extracted text<br>
+              → Status: READY
+            </div>
+          </div>
+          <div style="text-align: center; color: #b794f4; font-size: 18px;">⬇️</div>
+          <div style="text-align: center; color: #a0aec0; font-size: 11px;">File ready for AI</div>
+        </div>
+
+        <!-- Column 4: AI Integration -->
+        <div style="flex: 1; min-width: 200px;">
+          <div style="background: #2d3748; border: 2px solid #fc8181; border-radius: 8px; padding: 12px;">
+            <div style="color: #fc8181; font-weight: bold; margin-bottom: 8px;">🤖 AI CHAT</div>
+            <div style="background: #1a202c; border-radius: 4px; padding: 8px; margin-bottom: 6px; color: #e2e8f0; font-size: 11px;">
+              <strong>Images</strong><br>
+              Send R2 URL as<br>
+              vision content block<br>
+              AI "sees" the image
+            </div>
+            <div style="background: #1a202c; border-radius: 4px; padding: 8px; margin-bottom: 6px; color: #e2e8f0; font-size: 11px;">
+              <strong>Documents</strong><br>
+              Inject extracted text<br>
+              into system/user msg<br>
+              AI reads the content
+            </div>
+            <div style="background: #1a202c; border-radius: 4px; padding: 8px; color: #e2e8f0; font-size: 11px;">
+              <strong>After Plan Created</strong><br>
+              🖼️ Images → attach to trip<br>
+              📄 Documents → cleanup
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Storage Layer -->
+      <div style="margin-top: 16px; background: #2d3748; border: 2px dashed #68d391; border-radius: 8px; padding: 12px;">
+        <div style="color: #68d391; font-weight: bold; margin-bottom: 6px;">💾 STORAGE LAYER</div>
+        <div style="display: flex; gap: 12px;">
+          <div style="flex: 1; background: #1a202c; border-radius: 4px; padding: 8px; color: #e2e8f0; font-size: 11px;">
+            <strong>Cloudflare R2</strong> — original files + image variants (existing bucket: atrips-images)
+          </div>
+          <div style="flex: 1; background: #1a202c; border-radius: 4px; padding: 8px; color: #e2e8f0; font-size: 11px;">
+            <strong>PostgreSQL</strong> — file_uploads table (metadata, extracted text, status, associations)
+          </div>
+          <div style="flex: 1; background: #1a202c; border-radius: 4px; padding: 8px; color: #e2e8f0; font-size: 11px;">
+            <strong>Redis/BullMQ</strong> — job queue (existing: image-ingest, new: file-process)
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
