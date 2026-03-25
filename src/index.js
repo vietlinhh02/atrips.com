@@ -48,6 +48,7 @@ import exploreEnrichmentJob from './modules/explore/application/jobs/ExploreEnri
 import placeRoutes from './modules/place/interfaces/http/placeRoutes.js';
 import uploadRoutes from './modules/upload/interfaces/http/uploadRoutes.js';
 import fileProcessQueueService from './modules/upload/infrastructure/services/FileProcessQueueService.js';
+import { startCleanupScheduler } from './modules/upload/infrastructure/services/FileCleanupJob.js';
 
 /**
  * Create and configure Express application
@@ -325,6 +326,9 @@ async function startServer() {
   ================================================
       `);
     });
+
+    // Start file cleanup scheduler
+    startCleanupScheduler();
 
     // Consolidated graceful shutdown
     function gracefulShutdown(signal) {
