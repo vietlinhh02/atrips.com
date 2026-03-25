@@ -5,6 +5,7 @@
 
 import { AppError } from '../errors/AppError.js';
 import prisma from '../../config/database.js';
+import { generateConversationSummary } from '../../modules/ai/infrastructure/services/ConversationSummaryService.js';
 
 // Subscription tier hierarchy (higher index = higher tier)
 const TIER_HIERARCHY = ['FREE', 'PRO', 'BUSINESS'];
@@ -90,14 +91,26 @@ export async function requireConversationQuota(req, res, next) {
     const tokenLimit = sub.conversationTokenLimit;
 
     if (conversation.messageCount >= msgLimit) {
+      let summary = conversation.summary;
+      if (!summary && req.user?.id) {
+        summary = await generateConversationSummary(
+          conversationId, req.user.id,
+        );
+      }
       return next(AppError.conversationLimitExceeded(
-        'message', conversation.messageCount, msgLimit, conversation.summary,
+        'message', conversation.messageCount, msgLimit, summary,
       ));
     }
 
     if (conversation.totalTokensUsed >= tokenLimit) {
+      let summary = conversation.summary;
+      if (!summary && req.user?.id) {
+        summary = await generateConversationSummary(
+          conversationId, req.user.id,
+        );
+      }
       return next(AppError.conversationLimitExceeded(
-        'token', conversation.totalTokensUsed, tokenLimit, conversation.summary,
+        'token', conversation.totalTokensUsed, tokenLimit, summary,
       ));
     }
 
