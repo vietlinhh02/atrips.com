@@ -469,6 +469,27 @@ export default function ChatPage() {
                 }
               }
 
+              // Map file_uploads to message attachments
+              const fileUploads = (message as Record<string, unknown>).file_uploads as Array<{
+                id: string;
+                fileName: string;
+                fileType: 'IMAGE' | 'DOCUMENT';
+                mimeType: string;
+                publicUrl?: string;
+                variants?: { thumb: string; card: string; hero: string; original: string };
+              }> | undefined;
+
+              const attachments = fileUploads && fileUploads.length > 0
+                ? fileUploads.map((f) => ({
+                    id: f.id,
+                    fileName: f.fileName,
+                    fileType: f.fileType,
+                    mimeType: f.mimeType,
+                    publicUrl: f.publicUrl,
+                    variants: f.variants,
+                  }))
+                : undefined;
+
               return {
                 id: message.id,
                 role: message.role,
@@ -476,6 +497,7 @@ export default function ChatPage() {
                 functionCalls,
                 toolResults,
                 sources: sources.length > 0 ? sources : undefined,
+                attachments,
               };
             });
           setMessages(loadedMessages);

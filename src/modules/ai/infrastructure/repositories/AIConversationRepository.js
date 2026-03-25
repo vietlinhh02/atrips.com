@@ -137,6 +137,19 @@ class AIConversationRepository {
         },
         ai_messages: {
           orderBy: { createdAt: 'asc' },
+          include: {
+            file_uploads: {
+              where: { status: { not: 'DELETED' } },
+              select: {
+                id: true,
+                fileName: true,
+                fileType: true,
+                mimeType: true,
+                publicUrl: true,
+                variants: true,
+              },
+            },
+          },
         },
         ai_itinerary_drafts: {
           orderBy: { createdAt: 'desc' },
