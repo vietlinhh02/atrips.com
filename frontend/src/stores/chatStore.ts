@@ -713,6 +713,9 @@ const useChatStore = create<ChatState>()(
               onSuggestions: (suggestions) => {
                 set({ suggestions });
               },
+              onQuota: (data) => {
+                set({ conversationQuota: data.conversation });
+              },
               onDone: () => {
                 set((state) => ({
                   messages: state.messages.map((msg) =>
@@ -723,6 +726,23 @@ const useChatStore = create<ChatState>()(
                 }));
               },
               onError: (errorMessage) => {
+                if (typeof errorMessage === 'string' && errorMessage.startsWith('CONVERSATION_LIMIT:')) {
+                  try {
+                    const details = JSON.parse(errorMessage.replace('CONVERSATION_LIMIT:', ''));
+                    set({
+                      isConversationBlocked: true,
+                      conversationSummary: details?.summary || null,
+                      isSubmitting: false,
+                    });
+                  } catch {
+                    set({ isConversationBlocked: true, isSubmitting: false });
+                  }
+                  // Remove the pending assistant message
+                  set((state) => ({
+                    messages: state.messages.filter((msg) => msg.id !== assistantMessageId),
+                  }));
+                  return;
+                }
                 // Mark user message as having error for retry
                 set((state) => ({
                   messages: state.messages.map((msg) => {
@@ -889,6 +909,9 @@ const useChatStore = create<ChatState>()(
               onSuggestions: (suggestions) => {
                 set({ suggestions });
               },
+              onQuota: (data) => {
+                set({ conversationQuota: data.conversation });
+              },
               onDone: () => {
                 set((state) => ({
                   messages: state.messages.map((msg) =>
@@ -898,6 +921,22 @@ const useChatStore = create<ChatState>()(
                 }));
               },
               onError: (errorMessage) => {
+                if (typeof errorMessage === 'string' && errorMessage.startsWith('CONVERSATION_LIMIT:')) {
+                  try {
+                    const details = JSON.parse(errorMessage.replace('CONVERSATION_LIMIT:', ''));
+                    set({
+                      isConversationBlocked: true,
+                      conversationSummary: details?.summary || null,
+                      isSubmitting: false,
+                    });
+                  } catch {
+                    set({ isConversationBlocked: true, isSubmitting: false });
+                  }
+                  set((state) => ({
+                    messages: state.messages.filter((msg) => msg.id !== assistantMessageId),
+                  }));
+                  return;
+                }
                 set((state) => ({
                   messages: state.messages.map((msg) => {
                     if (msg.id === assistantMessageId) {

@@ -117,6 +117,15 @@ class AiConversationService {
       onDraftCreated?: (data: { draftId: string; itinerary: ItineraryStructuredData }) => void;
       onSources?: (sources: Array<{ url: string; title: string }>) => void;
       onSuggestions?: (suggestions: string[]) => void;
+      onQuota?: (data: {
+        conversation: {
+          messagesUsed: number;
+          messagesLimit: number;
+          tokensUsed: number;
+          tokensLimit: number;
+        };
+        monthly: { used: number; limit: number };
+      }) => void;
       onDone?: (data: unknown) => void;
       onError?: (error: string) => void;
     },
@@ -213,6 +222,14 @@ class AiConversationService {
         openWhenHidden: true, // Keep connection even when tab is hidden
 
         onopen: async (response) => {
+          if (response.status === 429) {
+            const body = await response.json().catch(() => null);
+            const details = body?.error?.details;
+            handlers.onError?.(
+              `CONVERSATION_LIMIT:${JSON.stringify(details)}`,
+            );
+            throw new Error('CONVERSATION_LIMIT');
+          }
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           }
@@ -419,6 +436,20 @@ class AiConversationService {
             case 'suggestions':
               // Suggestions event - forward to handler
               handlers.onSuggestions?.(data.suggestions as string[]);
+              break;
+            case 'quota':
+              handlers.onQuota?.({
+                conversation: data.conversation as {
+                  messagesUsed: number;
+                  messagesLimit: number;
+                  tokensUsed: number;
+                  tokensLimit: number;
+                },
+                monthly: data.monthly as {
+                  used: number;
+                  limit: number;
+                },
+              });
               break;
             case 'done':
               // Final event with metadata
