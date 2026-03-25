@@ -76,6 +76,20 @@ export const config = {
     emailVerificationRequired: process.env.EMAIL_VERIFICATION_REQUIRED === 'true',
   },
 
+  // File uploads
+  upload: {
+    maxFileSize: 10 * 1024 * 1024, // 10MB
+    maxFilesPerRequest: 5,
+    maxFilesPerConversation: 20,
+    allowedImageTypes: ['image/jpeg', 'image/png', 'image/webp'],
+    allowedDocTypes: [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/csv',
+    ],
+  },
+
   // Cloudflare R2 Storage
   r2: {
     accountId: process.env.R2_ACCOUNT_ID,

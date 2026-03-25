@@ -46,6 +46,8 @@ import eventRoutes from './modules/event/interfaces/http/eventRoutes.js';
 import exploreRoutes from './modules/explore/interfaces/http/exploreRoutes.js';
 import exploreEnrichmentJob from './modules/explore/application/jobs/ExploreEnrichmentJob.js';
 import placeRoutes from './modules/place/interfaces/http/placeRoutes.js';
+import uploadRoutes from './modules/upload/interfaces/http/uploadRoutes.js';
+import fileProcessQueueService from './modules/upload/infrastructure/services/FileProcessQueueService.js';
 
 /**
  * Create and configure Express application
@@ -263,6 +265,9 @@ function createApp() {
   // Place enrichment and search routes
   app.use('/api/places', placeRoutes);
 
+  // File upload routes
+  app.use('/api/uploads', uploadRoutes);
+
   // Root endpoint
   app.get('/', (req, res) => {
     res.json({
@@ -299,6 +304,9 @@ async function startServer() {
       imageQueueService.init(processImageIngestJob);
     }
 
+    // Initialize file processing queue
+    fileProcessQueueService.init();
+
     // Initialize explore enrichment job
     exploreEnrichmentJob.init();
 
@@ -328,6 +336,10 @@ async function startServer() {
         try {
           await imageQueueService.close();
           logger.info('[Shutdown] Image queue closed');
+        } catch { /* ignore */ }
+        try {
+          await fileProcessQueueService.close();
+          logger.info('[Shutdown] File process queue closed');
         } catch { /* ignore */ }
         try {
           await exploreEnrichmentJob.close();
