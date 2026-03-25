@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   SquaresFour,
   X,
   Microphone,
+  Paperclip,
   PaperPlaneRight,
   WarningCircle,
   MapTrifold,
@@ -13,6 +14,9 @@ import {
   Sparkle,
   PlusCircle,
 } from '@phosphor-icons/react';
+
+import useChatStore from '@/src/stores/chatStore';
+import FileAttachmentPreview from '@/src/components/features/chat/conversation/FileAttachmentPreview';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,10 +67,47 @@ export default function ChatInputArea({
 }: ChatInputAreaProps) {
   const [showNewChatDialog, setShowNewChatDialog] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const pendingAttachments = useChatStore((s) => s.pendingAttachments);
+  const addAttachment = useChatStore((s) => s.addAttachment);
+  const removeAttachment = useChatStore((s) => s.removeAttachment);
 
   const handleOpenChange = useCallback((open: boolean) => {
     setMenuOpen(open);
   }, []);
+
+  const handleFileSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files) return;
+      for (const file of Array.from(files)) {
+        addAttachment(file);
+      }
+      // Reset so the same file can be selected again
+      e.target.value = '';
+    },
+    [addAttachment]
+  );
+
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of Array.from(items)) {
+        if (item.kind === 'file') {
+          const file = item.getAsFile();
+          if (file) {
+            addAttachment(file);
+          }
+        }
+      }
+    },
+    [addAttachment]
+  );
+
+  const hasAttachments = pendingAttachments.length > 0;
+  const canSend = inputValue.trim() || hasAttachments;
 
   return (
     <div className="bg-gradient-to-t from-[var(--neutral-10)] via-[var(--neutral-10)] to-transparent p-3 py-7 md:p-6 pt-2">
@@ -84,6 +125,26 @@ export default function ChatInputArea({
           ))}
         </div>
       )}
+      {/* File attachment preview chips */}
+      {hasAttachments && (
+        <div className="mb-2">
+          <FileAttachmentPreview
+            attachments={pendingAttachments}
+            onRemove={removeAttachment}
+          />
+        </div>
+      )}
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept="image/jpeg,image/png,image/webp,application/pdf,.docx,.xlsx,.csv"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+
       <div className="flex items-center gap-2 rounded-[6px] border border-[var(--neutral-30)] bg-[var(--neutral-20)] px-3 py-2">
         <DropdownMenu open={menuOpen} onOpenChange={handleOpenChange}>
           <DropdownMenuTrigger asChild>
@@ -202,6 +263,7 @@ export default function ChatInputArea({
           value={inputValue}
           onChange={(e) => onValueChange(e.target.value)}
           onKeyDown={onKeyDown}
+          onPaste={handlePaste}
           placeholder="Ask anything destinations, tips, or trip plans"
           className="flex-1 resize-none bg-transparent py-1.5 text-[14px] text-[var(--neutral-100)] placeholder:text-[var(--neutral-50)] focus:outline-none"
           rows={1}
@@ -209,10 +271,18 @@ export default function ChatInputArea({
           disabled={isSubmitting}
         />
         <div className="flex items-center gap-2 pl-2">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="text-[var(--neutral-60)] hover:text-[var(--neutral-100)]"
+            aria-label="Attach file"
+          >
+            <Paperclip size={20} />
+          </button>
           <button className="text-[var(--neutral-60)] hover:text-[var(--neutral-100)]">
             <Microphone size={20} />
           </button>
-          {inputValue.trim() && (
+          {canSend && (
             <button
               onClick={onSend}
               disabled={isSubmitting}
