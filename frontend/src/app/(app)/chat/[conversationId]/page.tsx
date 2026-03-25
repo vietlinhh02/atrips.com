@@ -470,7 +470,7 @@ export default function ChatPage() {
               }
 
               // Map file_uploads to message attachments
-              const fileUploads = (message as Record<string, unknown>).file_uploads as Array<{
+              const fileUploads = (message as unknown as Record<string, unknown>).file_uploads as Array<{
                 id: string;
                 fileName: string;
                 fileType: 'IMAGE' | 'DOCUMENT';
