@@ -591,6 +591,43 @@ function SubscriptionContent() {
         </div>
       </section>
 
+      {/* Current Usage Section */}
+      {subscription && (
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.2 }}
+          className="mb-10"
+        >
+          <h2 className="mb-4 text-lg font-semibold text-[var(--neutral-100)]">
+            Current Usage
+          </h2>
+          <div className="rounded-2xl border border-[var(--neutral-30)] bg-white p-6">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div>
+                <p className="text-sm text-[var(--neutral-60)]">
+                  AI Queries This Month
+                </p>
+                <p className="text-xl font-bold text-[var(--neutral-100)]">
+                  {subscription.aiQuotaUsed}/{subscription.aiQuotaLimit}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-[var(--neutral-60)]">
+                  Trips Created
+                </p>
+                <p className="text-xl font-bold text-[var(--neutral-100)]">
+                  {subscription.tripsCreated}/
+                  {subscription.tripsLimit === -1
+                    ? '\u221E'
+                    : subscription.tripsLimit}
+                </p>
+              </div>
+            </div>
+          </div>
+        </motion.section>
+      )}
+
       {/* FAQ Section */}
       <motion.section
         initial={{ opacity: 0, y: 12 }}
