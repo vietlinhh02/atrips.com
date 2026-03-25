@@ -1,7 +1,10 @@
 /**
  * Upload Service
- * Handles file uploads to Cloudinary
+ * Handles file uploads to Cloudinary and backend file management
  */
+
+import api from '../lib/api';
+import type { FileUploadRecord, UploadResponse } from '../types/upload.types';
 
 interface CloudinaryUploadResponse {
   secure_url: string;
@@ -226,3 +229,81 @@ class UploadService {
 
 const uploadService = new UploadService();
 export default uploadService;
+
+// --- Backend file upload utilities ---
+
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const ALLOWED_DOC_TYPES = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/csv',
+];
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+export function isAllowedFileType(mimeType: string): boolean {
+  return ALLOWED_IMAGE_TYPES.includes(mimeType) || ALLOWED_DOC_TYPES.includes(mimeType);
+}
+
+export function isImageType(mimeType: string): boolean {
+  return ALLOWED_IMAGE_TYPES.includes(mimeType);
+}
+
+export function validateFile(file: File): string | null {
+  if (!isAllowedFileType(file.type)) {
+    return 'File type not supported. Use JPEG, PNG, WebP, PDF, DOCX, XLSX, or CSV.';
+  }
+  if (file.size > MAX_FILE_SIZE) {
+    return 'File too large. Maximum size is 10MB.';
+  }
+  return null;
+}
+
+export async function uploadChatFile(
+  file: File,
+  conversationId: string,
+  category?: string
+): Promise<FileUploadRecord> {
+  const formData = new FormData();
+  formData.append('files', file);
+  formData.append('conversationId', conversationId);
+  if (category) formData.append('category', category);
+
+  const response = await api.post<UploadResponse>('/uploads', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data.uploads[0];
+}
+
+export async function getFileStatus(id: string): Promise<FileUploadRecord> {
+  const response = await api.get<FileUploadRecord>(`/uploads/${id}`);
+  return response.data;
+}
+
+export async function getConversationFiles(
+  conversationId: string
+): Promise<FileUploadRecord[]> {
+  const response = await api.get<{ files: FileUploadRecord[] }>(
+    `/uploads/conversation/${conversationId}`
+  );
+  return response.data.files;
+}
+
+export async function deleteUploadedFile(id: string): Promise<void> {
+  await api.delete(`/uploads/${id}`);
+}
+
+export async function pollUntilReady(
+  id: string,
+  intervalMs = 1500,
+  maxAttempts = 20
+): Promise<FileUploadRecord> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const record = await getFileStatus(id);
+    if (record.status === 'READY' || record.status === 'FAILED') {
+      return record;
+    }
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  throw new Error('File processing timed out');
+}
