@@ -12,7 +12,35 @@ import { AppError } from '../../../../shared/errors/AppError.js';
 import aiDraftRepository from '../../../trip/infrastructure/repositories/AIItineraryDraftRepository.js';
 import travelProfileRepository from '../../../profile/infrastructure/repositories/TravelProfileRepository.js';
 import prisma from '../../../../config/database.js';
+import FileUploadRepository from '../../../upload/infrastructure/repositories/FileUploadRepository.js';
 import { logger } from '../../../../shared/services/LoggerService.js';
+
+async function buildFileContentBlocks(fileIds) {
+  if (!fileIds || fileIds.length === 0) {
+    return { imageUrls: [], documentTexts: [] };
+  }
+
+  const files = await FileUploadRepository.findReadyByIds(fileIds);
+  const imageUrls = [];
+  const documentTexts = [];
+
+  for (const file of files) {
+    if (file.fileType === 'IMAGE' && file.publicUrl) {
+      imageUrls.push({
+        type: 'image_url',
+        image_url: {
+          url: file.variants?.original || file.publicUrl,
+        },
+      });
+    } else if (file.fileType === 'DOCUMENT' && file.extractedText) {
+      documentTexts.push(
+        `[Attached: ${file.fileName}]\n---\n${file.extractedText}\n---`
+      );
+    }
+  }
+
+  return { imageUrls, documentTexts };
+}
 
 async function getUserContextForAI(userId) {
   if (!userId) return null;
@@ -108,7 +136,7 @@ export const deleteConversation = asyncHandler(async (req, res) => {
 export const chat = asyncHandler(async (req, res) => {
   const {
     message, conversationId, tripId, context = {},
-    enableTools = true, clientMessageId,
+    enableTools = true, clientMessageId, fileIds,
   } = req.body;
   const userId = req.user?.id || null;
 
@@ -120,6 +148,18 @@ export const chat = asyncHandler(async (req, res) => {
   if (!message || typeof message !== 'string' || message.trim().length === 0) {
     throw new AppError('Message is required', 400, 'INVALID_REQUEST');
   }
+
+  // Build file content blocks from attached files
+  const { imageUrls, documentTexts } = await buildFileContentBlocks(fileIds);
+
+  let enrichedMessage = message.trim();
+  if (documentTexts.length > 0) {
+    enrichedMessage = documentTexts.join('\n\n') + '\n\n' + enrichedMessage;
+  }
+
+  const userContent = imageUrls.length > 0
+    ? [{ type: 'text', text: enrichedMessage }, ...imageUrls]
+    : enrichedMessage;
 
   // Get or create conversation
   let conversation;
@@ -141,7 +181,7 @@ export const chat = asyncHandler(async (req, res) => {
     activeConversationId = conversation.id;
   }
 
-  messages.push({ role: 'user', content: message.trim() });
+  messages.push({ role: 'user', content: userContent });
 
   const userProfile = userId ? await getUserContextForAI(userId) : null;
   const enrichedContext = {
@@ -170,10 +210,17 @@ export const chat = asyncHandler(async (req, res) => {
   // Save messages
   let assistantMessageId = null;
   if (activeConversationId) {
-    await aiConversationRepository.addMessage(activeConversationId, 'user', message.trim(), {
+    const userMsg = await aiConversationRepository.addMessage(activeConversationId, 'user', message.trim(), {
       tokensUsed: aiResponse.usage?.prompt_tokens || Math.ceil(message.trim().length / 4),
       clientMessageId: clientMessageId || null,
     });
+
+    if (fileIds && fileIds.length > 0) {
+      await Promise.all(
+        fileIds.map((id) => FileUploadRepository.linkToMessage(id, userMsg.id))
+      );
+    }
+
     const assistantMsg = await aiConversationRepository.addMessage(
       activeConversationId, 'assistant', aiResponse.content, {
         tokensUsed: aiResponse.usage?.completion_tokens || Math.ceil(aiResponse.content.length / 4),
@@ -227,9 +274,11 @@ export const chatStream = asyncHandler(async (req, res) => {
   const {
     message, conversationId, tripId,
     context: contextParam, enableTools, clientMessageId,
+    fileIds: fileIdsParam,
   } = req.query;
   const userId = req.user?.id || null;
   const context = contextParam ? JSON.parse(contextParam) : {};
+  const fileIds = fileIdsParam ? JSON.parse(fileIdsParam) : null;
 
   logger.info('[ChatStream] Request:', {
     userId: userId || 'Guest',
@@ -279,6 +328,19 @@ export const chatStream = asyncHandler(async (req, res) => {
     let sources = [];
     let usage = null;
 
+    // Build file content blocks from attached files
+    const { imageUrls: streamImageUrls, documentTexts: streamDocTexts } =
+      await buildFileContentBlocks(fileIds);
+
+    let streamEnrichedMessage = message.trim();
+    if (streamDocTexts.length > 0) {
+      streamEnrichedMessage = streamDocTexts.join('\n\n') + '\n\n' + streamEnrichedMessage;
+    }
+
+    const streamUserContent = streamImageUrls.length > 0
+      ? [{ type: 'text', text: streamEnrichedMessage }, ...streamImageUrls]
+      : streamEnrichedMessage;
+
     if (conversationId) {
       conversation = await aiConversationRepository.getConversationById(conversationId, userId);
       if (conversation?.ai_messages) {
@@ -291,7 +353,7 @@ export const chatStream = asyncHandler(async (req, res) => {
       activeConversationId = conversation.id;
     }
 
-    messages.push({ role: 'user', content: message.trim() });
+    messages.push({ role: 'user', content: streamUserContent });
 
     const userProfile = userId ? await getUserContextForAI(userId) : null;
     const enrichedContext = { ...context, userProfile, tripInfo: conversation?.trips || null };
@@ -422,10 +484,19 @@ export const chatStream = asyncHandler(async (req, res) => {
 
     // Save messages
     if (activeConversationId) {
-      await aiConversationRepository.addMessage(activeConversationId, 'user', message.trim(), {
-        tokensUsed: usage?.prompt_tokens || Math.ceil(message.trim().length / 4),
-        clientMessageId: clientMessageId || null,
-      });
+      const streamUserMsg = await aiConversationRepository.addMessage(
+        activeConversationId, 'user', message.trim(), {
+          tokensUsed: usage?.prompt_tokens || Math.ceil(message.trim().length / 4),
+          clientMessageId: clientMessageId || null,
+        },
+      );
+
+      if (fileIds && fileIds.length > 0) {
+        await Promise.all(
+          fileIds.map((id) => FileUploadRepository.linkToMessage(id, streamUserMsg.id))
+        );
+      }
+
       await aiConversationRepository.addMessage(activeConversationId, 'assistant', fullContent, {
         tokensUsed: usage?.completion_tokens || Math.ceil(fullContent.length / 4),
         structuredData: toolCalls.length > 0 ? { toolCalls } : null,
