@@ -124,14 +124,20 @@ model ai_conversations {
   tripId              String?
   title               String?
   totalTokensUsed     Int                   @default(0)
+  messageCount        Int                   @default(0)
+  summary             String?               @db.Text
+  continuedFromId     String?
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
+  continuedFrom       ai_conversations?     @relation("ConversationContinuation", fields: [continuedFromId], references: [id], onDelete: SetNull)
+  continuations       ai_conversations[]    @relation("ConversationContinuation")
   trips               trips?                @relation(fields: [tripId], references: [id])
   User                User?                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   ai_itinerary_drafts ai_itinerary_drafts[]
   ai_messages         ai_messages[]
   file_uploads        file_uploads[]
 
+  @@index([continuedFromId])
   @@index([createdAt])
   @@index([tripId])
   @@index([userId])
@@ -1083,26 +1089,28 @@ model story_tags {
 }
 
 model subscriptions {
-  id                   String             @id @default(uuid())
-  userId               String             @unique
-  tier                 SubscriptionTier   @default(FREE)
-  status               SubscriptionStatus @default(TRIAL)
-  stripeCustomerId     String?            @unique
-  stripeSubscriptionId String?            @unique
-  stripePriceId        String?
-  currentPeriodStart   DateTime?
-  currentPeriodEnd     DateTime?
-  trialEndsAt          DateTime?
-  canceledAt           DateTime?
-  cancelAtPeriodEnd    Boolean            @default(false)
-  aiQuotaUsed          Int                @default(0)
-  aiQuotaLimit         Int                @default(10)
-  tripsCreated         Int                @default(0)
-  tripsLimit           Int                @default(3)
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
-  payment_events       payment_events[]
-  User                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                       String             @id @default(uuid())
+  userId                   String             @unique
+  tier                     SubscriptionTier   @default(FREE)
+  status                   SubscriptionStatus @default(TRIAL)
+  stripeCustomerId         String?            @unique
+  stripeSubscriptionId     String?            @unique
+  stripePriceId            String?
+  currentPeriodStart       DateTime?
+  currentPeriodEnd         DateTime?
+  trialEndsAt              DateTime?
+  canceledAt               DateTime?
+  cancelAtPeriodEnd        Boolean            @default(false)
+  aiQuotaUsed              Int                @default(0)
+  aiQuotaLimit             Int                @default(10)
+  tripsCreated             Int                @default(0)
+  tripsLimit               Int                @default(3)
+  conversationMessageLimit Int                @default(50)
+  conversationTokenLimit   Int                @default(200000)
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+  payment_events           payment_events[]
+  User                     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([currentPeriodEnd])
   @@index([stripeCustomerId])
