@@ -2,38 +2,35 @@ import type { ImageAsset } from '@/src/services/tripService';
 
 type VariantSize = 'thumb' | 'card' | 'hero';
 
-export function resolveActivityImage(
-  activity: { image_assets?: ImageAsset | null },
-  size: VariantSize = 'card'
+function resolveAsset(
+  asset: ImageAsset | null | undefined,
+  size: VariantSize,
 ): string | null {
-  const asset = activity.image_assets;
   if (!asset) return null;
+
+  // Prefer sourceUrl (Pexels, Serper, etc.) as R2 CDN is not public yet.
+  // When a custom domain is configured for R2, swap priority to variants.
+  if (asset.sourceUrl) {
+    return asset.sourceUrl;
+  }
 
   if (asset.status === 'READY' && asset.variants) {
     return asset.variants[size];
   }
 
-  if (asset.sourceUrl) {
-    return asset.sourceUrl;
-  }
-
   return null;
+}
+
+export function resolveActivityImage(
+  activity: { image_assets?: ImageAsset | null },
+  size: VariantSize = 'card',
+): string | null {
+  return resolveAsset(activity.image_assets, size);
 }
 
 export function resolveTripCoverImage(
   trip: { coverImageAsset?: ImageAsset | null; coverImageUrl?: string | null },
-  size: VariantSize = 'card'
+  size: VariantSize = 'card',
 ): string | null {
-  const asset = trip.coverImageAsset;
-
-  if (asset) {
-    if (asset.status === 'READY' && asset.variants) {
-      return asset.variants[size];
-    }
-    if (asset.sourceUrl) {
-      return asset.sourceUrl;
-    }
-  }
-
-  return trip.coverImageUrl ?? null;
+  return resolveAsset(trip.coverImageAsset, size) ?? trip.coverImageUrl ?? null;
 }

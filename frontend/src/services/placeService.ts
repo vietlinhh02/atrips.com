@@ -10,6 +10,7 @@ export interface EnrichedPlace {
   city: string;
   rating: number | null;
   ratingCount: number | null;
+  priceLevel: string | null;
   phone: string | null;
   website: string | null;
   photos: string[];
@@ -17,6 +18,7 @@ export interface EnrichedPlace {
   enrichedData: {
     openingHours?: string | null;
     description?: string | null;
+    priceRange?: string | null;
     reviewSnippets?: Array<{
       text: string;
       source: string;
@@ -29,6 +31,12 @@ export interface EnrichedPlace {
 const placeService = {
   async enrichPlace(placeId: string): Promise<EnrichedPlace> {
     const response = await api.get(`/places/${placeId}/enrich`);
+    return response.data.data.place;
+  },
+
+  async lookupPlace(name: string): Promise<EnrichedPlace> {
+    const params = new URLSearchParams({ name });
+    const response = await api.get(`/places/lookup?${params.toString()}`);
     return response.data.data.place;
   },
 
