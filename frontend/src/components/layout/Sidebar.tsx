@@ -74,6 +74,7 @@ export default function Sidebar() {
 
   const userId = useAuthStore((state) => state.user?.id);
   const user = useAuthStore((state) => state.user);
+  const subscription = useAuthStore((state) => state.subscription);
   const logout = useAuthStore((state) => state.logout);
   const router = useRouter();
   const pathname = usePathname();
@@ -427,7 +428,14 @@ export default function Sidebar() {
 
                   <div className={cn("flex flex-1 items-center justify-between overflow-hidden transition-all duration-300", isCollapsed ? "w-0 opacity-0" : "w-full opacity-100")}>
                     <div className="flex flex-col items-start text-xs overflow-hidden px-2">
-                      <p className="text-neutral-900 truncate w-full font-medium max-w-[120px]">{user?.name || user?.displayName || "User"}</p>
+                      <div className="flex items-center gap-1 w-full">
+                        <p className="text-neutral-900 truncate font-medium max-w-[120px]">{user?.name || user?.displayName || "User"}</p>
+                        {subscription?.tier && subscription.tier !== 'FREE' && (
+                          <span className="shrink-0 rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                            {subscription.tier}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-neutral-600 truncate w-full max-w-[120px]">{user?.email || ""}</p>
                     </div>
                     <CaretDown className="h-4 w-4 text-neutral-600 shrink-0" />
@@ -478,7 +486,14 @@ export default function Sidebar() {
 
                         <div className="flex flex-1 items-center justify-between overflow-hidden transition-all duration-300 w-full opacity-100">
                           <div className="flex flex-col items-start text-xs overflow-hidden px-2">
-                            <p className="text-neutral-900 truncate w-full font-medium max-w-[120px]">{user?.name || user?.displayName || "User"}</p>
+                            <div className="flex items-center gap-1 w-full">
+                              <p className="text-neutral-900 truncate font-medium max-w-[120px]">{user?.name || user?.displayName || "User"}</p>
+                              {subscription?.tier && subscription.tier !== 'FREE' && (
+                                <span className="shrink-0 rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                                  {subscription.tier}
+                                </span>
+                              )}
+                            </div>
                             <p className="text-neutral-600 truncate w-full max-w-[120px]">{user?.email || ""}</p>
                           </div>
                           <CaretDown className="h-4 w-4 text-neutral-600 shrink-0" />
@@ -505,9 +520,16 @@ export default function Sidebar() {
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-neutral-900 truncate">
-                            {user?.name || user?.displayName || "User"}
-                          </p>
+                          <div className="flex items-center gap-1">
+                            <p className="text-sm font-semibold text-neutral-900 truncate">
+                              {user?.name || user?.displayName || "User"}
+                            </p>
+                            {subscription?.tier && subscription.tier !== 'FREE' && (
+                              <span className="shrink-0 rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                                {subscription.tier}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-neutral-500 truncate">{user?.email || ""}</p>
                         </div>
                       </div>
@@ -763,9 +785,16 @@ export default function Sidebar() {
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-neutral-900 truncate">
-                            {user?.name || user?.displayName || "User"}
-                          </p>
+                          <div className="flex items-center gap-1">
+                            <p className="text-sm font-semibold text-neutral-900 truncate">
+                              {user?.name || user?.displayName || "User"}
+                            </p>
+                            {subscription?.tier && subscription.tier !== 'FREE' && (
+                              <span className="shrink-0 rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                                {subscription.tier}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-neutral-500 truncate">{user?.email || ""}</p>
                         </div>
                       </div>
