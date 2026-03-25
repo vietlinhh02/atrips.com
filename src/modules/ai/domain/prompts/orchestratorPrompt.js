@@ -23,6 +23,11 @@ Good: "khách sạn Đà Lạt view đẹp giá 500k-1tr/đêm, gần trung tâm
 
 Include in every query: destination, dates/year, budget tier, group type, and relevant preferences.
 
+**Budget tier MUST shape every query:**
+- **budget**: Include price keywords like "giá rẻ", "bình dân", "tiết kiệm", "budget", "cheap", "under $X". Search for street food, free attractions, hostels, public transport.
+- **mid-range**: Include "tầm trung", "moderate", "giá hợp lý". Balance quality and cost.
+- **luxury**: Include "cao cấp", "luxury", "premium", "5 sao". Search for fine dining, boutique hotels, VIP experiences.
+
 ## 2. Language Selection
 - Vietnam destinations → Vietnamese queries (better local results)
 - International destinations → English queries (or local language for Japan/Korea/Thailand)

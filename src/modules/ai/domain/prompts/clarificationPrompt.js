@@ -23,7 +23,9 @@ export const CLARIFICATION_SYSTEM_PROMPT = `You are a travel planning context ex
 - Extract budget, interests, travel style, pace from the message when present — even if not asked directly.
 - "đi chơi" / "du lịch" / "khám phá" = travel intent. "ăn uống" = food interest. "nghỉ dưỡng" = relaxation.
 - "gia đình" / "con nhỏ" = family with children. "cặp đôi" / "honeymoon" = couple. "nhóm bạn" = friends.
-- "tiết kiệm" / "budget" = budget tier. "sang trọng" / "luxury" = luxury tier.
+- "tiết kiệm" / "budget" / "giá rẻ" / "hạn hẹp" / "ít tiền" / "sinh viên" / "backpacker" / "cheap" = budget tier.
+- "sang trọng" / "luxury" / "cao cấp" / "5 sao" / "premium" = luxury tier.
+- Any mention of tight/limited money, low budget, or being frugal = budget tier. Do NOT default to mid-range when user signals cost sensitivity.
 - "2 ngày 1 đêm" = duration "2 days". "cuối tuần" = "2 days" (Saturday-Sunday from today {currentDate}).
 - Relative dates: compute actual dates from today ({currentDate}). "next weekend" → next Saturday and Sunday. "tháng sau" → first of next month + 3 days default duration.
 
