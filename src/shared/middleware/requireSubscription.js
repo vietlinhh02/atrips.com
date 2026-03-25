@@ -4,6 +4,7 @@
  */
 
 import { AppError } from '../errors/AppError.js';
+import prisma from '../../config/database.js';
 
 // Subscription tier hierarchy (higher index = higher tier)
 const TIER_HIERARCHY = ['FREE', 'PRO', 'BUSINESS'];
@@ -56,9 +57,7 @@ export function requireSubscription(requiredTier = 'PRO') {
  * @returns {Function} - Express middleware
  */
 export function requireAIQuota(req, res, next) {
-  if (!req.user) {
-    return next(AppError.unauthorized('Authentication required'));
-  }
+  if (!req.user) return next(); // Guest mode — no limits
 
   const subscription = req.user.subscription;
 
@@ -67,6 +66,52 @@ export function requireAIQuota(req, res, next) {
   }
 
   next();
+}
+
+/**
+ * Check per-conversation message and token limits
+ */
+export async function requireConversationQuota(req, res, next) {
+  if (!req.user) return next();
+
+  const conversationId = req.body?.conversationId || req.query?.conversationId;
+  if (!conversationId) return next();
+
+  try {
+    const conversation = await prisma.ai_conversations.findUnique({
+      where: { id: conversationId },
+      select: { messageCount: true, totalTokensUsed: true, userId: true, summary: true },
+    });
+
+    if (!conversation) return next();
+
+    const sub = req.user.subscription;
+    const msgLimit = sub.conversationMessageLimit;
+    const tokenLimit = sub.conversationTokenLimit;
+
+    if (conversation.messageCount >= msgLimit) {
+      return next(AppError.conversationLimitExceeded(
+        'message', conversation.messageCount, msgLimit, conversation.summary,
+      ));
+    }
+
+    if (conversation.totalTokensUsed >= tokenLimit) {
+      return next(AppError.conversationLimitExceeded(
+        'token', conversation.totalTokensUsed, tokenLimit, conversation.summary,
+      ));
+    }
+
+    req.conversationQuota = {
+      messagesUsed: conversation.messageCount,
+      messagesLimit: msgLimit,
+      tokensUsed: conversation.totalTokensUsed,
+      tokensLimit: tokenLimit,
+    };
+
+    next();
+  } catch (error) {
+    next(error);
+  }
 }
 
 /**
@@ -126,18 +171,24 @@ export function attachSubscriptionInfo(req, res, next) {
       maxTrips: 3,
       maxAIQueries: 10,
       maxCollaborators: 0,
+      maxConversationMessages: 20,
+      maxConversationTokens: 80000,
       features: ['basic_planning', 'place_search'],
     },
     PRO: {
       maxTrips: 20,
       maxAIQueries: 100,
       maxCollaborators: 5,
+      maxConversationMessages: 50,
+      maxConversationTokens: 200000,
       features: ['basic_planning', 'place_search', 'ai_assistant', 'offline_mode', 'budget_tracking'],
     },
     BUSINESS: {
       maxTrips: -1, // Unlimited
       maxAIQueries: 1000,
       maxCollaborators: -1, // Unlimited
+      maxConversationMessages: 100,
+      maxConversationTokens: 500000,
       features: ['basic_planning', 'place_search', 'ai_assistant', 'offline_mode', 'budget_tracking', 'team_management', 'analytics', 'white_label'],
     },
   };
@@ -189,6 +240,7 @@ export function requireFeature(feature) {
 export default {
   requireSubscription,
   requireAIQuota,
+  requireConversationQuota,
   requireTripQuota,
   requirePro,
   requireBusiness,
