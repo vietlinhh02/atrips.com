@@ -168,20 +168,20 @@ export default function Sidebar() {
       badge: unreadAssistantCount > 0 ? unreadAssistantCount.toString() : undefined
     },
     { label: "Explore", icon: Compass, href: "/explore" },
-    { label: "Collections", icon: BookmarkSimple, href: "/collections" },
-    { label: "Stories", icon: Notebook, href: "/stories" },
-    { label: "Achievements", icon: Trophy, href: "/achievements" },
-    { label: "Events", icon: Confetti, href: "/events" },
-    { label: "Flights", icon: AirplaneTilt, href: "/flights" },
     {
       label: "My Trips",
       icon: MapTrifold,
       href: "/trips",
       badge: tripCount > 0 ? tripCount.toString() : undefined
     },
+    { label: "Trip Budget", icon: CurrencyCircleDollar, href: "/budget" },
+    { label: "Collections", icon: BookmarkSimple, href: "/collections" },
+    { label: "Stories", icon: Notebook, href: "/stories" },
+    { label: "Achievements", icon: Trophy, href: "/achievements" },
+    { label: "Events", icon: Confetti, href: "/events" },
+    { label: "Flights", icon: AirplaneTilt, href: "/flights" },
     { label: "Guides", icon: Article, href: "/guides" },
     { label: "Community", icon: UsersThree, href: "/community" },
-    { label: "Trip Budget", icon: CurrencyCircleDollar, href: "/budget" },
   ];
 
   return (
