@@ -137,8 +137,8 @@ Extend existing BullMQ infrastructure with a new queue `file-process` alongside 
 
 ### Image Processing
 
-Reuse existing `ImageIngestWorker` pattern:
-1. Read file buffer from R2
+New `ImageUploadWorker` following the same structure as existing `ImageIngestWorker`, but with a different flow since user-uploaded files are already in R2 (no download from external URL, no content-hash dedup):
+1. Read file from R2 (already uploaded by the API endpoint)
 2. Generate variants via Cloudflare Image Resizing (existing CDN setup)
 3. Update `file_uploads` record with variant URLs
 4. Set status = READY
@@ -261,11 +261,11 @@ pollFileStatus: (id: string) => Promise<void>;
 
 ### Frontend Upload Service
 
-Extend existing `uploadService.ts`:
-- `uploadChatFile(file: File, conversationId: string)` — upload to `/api/uploads`
+New methods in `uploadService.ts` that upload to the backend API (`POST /api/uploads`), **not** through the existing Cloudinary pipeline (which is only used for avatar/cover images):
+- `uploadChatFile(file: File, conversationId: string)` — POST multipart to `/api/uploads`
 - `getFileStatus(id: string)` — poll status until READY/FAILED
 - `getConversationFiles(conversationId: string)` — list files
-- Client-side image resizing before upload (max 2048px, existing pattern from avatar upload)
+- Reuse the existing client-side image resize utility from `uploadService.ts` (max 2048px) before uploading to backend
 
 ## Limits and Validation
 
@@ -298,11 +298,12 @@ Extend existing `uploadService.ts`:
   - `created_at` older than 7 days
   - OR conversation has no activity for 48 hours
 - Cleanup job deletes R2 object and sets DB record status to DELETED (soft delete)
+- "No activity" = no new `ai_messages` created in the conversation within 48 hours
 
 ## Dependencies
 
-New npm packages:
-- `multer` — multipart file handling (if not already installed)
+New npm packages (none currently installed):
+- `multer` — multipart file handling (backend has no existing multipart upload infrastructure)
 - `pdf-parse` — PDF text extraction
 - `mammoth` — DOCX to text
 - `xlsx` — Excel/CSV parsing
