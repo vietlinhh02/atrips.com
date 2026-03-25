@@ -110,7 +110,7 @@ services:
   searxng:
     image: searxng/searxng:latest@sha256:b6db575bb821d35279474090270db9e53e92432a66d19e7da51c0ef1b5ddb806
     volumes:
-      - ./config/searxng:/etc/searxng:ro
+      - searxng_data:/etc/searxng
     environment:
       SEARXNG_BASE_URL: ${SEARXNG_BASE_URL:-http://searxng:8080/}
       SEARXNG_SECRET_KEY: ${SEARXNG_SECRET_KEY}
@@ -123,3 +123,4 @@ services:
 volumes:
   db_data:
   redis_data:
+  searxng_data:
