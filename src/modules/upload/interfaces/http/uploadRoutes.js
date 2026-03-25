@@ -7,6 +7,7 @@ import {
   uploadFiles,
   getFileStatus,
   getConversationFiles,
+  serveFile,
   deleteFile,
 } from './uploadController.js';
 
@@ -48,6 +49,7 @@ router.get(
   authenticate,
   getConversationFiles
 );
+router.get('/:id/file', authenticate, serveFile);
 router.get('/:id', authenticate, getFileStatus);
 router.delete('/:id', authenticate, deleteFile);
 

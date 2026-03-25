@@ -17,10 +17,13 @@ interface UserMessageProps {
   } | null;
 }
 
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
+
 function AttachmentThumbnail({ attachment }: { attachment: MessageAttachment }) {
   const [expanded, setExpanded] = useState(false);
   const isImage = attachment.fileType === 'IMAGE';
-  const imageUrl = attachment.variants?.thumb || attachment.publicUrl || attachment.previewUrl;
+  const proxyUrl = `${API_BASE}/uploads/${attachment.id}/file`;
+  const imageUrl = attachment.previewUrl || proxyUrl;
 
   if (isImage && imageUrl) {
     return (
@@ -33,6 +36,7 @@ function AttachmentThumbnail({ attachment }: { attachment: MessageAttachment }) 
           <img
             src={imageUrl}
             alt={attachment.fileName}
+            crossOrigin="use-credentials"
             className="h-20 w-20 object-cover transition-transform hover:scale-105"
           />
         </button>
@@ -49,8 +53,9 @@ function AttachmentThumbnail({ attachment }: { attachment: MessageAttachment }) 
               <X size={24} />
             </button>
             <img
-              src={attachment.variants?.original || attachment.publicUrl || imageUrl}
+              src={proxyUrl}
               alt={attachment.fileName}
+              crossOrigin="use-credentials"
               className="max-h-[80vh] max-w-[90vw] rounded-lg object-contain"
             />
           </div>
