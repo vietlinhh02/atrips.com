@@ -82,6 +82,18 @@ const PLAN_FEATURES: PlanFeature[] = [
     business: 'Unlimited',
   },
   {
+    label: 'Messages per Conversation',
+    free: '20',
+    pro: '50',
+    business: '100',
+  },
+  {
+    label: 'Tokens per Conversation',
+    free: '80K',
+    pro: '200K',
+    business: '500K',
+  },
+  {
     label: 'Trip Plans',
     free: '3',
     pro: '20',
@@ -132,9 +144,9 @@ const FAQ_ITEMS: FaqItem[] = [
       'Yes, you can upgrade or downgrade your plan at any time. When upgrading, you will be charged the prorated difference for the remainder of your billing cycle. Downgrades take effect at the end of the current billing period.',
   },
   {
-    question: 'What happens when I reach my AI conversation limit?',
+    question: 'What happens when I reach my limits?',
     answer:
-      'When you reach your monthly AI conversation limit, you will not be able to start new AI-assisted planning sessions until your quota resets at the beginning of the next billing cycle. You can upgrade your plan for more conversations.',
+      'There are two types of limits: a monthly AI query quota and per-conversation limits (message count and tokens). When a conversation reaches its limit, you can continue in a new conversation — context from the previous conversation is automatically carried over. Your monthly quota resets at the beginning of each billing cycle.',
   },
   {
     question: 'Is there a free trial for paid plans?',
