@@ -13,32 +13,75 @@ import aiDraftRepository from '../../../trip/infrastructure/repositories/AIItine
 import travelProfileRepository from '../../../profile/infrastructure/repositories/TravelProfileRepository.js';
 import prisma from '../../../../config/database.js';
 import FileUploadRepository from '../../../upload/infrastructure/repositories/FileUploadRepository.js';
+import R2StorageService from '../../../image/infrastructure/services/R2StorageService.js';
 import { logger } from '../../../../shared/services/LoggerService.js';
 
 async function buildFileContentBlocks(fileIds) {
   if (!fileIds || fileIds.length === 0) {
+    logger.info('[FileContent] No fileIds provided');
     return { imageUrls: [], documentTexts: [] };
   }
 
+  logger.info('[FileContent] Looking up files:', { fileIds });
   const files = await FileUploadRepository.findReadyByIds(fileIds);
+  logger.info('[FileContent] Found files:', {
+    count: files.length,
+    files: files.map((f) => ({
+      id: f.id,
+      fileName: f.fileName,
+      fileType: f.fileType,
+      status: f.status,
+      hasR2Key: !!f.r2Key,
+      hasExtractedText: !!f.extractedText,
+    })),
+  });
+
   const imageUrls = [];
   const documentTexts = [];
 
   for (const file of files) {
-    if (file.fileType === 'IMAGE' && file.publicUrl) {
-      imageUrls.push({
-        type: 'image_url',
-        image_url: {
-          url: file.variants?.original || file.publicUrl,
-        },
-      });
+    if (file.fileType === 'IMAGE' && file.r2Key) {
+      try {
+        const buffer = await R2StorageService.download(file.r2Key);
+        const base64 = buffer.toString('base64');
+        const dataUrl = `data:${file.mimeType};base64,${base64}`;
+        logger.info('[FileContent] Adding image as base64:', {
+          id: file.id,
+          mimeType: file.mimeType,
+          sizeKB: Math.round(buffer.length / 1024),
+        });
+        imageUrls.push({
+          type: 'image_url',
+          image_url: { url: dataUrl },
+        });
+      } catch (err) {
+        logger.error('[FileContent] Failed to download image:', {
+          id: file.id,
+          error: err.message,
+        });
+      }
     } else if (file.fileType === 'DOCUMENT' && file.extractedText) {
+      logger.info('[FileContent] Adding document text:', {
+        id: file.id,
+        textLength: file.extractedText.length,
+      });
       documentTexts.push(
         `[Attached: ${file.fileName}]\n---\n${file.extractedText}\n---`
       );
+    } else {
+      logger.warn('[FileContent] Skipped file — missing data:', {
+        id: file.id,
+        fileType: file.fileType,
+        hasR2Key: !!file.r2Key,
+        hasExtractedText: !!file.extractedText,
+      });
     }
   }
 
+  logger.info('[FileContent] Result:', {
+    imageCount: imageUrls.length,
+    docCount: documentTexts.length,
+  });
   return { imageUrls, documentTexts };
 }
 
@@ -283,6 +326,8 @@ export const chatStream = asyncHandler(async (req, res) => {
   logger.info('[ChatStream] Request:', {
     userId: userId || 'Guest',
     messagePreview: message?.substring(0, 60),
+    fileIds,
+    hasFileIds: !!fileIds,
   });
 
   if (!message || typeof message !== 'string' || message.trim().length === 0) {
@@ -340,6 +385,15 @@ export const chatStream = asyncHandler(async (req, res) => {
     const streamUserContent = streamImageUrls.length > 0
       ? [{ type: 'text', text: streamEnrichedMessage }, ...streamImageUrls]
       : streamEnrichedMessage;
+
+    logger.info('[ChatStream] File content built:', {
+      imageCount: streamImageUrls.length,
+      docCount: streamDocTexts.length,
+      contentType: Array.isArray(streamUserContent) ? 'multimodal' : 'text',
+      contentPreview: Array.isArray(streamUserContent)
+        ? streamUserContent.map((c) => c.type).join(', ')
+        : streamEnrichedMessage.substring(0, 100),
+    });
 
     if (conversationId) {
       conversation = await aiConversationRepository.getConversationById(conversationId, userId);
