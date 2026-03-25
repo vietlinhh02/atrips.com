@@ -155,7 +155,6 @@ export const createConversation = asyncHandler(async (req, res) => {
     throw AppError.unauthorized('Authentication required to continue a conversation');
   }
 
-  let summary = null;
   if (continueFromId && req.user) {
     const predecessor = await aiConversationRepository.getConversationById(
       continueFromId, req.user.id,
@@ -163,14 +162,13 @@ export const createConversation = asyncHandler(async (req, res) => {
     if (!predecessor) {
       throw new AppError('Conversation not found', 404, 'NOT_FOUND');
     }
-    summary = predecessor.summary || null;
   }
 
   const conversation = await aiConversationRepository.createConversation(
     req.user?.id || null,
     tripId || null,
     title || null,
-    { continueFromId: continueFromId || null, summary },
+    { continueFromId: continueFromId || null },
   );
   return sendSuccess(res, { conversation }, 'Conversation created successfully', 201);
 });
