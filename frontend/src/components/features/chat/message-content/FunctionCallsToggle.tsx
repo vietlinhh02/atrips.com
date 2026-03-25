@@ -121,9 +121,13 @@ const FunctionCallsToggle = memo(
 
     const totalCount = functionCalls.length;
     const completedCount = toolResults?.length ?? 0;
-    const allDone = !isStreaming && completedCount >= totalCount;
-    const progressPct =
-      totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+    // Stream ended = all done, regardless of count mismatch
+    const allDone = !isStreaming;
+    const progressPct = allDone
+      ? 100
+      : totalCount > 0
+        ? Math.round((completedCount / totalCount) * 100)
+        : 0;
 
     const grouped = functionCalls.reduce<
       Record<
@@ -199,7 +203,7 @@ const FunctionCallsToggle = memo(
               <div className="flex flex-col gap-0.5 px-3 py-2">
                 {entries.map(
                   ([name, { count, icon: Icon, completed }], idx) => {
-                    const isDone = completed >= count;
+                    const isDone = allDone || completed >= count;
                     return (
                       <motion.div
                         key={name}
