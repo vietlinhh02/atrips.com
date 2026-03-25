@@ -57,14 +57,8 @@ export async function getConversationFiles(req, res) {
 
 export async function serveFile(req, res) {
   const record = await FileUploadRepository.findById(req.params.id);
-  if (!record || record.status === 'DELETED') {
+  if (!record || record.status === 'DELETED' || !record.r2Key) {
     return res.status(404).json({ error: 'File not found' });
-  }
-  if (record.userId !== req.user.id) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
-  if (!record.r2Key) {
-    return res.status(404).json({ error: 'File not stored' });
   }
 
   const buffer = await R2StorageService.download(record.r2Key);

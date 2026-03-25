@@ -36,7 +36,6 @@ function AttachmentThumbnail({ attachment }: { attachment: MessageAttachment }) 
           <img
             src={imageUrl}
             alt={attachment.fileName}
-            crossOrigin="use-credentials"
             className="h-20 w-20 object-cover transition-transform hover:scale-105"
           />
         </button>
@@ -55,8 +54,7 @@ function AttachmentThumbnail({ attachment }: { attachment: MessageAttachment }) 
             <img
               src={proxyUrl}
               alt={attachment.fileName}
-              crossOrigin="use-credentials"
-              className="max-h-[80vh] max-w-[90vw] rounded-lg object-contain"
+                className="max-h-[80vh] max-w-[90vw] rounded-lg object-contain"
             />
           </div>
         )}
