@@ -9,6 +9,10 @@ import userRepository from '../../infrastructure/repositories/UserRepository.js'
 import authService from '../services/AuthService.js';
 import config from '../../../../config/index.js';
 import novuService from '../../../notification/application/NovuService.js';
+import {
+  sendVerificationEmail,
+  sendWelcomeEmail,
+} from '../../../../shared/utils/email.js';
 
 export class RegisterUseCase {
   /**
@@ -60,16 +64,12 @@ export class RegisterUseCase {
     });
 
     if (config.features.emailVerificationRequired) {
-      const { otp } = await authService.createEmailVerificationToken(user.email);
-      novuService.trigger('email-verification', user.id, {
-        name: user.name || 'there',
-        otp,
-      });
+      const { otp } = await authService.createEmailVerificationToken(
+        user.email,
+      );
+      sendVerificationEmail(user.email, otp, user.name || '');
     } else {
-      novuService.trigger('welcome-email', user.id, {
-        name: user.name || 'there',
-        frontendUrl: config.frontendUrl,
-      });
+      sendWelcomeEmail(user.email, user.name || '');
     }
 
     return {
