@@ -101,7 +101,12 @@ api.interceptors.response.use(
     }
 
     if (error.response?.status === 429) {
-      console.error('Too many requests. Please try again later.');
+      const errorData = error.response?.data?.error;
+      if (errorData?.code === 'CONVERSATION_LIMIT') {
+        console.warn('Conversation limit reached:', errorData.details);
+      } else {
+        console.error('Too many requests. Please try again later.');
+      }
     }
 
     return Promise.reject(error);
