@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   SquaresFour,
@@ -71,6 +72,7 @@ export default function ChatInputArea({
   const [menuOpen, setMenuOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const router = useRouter();
   const isConversationBlocked = useChatStore((s) => s.isConversationBlocked);
   const conversationSummary = useChatStore((s) => s.conversationSummary);
   const conversationId = useChatStore((s) => s.conversationId);
@@ -119,8 +121,9 @@ export default function ChatInputArea({
     if (newConversation?.id) {
       useChatStore.getState().resetConversation();
       useChatStore.getState().setConversationId(newConversation.id);
+      router.push(`/chat/${newConversation.id}`);
     }
-  }, [conversationId]);
+  }, [conversationId, router]);
 
   const hasAttachments = pendingAttachments.length > 0;
   const canSend = inputValue.trim() || hasAttachments;
