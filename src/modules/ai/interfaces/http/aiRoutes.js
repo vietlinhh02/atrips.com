@@ -6,6 +6,7 @@
 import { Router } from 'express';
 import aiController from './aiController.js';
 import { authenticate, optionalAuth } from '../../../../shared/middleware/authenticate.js';
+import { requireAIQuota, requireConversationQuota } from '../../../../shared/middleware/requireSubscription.js';
 import { sanitizeChatMiddleware } from '../../../../shared/middleware/sanitize.js';
 
 const router = Router();
@@ -28,10 +29,10 @@ router.get('/tools', aiController.getTools);
 // ============================================
 
 // Chat with AI
-router.post('/chat', optionalAuth, sanitizeChatMiddleware, aiController.chat);
+router.post('/chat', optionalAuth, requireAIQuota, requireConversationQuota, sanitizeChatMiddleware, aiController.chat);
 
 // Chat streaming (SSE)
-router.get('/chat/stream', optionalAuth, sanitizeChatMiddleware, aiController.chatStream);
+router.get('/chat/stream', optionalAuth, requireAIQuota, requireConversationQuota, sanitizeChatMiddleware, aiController.chatStream);
 
 // Create conversation (can be anonymous)
 router.post('/conversations', optionalAuth, aiController.createConversation);
