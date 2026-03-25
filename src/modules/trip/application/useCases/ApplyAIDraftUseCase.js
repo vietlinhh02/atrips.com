@@ -13,6 +13,8 @@ import activityRepository from '../../infrastructure/repositories/ActivityReposi
 import tripService from '../services/TripService.js';
 import draftCompilerService from '../services/DraftCompilerService.js';
 import imageQueueService from '../../../image/infrastructure/services/ImageQueueService.js';
+import placeEnrichmentService from '../../../place/application/services/PlaceEnrichmentService.js';
+import FileUploadRepository from '../../../upload/infrastructure/repositories/FileUploadRepository.js';
 import { AppError } from '../../../../shared/errors/AppError.js';
 import prisma from '../../../../config/database.js';
 import { logger } from '../../../../shared/services/LoggerService.js';
@@ -320,6 +322,21 @@ export class ApplyAIDraftUseCase {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // Batch enrich all linked places (fire-and-forget)
+    // ═══════════════════════════════════════════════════════════════
+    const placeIds = (generatedData.days || [])
+      .flatMap((d) => (d.schedule || d.activities || []))
+      .map((a) => a.placeId)
+      .filter(Boolean);
+
+    if (placeIds.length > 0) {
+      logger.info(`  Queuing batch enrichment for ${placeIds.length} places...`);
+      placeEnrichmentService.enrichPlacesBatch(placeIds).catch((err) => {
+        logger.warn(`[Enrichment] Batch enrichment failed: ${err.message}`);
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // Mark draft as applied and link conversation
     // ═══════════════════════════════════════════════════════════════
     logger.info('  Marking draft as applied...');
@@ -334,6 +351,21 @@ export class ApplyAIDraftUseCase {
         data: { tripId: trip.id },
       });
       logger.info('  Conversation linked');
+    }
+
+    // Link inspiration images from conversation to the new trip
+    if (draft.conversationId) {
+      const conversationFiles = await FileUploadRepository.findByConversationId(
+        draft.conversationId
+      );
+      const persistentFileIds = conversationFiles
+        .filter((f) => f.persist && f.status === 'READY')
+        .map((f) => f.id);
+
+      if (persistentFileIds.length > 0) {
+        await FileUploadRepository.linkToTrip(persistentFileIds, trip.id);
+        logger.info(`[ApplyDraft] Linked ${persistentFileIds.length} files to trip ${trip.id}`);
+      }
     }
 
     // ═══════════════════════════════════════════════════════════════
