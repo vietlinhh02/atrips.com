@@ -270,7 +270,7 @@ export async function uploadChatFile(
   if (category) formData.append('category', category);
 
   const response = await api.post<UploadResponse>('/uploads', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+    headers: { 'Content-Type': undefined },
   });
   return response.data.uploads[0];
 }
