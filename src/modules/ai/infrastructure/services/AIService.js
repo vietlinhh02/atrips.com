@@ -128,7 +128,11 @@ class AIService {
     try {
       const compressedMessages = compressMessages(userMessages);
       const lcMessages = toLangChainMessages(compressedMessages);
-      const lastMessage = userMessages[userMessages.length - 1]?.content || '';
+      const lastContent = userMessages[userMessages.length - 1]?.content || '';
+      // Extract text from multimodal content (array with image_url blocks)
+      const lastMessage = Array.isArray(lastContent)
+        ? lastContent.filter(c => c.type === 'text').map(c => c.text).join('\n')
+        : lastContent;
       const intent = classifyIntent(lastMessage);
       const userProfile = context.userProfile || null;
 
@@ -241,7 +245,11 @@ class AIService {
     } = options;
 
     const userMessages = messages.filter(m => m.role !== 'system');
-    const lastMessage = userMessages[userMessages.length - 1]?.content || '';
+    const lastContent = userMessages[userMessages.length - 1]?.content || '';
+    // Extract text from multimodal content (array with image_url blocks)
+    const lastMessage = Array.isArray(lastContent)
+      ? lastContent.filter(c => c.type === 'text').map(c => c.text).join('\n')
+      : lastContent;
     const intent = classifyIntent(lastMessage);
     const userProfile = context.userProfile || null;
 
