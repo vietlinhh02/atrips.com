@@ -117,6 +117,15 @@ export class AppError extends Error {
       { resource }
     );
   }
+
+  static conversationLimitExceeded(limitType, used, limit, summary = null) {
+    return new AppError(
+      `Conversation ${limitType} limit reached (${used}/${limit})`,
+      429,
+      'CONVERSATION_LIMIT',
+      { limitType, used, limit, summary }
+    );
+  }
 }
 
 export default AppError;
