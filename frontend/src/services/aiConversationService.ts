@@ -32,6 +32,7 @@ export interface ChatPayload {
   tripId?: string | null;
   clientMessageId?: string; // For idempotency on retry
   context?: TripPlanningContext; // Trip planning context for AI
+  fileIds?: string[]; // Uploaded file IDs for context injection
 }
 
 export interface ChatResponse {
@@ -89,9 +90,10 @@ export interface ConversationsListResponse {
 
 class AiConversationService {
   async chat(payload: ChatPayload): Promise<ChatResponse> {
-    const body: Record<string, string> = { message: payload.message };
+    const body: Record<string, unknown> = { message: payload.message };
     if (payload.conversationId) body.conversationId = payload.conversationId;
     if (payload.tripId) body.tripId = payload.tripId;
+    if (payload.fileIds?.length) body.fileIds = payload.fileIds;
 
     const response = await api.post('/ai/chat', body);
     return response.data.data;
@@ -123,6 +125,7 @@ class AiConversationService {
     if (payload.tripId) params.append('tripId', payload.tripId);
     if (payload.clientMessageId) params.append('clientMessageId', payload.clientMessageId);
     if (payload.context) params.append('context', JSON.stringify(payload.context));
+    if (payload.fileIds?.length) params.append('fileIds', JSON.stringify(payload.fileIds));
 
     const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
     const url = `${baseUrl}/ai/chat/stream?${params.toString()}`;
