@@ -16,6 +16,13 @@ import useSidebarStore from '@/src/stores/sidebarStore';
 import type { ItineraryStructuredData, SelectedDestination } from '@/src/types/itinerary.types';
 import type { PendingAttachment, FileUploadRecord } from '@/src/types/upload.types';
 
+interface ConversationQuota {
+  messagesUsed: number;
+  messagesLimit: number;
+  tokensUsed: number;
+  tokensLimit: number;
+}
+
 interface ChatState {
   conversationId: string | null;
   messages: ChatMessage[];
@@ -38,6 +45,10 @@ interface ChatState {
   // File attachments
   pendingAttachments: PendingAttachment[];
   conversationFiles: FileUploadRecord[];
+  // Conversation quota
+  conversationQuota: ConversationQuota | null;
+  isConversationBlocked: boolean;
+  conversationSummary: string | null;
   selectedPlace: {
     placeId: string | null;
     activityData: {
@@ -91,6 +102,8 @@ interface ChatState {
   removeAttachment: (id: string) => void;
   clearAttachments: () => void;
   loadConversationFiles: (conversationId: string) => Promise<void>;
+  setConversationQuota: (quota: ConversationQuota | null) => void;
+  setConversationBlocked: (blocked: boolean, summary?: string | null) => void;
 }
 
 let activeController: AbortController | null = null;
@@ -260,6 +273,9 @@ const useChatStore = create<ChatState>()(
       pendingDraftData: null,
       pendingAttachments: [],
       conversationFiles: [],
+      conversationQuota: null,
+      isConversationBlocked: false,
+      conversationSummary: null,
       selectedPlace: null,
       setConversationId: (value) => set({ conversationId: value }),
       setInputValue: (value) => set({ inputValue: value }),
@@ -277,6 +293,11 @@ const useChatStore = create<ChatState>()(
       setSelectedDestination: (dest) => set({ selectedDestination: dest }),
       setSelectedDayNumber: (day) => set({ selectedDayNumber: day }),
       setSelectedPlace: (place) => set({ selectedPlace: place }),
+      setConversationQuota: (quota) => set({ conversationQuota: quota }),
+      setConversationBlocked: (blocked, summary = null) => set({
+        isConversationBlocked: blocked,
+        conversationSummary: summary,
+      }),
       acceptPendingDraft: () => {
         const { pendingDraftData } = get();
         if (!pendingDraftData) return;
@@ -449,6 +470,9 @@ const useChatStore = create<ChatState>()(
             pendingDraftData: null,
             pendingAttachments: [],
             conversationFiles: [],
+            conversationQuota: null,
+            isConversationBlocked: false,
+            conversationSummary: null,
           };
         }),
 
