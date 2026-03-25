@@ -1,15 +1,19 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState, useRef, useCallback, type FormEvent } from 'react';
 import { motion } from 'framer-motion';
 import type { Icon } from '@phosphor-icons/react';
 import {
   ArrowElbowDownRight,
   MapPinLine,
   Microphone,
+  Paperclip,
   Plus,
   WarningCircle,
 } from '@phosphor-icons/react';
+
+import useChatStore from '@/src/stores/chatStore';
+import FileAttachmentPreview from '@/src/components/features/chat/conversation/FileAttachmentPreview';
 
 import AtripsAiMark from '@/src/components/common/brand/AtripsAiMark';
 import { cn } from '@/src/lib/utils';
@@ -87,6 +91,39 @@ export default function TripPlannerCard({
 }: TripPlannerCardProps) {
   const [internalValue, setInternalValue] = useState('');
   const resolvedValue = value ?? internalValue;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingAttachments = useChatStore((s) => s.pendingAttachments);
+  const addAttachment = useChatStore((s) => s.addAttachment);
+  const removeAttachment = useChatStore((s) => s.removeAttachment);
+
+  const handleFileSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files) return;
+      for (const file of Array.from(files)) {
+        addAttachment(file);
+      }
+      e.target.value = '';
+    },
+    [addAttachment]
+  );
+
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of Array.from(items)) {
+        if (item.kind === 'file') {
+          const file = item.getAsFile();
+          if (file) addAttachment(file);
+        }
+      }
+    },
+    [addAttachment]
+  );
+
+  const hasAttachments = pendingAttachments.length > 0;
+  const canSend = resolvedValue.trim() || hasAttachments;
 
   const applyValue = (nextValue: string) => {
     if (value === undefined) {
@@ -139,6 +176,26 @@ export default function TripPlannerCard({
         </div>
 
         <div className="flex w-full flex-col gap-4">
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/jpeg,image/png,image/webp,application/pdf,.docx,.xlsx,.csv"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+
+          {/* File attachment preview */}
+          {hasAttachments && (
+            <div className="w-full">
+              <FileAttachmentPreview
+                attachments={pendingAttachments}
+                onRemove={removeAttachment}
+              />
+            </div>
+          )}
+
           <form
             onSubmit={handleSubmit}
             className="flex w-full items-end gap-3 rounded-[10px] border border-[var(--neutral-30)] bg-[var(--neutral-20)] px-4 py-3 text-[14px]"
@@ -156,7 +213,7 @@ export default function TripPlannerCard({
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
-                  if (!isSubmitting && resolvedValue.trim()) {
+                  if (!isSubmitting && canSend) {
                     onSubmit?.(resolvedValue.trim());
                     if (value === undefined) setInternalValue('');
                     const target = e.target as HTMLTextAreaElement;
@@ -164,12 +221,22 @@ export default function TripPlannerCard({
                   }
                 }
               }}
+              onPaste={handlePaste}
               placeholder={placeholder}
               rows={1}
               className="flex-1 bg-transparent text-left text-[14px] text-[var(--neutral-100)] placeholder:text-[var(--neutral-50)] outline-none resize-none scrollbar-thin min-h-[24px] max-h-[120px] py-1"
               disabled={isSubmitting}
             />
             <span className="flex items-center gap-1 text-[var(--neutral-70)] mb-0.5">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center justify-center size-8 rounded-[6px] hover:bg-[var(--neutral-30)] transition-colors"
+                aria-label="Attach file"
+                disabled={isSubmitting}
+              >
+                <Paperclip size={18} weight="bold" aria-hidden="true" />
+              </button>
               <button
                 type="button"
                 className="flex items-center justify-center size-8 rounded-[6px] hover:bg-[var(--neutral-30)] transition-colors"
@@ -182,7 +249,7 @@ export default function TripPlannerCard({
                 type="submit"
                 className="flex items-center justify-center size-8 rounded-[6px] hover:bg-[var(--neutral-30)] transition-colors disabled:opacity-40"
                 aria-label="Send message"
-                disabled={isSubmitting || !resolvedValue.trim()}
+                disabled={isSubmitting || !canSend}
               >
                 <ArrowElbowDownRight
                   size={18}

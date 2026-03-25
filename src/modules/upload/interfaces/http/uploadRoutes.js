@@ -42,12 +42,12 @@ router.post(
   upload.array('files', config.upload.maxFilesPerRequest),
   uploadFiles
 );
-router.get('/:id', authenticate, getFileStatus);
 router.get(
   '/conversation/:conversationId',
   authenticate,
   getConversationFiles
 );
+router.get('/:id', authenticate, getFileStatus);
 router.delete('/:id', authenticate, deleteFile);
 
 export default router;
