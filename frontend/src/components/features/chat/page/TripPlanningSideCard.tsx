@@ -25,6 +25,8 @@ import {
 
 import { cn } from '@/src/lib/utils';
 import BudgetBreakdown from '@/src/components/features/chat/page/BudgetBreakdown';
+import FileDropZone from '@/src/components/features/chat/page/FileDropZone';
+import ConversationFileList from '@/src/components/features/chat/page/ConversationFileList';
 import useChatStore from '@/src/stores/chatStore';
 import type {
   ItineraryDayData,
@@ -51,7 +53,7 @@ function formatDate(dateStr: string): string {
   }
 }
 
-function getActivityImage(activity: ActivityData): string {
+function getActivityImage(activity: ActivityData): string | null {
   const raw = activity as unknown as Record<string, unknown>;
   const photos = Array.isArray(raw.photos) ? raw.photos : [];
   const googleMapsInfo =
@@ -72,17 +74,7 @@ function getActivityImage(activity: ActivityData): string {
   const firstValid = candidates.find((value) => typeof value === 'string' && value.startsWith('http'));
   if (typeof firstValid === 'string') return firstValid;
 
-  const images: Record<string, string> = {
-    ATTRACTION: 'https://images.unsplash.com/photo-1555400038-63f5ba517a47?auto=format&fit=crop&w=300&q=80',
-    DINING: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=300&q=80',
-    RESTAURANT: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=300&q=80',
-    ACCOMMODATION: 'https://images.unsplash.com/photo-1590073242678-70ee3fc28f8e?auto=format&fit=crop&w=300&q=80',
-    TRANSPORTATION: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=300&q=80',
-    ACTIVITY: 'https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=300&q=80',
-    SHOPPING: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=300&q=80',
-    OTHER: 'https://images.unsplash.com/photo-1488085061387-422e29b40080?auto=format&fit=crop&w=300&q=80',
-  };
-  return images[activity.type?.toUpperCase()] || images.OTHER;
+  return null;
 }
 
 const formatCurrency = (amount?: number, currency = 'VND') => {
@@ -189,22 +181,28 @@ function ActivityCard({
       ? `${activity.coordinates.lat.toFixed(4)}, ${activity.coordinates.lng.toFixed(4)}`
       : '');
 
+  const imageUrl = getActivityImage(activity);
+
   return (
     <>
       {index > 0 && <TransportBadge activity={activity} />}
       <div className={cn('flex items-start gap-3', index > 0 && 'border-t border-[var(--neutral-30)] pt-3')}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={getActivityImage(activity)}
-          alt={activity.name}
-          className="h-[72px] w-[72px] md:h-[80px] md:w-[80px] shrink-0 rounded-[8px] object-cover mt-1 cursor-zoom-in"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            const fallback = 'https://images.unsplash.com/photo-1488085061387-422e29b40080?auto=format&fit=crop&w=300&q=80';
-            if (target.src !== fallback) target.src = fallback;
-          }}
-          onClick={() => onPreviewImage?.(getActivityImage(activity), activity.title || activity.name)}
-        />
+        {imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={imageUrl}
+            alt={activity.name}
+            className="h-[72px] w-[72px] md:h-[80px] md:w-[80px] shrink-0 rounded-[8px] object-cover mt-1 cursor-zoom-in"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+            onClick={() => onPreviewImage?.(imageUrl, activity.title || activity.name)}
+          />
+        ) : (
+          <div className="h-[72px] w-[72px] md:h-[80px] md:w-[80px] shrink-0 rounded-[8px] mt-1 bg-gradient-to-br from-[var(--primary-surface)] to-[var(--neutral-20)] flex items-center justify-center">
+            <MapPin size={24} weight="duotone" className="text-[var(--primary-main)] opacity-50" />
+          </div>
+        )}
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-start justify-between gap-2">
             <p className="text-[16px] leading-[1.4] font-medium text-[var(--neutral-100)]">
@@ -452,6 +450,9 @@ export default function TripPlanningSideCard({ className }: TripPlanningSideCard
   const isSavingDraft = useChatStore((state) => state.isSavingDraft);
   const loadDraftFromId = useChatStore((state) => state.loadDraftFromId);
   const saveDraft = useChatStore((state) => state.saveDraft);
+  const conversationId = useChatStore((state) => state.conversationId);
+  const conversationFiles = useChatStore((state) => state.conversationFiles);
+  const loadConversationFiles = useChatStore((state) => state.loadConversationFiles);
   const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null);
   const [budgetExpanded, setBudgetExpanded] = useState(false);
 
@@ -460,6 +461,12 @@ export default function TripPlanningSideCard({ className }: TripPlanningSideCard
       loadDraftFromId(draftId);
     }
   }, [draftId, isDraftLoading, loadDraftFromId]);
+
+  useEffect(() => {
+    if (conversationId) {
+      loadConversationFiles(conversationId);
+    }
+  }, [conversationId, loadConversationFiles]);
 
   if (isDraftLoading) {
     return (
@@ -597,6 +604,12 @@ export default function TripPlanningSideCard({ className }: TripPlanningSideCard
             <p className="text-center text-[14px] text-[var(--neutral-60)]">No days planned yet</p>
           )}
         </div>
+      </div>
+
+      {/* File upload section */}
+      <div className="border-t border-[var(--neutral-30)] px-4 md:px-6 py-3 space-y-3">
+        <FileDropZone />
+        <ConversationFileList files={conversationFiles} />
       </div>
 
       {/* Confirm & Save button */}
