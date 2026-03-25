@@ -3,7 +3,7 @@
  * S3-compatible client for Cloudflare R2 object storage
  */
 
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import config from '../../../../config/index.js';
 import { logger } from '../../../../shared/services/LoggerService.js';
 
@@ -71,6 +71,26 @@ class R2StorageService {
       Bucket: config.r2.bucketName,
       Key: key,
     }));
+  }
+
+  /**
+   * Download an object from R2 as a Buffer
+   * @param {string} key - Object key
+   * @returns {Promise<Buffer>}
+   */
+  async download(key) {
+    if (!this.isReady) throw new Error('R2 not initialized');
+
+    const command = new GetObjectCommand({
+      Bucket: config.r2.bucketName,
+      Key: key,
+    });
+    const response = await this.client.send(command);
+    const chunks = [];
+    for await (const chunk of response.Body) {
+      chunks.push(chunk);
+    }
+    return Buffer.concat(chunks);
   }
 
   /**
