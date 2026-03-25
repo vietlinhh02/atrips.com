@@ -529,9 +529,14 @@ const useChatStore = create<ChatState>()(
         if (!trimmed || !conversationId || get().isSubmitting) return;
 
         // Collect ready file IDs from pending attachments
-        const fileIds = get().pendingAttachments
+        const allAttachments = get().pendingAttachments;
+        console.log('[sendMessage] pendingAttachments:', allAttachments.map((a) => ({
+          id: a.id, status: a.status, fileName: a.fileName, recordId: a.record?.id,
+        })));
+        const fileIds = allAttachments
           .filter((a) => a.status === 'READY' && a.record?.id)
           .map((a) => a.record!.id);
+        console.log('[sendMessage] fileIds to send:', fileIds);
 
         // Detect first message to auto-generate conversation title
         const isFirstMessage = get().messages.length === 0;
@@ -552,11 +557,24 @@ const useChatStore = create<ChatState>()(
         // Generate clientMessageId for idempotency
         const clientMessageId = uuidv4();
 
+        const messageAttachments = allAttachments
+          .filter((a) => a.status === 'READY' && a.record)
+          .map((a) => ({
+            id: a.record!.id,
+            fileName: a.fileName,
+            fileType: a.fileType,
+            mimeType: a.record!.mimeType,
+            previewUrl: a.previewUrl,
+            publicUrl: a.record!.publicUrl,
+            variants: a.record!.variants,
+          }));
+
         const userMessage: ChatMessage = {
           id: `user-${Date.now()}`,
           role: 'user',
           content: trimmed,
           clientMessageId,
+          attachments: messageAttachments.length > 0 ? messageAttachments : undefined,
         };
         const assistantMessageId = `assistant-${Date.now() + 1}`;
 

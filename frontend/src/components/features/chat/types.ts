@@ -14,6 +14,16 @@ export interface SourceItem {
   snippet?: string;
 }
 
+export interface MessageAttachment {
+  id: string;
+  fileName: string;
+  fileType: 'IMAGE' | 'DOCUMENT';
+  mimeType: string;
+  previewUrl?: string;
+  publicUrl?: string;
+  variants?: { thumb: string; card: string; hero: string; original: string };
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -25,5 +35,6 @@ export interface ChatMessage {
   clientMessageId?: string; // For idempotency on retry
   error?: boolean; // True if message failed to send
   suggestions?: string[]; // Quick-reply suggestions from AI
+  attachments?: MessageAttachment[]; // Uploaded files attached to this message
 }
 
