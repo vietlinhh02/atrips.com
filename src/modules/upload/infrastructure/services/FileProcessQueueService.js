@@ -86,7 +86,11 @@ class FileProcessQueueService {
   }
 
   async addJob(data) {
-    if (!this.isReady || !this.queue) return null;
+    if (!this.isReady || !this.queue) {
+      throw new Error(
+        '[FileProcess] Queue not available — Redis may not be configured'
+      );
+    }
     return this.queue.add('process', data, {
       jobId: `file-${data.fileUploadId}`,
     });

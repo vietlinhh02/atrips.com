@@ -50,7 +50,8 @@ export async function getConversationFiles(req, res) {
   const files = await FileUploadRepository.findByConversationId(
     req.params.conversationId
   );
-  return res.json({ files });
+  const userFiles = files.filter(f => f.userId === req.user.id);
+  return res.json({ files: userFiles });
 }
 
 export async function deleteFile(req, res) {

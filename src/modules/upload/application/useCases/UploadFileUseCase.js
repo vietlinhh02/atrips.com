@@ -43,18 +43,21 @@ class UploadFileUseCase {
       persist,
     });
 
-    await R2StorageService.upload(r2Key, file.buffer, file.mimetype);
+    try {
+      await R2StorageService.upload(r2Key, file.buffer, file.mimetype);
 
-    await FileProcessQueueService.addJob({
-      fileUploadId: id,
-      r2Key,
-      r2Bucket,
-      fileType,
-      mimeType: file.mimetype,
-      fileName: file.originalname,
-    });
-
-    await FileUploadRepository.updateStatus(id, 'PROCESSING');
+      await FileProcessQueueService.addJob({
+        fileUploadId: id,
+        r2Key,
+        r2Bucket,
+        fileType,
+        mimeType: file.mimetype,
+        fileName: file.originalname,
+      });
+    } catch (err) {
+      await FileUploadRepository.updateStatus(id, 'FAILED');
+      throw err;
+    }
 
     return record;
   }
