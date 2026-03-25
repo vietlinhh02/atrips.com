@@ -287,6 +287,26 @@ export const chat = asyncHandler(async (req, res) => {
     }
   }
 
+  let quota;
+  const sub = req.user?.subscription;
+  if (sub && activeConversationId) {
+    const freshConversation = await aiConversationRepository.getConversationCounters(activeConversationId);
+    if (freshConversation) {
+      quota = {
+        conversation: {
+          messagesUsed: freshConversation.messageCount,
+          messagesLimit: sub.conversationMessageLimit,
+          tokensUsed: freshConversation.totalTokensUsed,
+          tokensLimit: sub.conversationTokenLimit,
+        },
+        monthly: {
+          used: sub.aiQuotaUsed || 0,
+          limit: sub.aiQuotaLimit || 10,
+        },
+      };
+    }
+  }
+
   return sendSuccess(res, {
     message: aiResponse.content,
     conversationId: activeConversationId,
@@ -298,6 +318,7 @@ export const chat = asyncHandler(async (req, res) => {
     hasItinerary: !!structuredData,
     suggestions,
     clarification: aiResponse.clarification || undefined,
+    quota,
   });
 });
 
@@ -577,6 +598,26 @@ export const chatStream = asyncHandler(async (req, res) => {
 
     if (suggestions.length > 0) {
       sendEvent({ type: 'suggestions', suggestions });
+    }
+
+    const sub = req.user?.subscription;
+    if (sub && activeConversationId) {
+      const freshConversation = await aiConversationRepository.getConversationCounters(activeConversationId);
+      if (freshConversation) {
+        sendEvent({
+          type: 'quota',
+          conversation: {
+            messagesUsed: freshConversation.messageCount,
+            messagesLimit: sub.conversationMessageLimit,
+            tokensUsed: freshConversation.totalTokensUsed,
+            tokensLimit: sub.conversationTokenLimit,
+          },
+          monthly: {
+            used: sub.aiQuotaUsed || 0,
+            limit: sub.aiQuotaLimit || 10,
+          },
+        });
+      }
     }
 
     sendEvent({
