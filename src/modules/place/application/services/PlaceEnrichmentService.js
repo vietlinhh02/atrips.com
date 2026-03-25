@@ -4,6 +4,9 @@ import { logger } from '../../../../shared/services/LoggerService.js';
 
 const BASIC_CACHE_DAYS = 30;
 const FULL_CACHE_DAYS = 7;
+const BASIC_IMAGE_LIMIT = 6;
+const FULL_IMAGE_LIMIT = 8;
+const MAX_PHOTOS_PER_PLACE = 10;
 
 class PlaceEnrichmentService {
   /**
@@ -45,15 +48,17 @@ class PlaceEnrichmentService {
 
     const best = places[0];
 
-    // Also fetch images
+    // Fetch images with higher limit for better coverage
     let photos = [];
     try {
       const imageResult = await serperService.searchImages({
-        query: `${activity.name} ${destination}`,
-        limit: 3,
+        query: `${activity.name} ${destination} travel`,
+        limit: BASIC_IMAGE_LIMIT,
       });
       if (imageResult?.images) {
-        photos = imageResult.images.map((img) => img.url);
+        photos = imageResult.images
+          .filter((img) => img.url && !img.url.includes('logo'))
+          .map((img) => img.url);
       }
     } catch {
       // Images are optional
@@ -103,88 +108,42 @@ class PlaceEnrichmentService {
 
     let enrichedData = place.enrichedData || {};
 
-    try {
-      const webResult = await serperService.search({
-        query: `${query} opening hours reviews`,
-        limit: 5,
-      });
+    // Run web search and image search in parallel for speed
+    const [webSearchResult, imageSearchResult] = await Promise.allSettled([
+      this.#fetchWebEnrichment(query, place),
+      this.#fetchImageEnrichment(query, place),
+    ]);
 
-      if (webResult.knowledgeGraph) {
-        const kg = webResult.knowledgeGraph;
-        enrichedData = {
-          ...enrichedData,
-          openingHours: kg.attributes?.Hours || null,
-          description: kg.description || null,
-          website: kg.website || place.website,
-          phone: kg.phone || place.phone,
-          reviewSnippets: [],
-        };
-      }
-
-      if (webResult.results) {
-        const reviewSnippets = webResult.results
-          .filter(
-            (r) =>
-              r.content &&
-              (r.url.includes('tripadvisor') ||
-                r.url.includes('google.com/maps') ||
-                r.url.includes('yelp'))
-          )
-          .slice(0, 3)
-          .map((r) => ({
-            text: r.content,
-            source: r.url,
-            title: r.title,
-          }));
-
-        if (reviewSnippets.length > 0) {
-          enrichedData.reviewSnippets = reviewSnippets;
-        }
-      }
-    } catch (err) {
-      logger.warn('[Enrichment] Full enrichment failed', {
-        placeId,
-        error: err.message,
-      });
+    // Apply web enrichment results
+    if (webSearchResult.status === 'fulfilled' && webSearchResult.value) {
+      enrichedData = { ...enrichedData, ...webSearchResult.value };
     }
 
-    // Fetch additional images if current photos are sparse
-    if (!place.photos || place.photos.length < 3) {
-      try {
-        const imageResult = await serperService.searchImages({
-          query,
-          limit: 5,
-        });
-        if (imageResult?.images) {
-          const newPhotos = imageResult.images.map((img) => img.url);
-          const allPhotos = [...(place.photos || []), ...newPhotos];
-          const uniquePhotos = [...new Set(allPhotos)].slice(0, 8);
-          await placeRepository.upsertPlace({
-            provider: place.provider,
-            externalId: place.externalId,
-            name: place.name,
-            type: place.type,
-            address: place.address,
-            city: place.city,
-            country: place.country,
-            countryCode: place.countryCode,
-            latitude: place.latitude,
-            longitude: place.longitude,
-            rating: place.rating,
-            ratingCount: place.ratingCount,
-            priceLevel: place.priceLevel,
-            phone: place.phone,
-            website: place.website,
-            openingHours: place.openingHours,
-            categories: place.categories,
-            enrichedData: place.enrichedData,
-            expiresAt: place.expiresAt,
-            photos: uniquePhotos,
-          });
-        }
-      } catch {
-        // Images are optional
-      }
+    // Apply image enrichment results
+    if (imageSearchResult.status === 'fulfilled' && imageSearchResult.value) {
+      const uniquePhotos = imageSearchResult.value;
+      await placeRepository.upsertPlace({
+        provider: place.provider,
+        externalId: place.externalId,
+        name: place.name,
+        type: place.type,
+        address: place.address,
+        city: place.city,
+        country: place.country,
+        countryCode: place.countryCode,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        rating: place.rating,
+        ratingCount: place.ratingCount,
+        priceLevel: place.priceLevel,
+        phone: place.phone,
+        website: place.website,
+        openingHours: place.openingHours,
+        categories: place.categories,
+        enrichedData: place.enrichedData,
+        expiresAt: place.expiresAt,
+        photos: uniquePhotos,
+      });
     }
 
     const expiresAt = new Date();
@@ -197,6 +156,139 @@ class PlaceEnrichmentService {
     );
 
     return updated;
+  }
+
+  async #fetchWebEnrichment(query, place) {
+    try {
+      const reviewSources = ['tripadvisor', 'google.com/maps', 'yelp', 'foursquare', 'booking.com'];
+      const data = {};
+
+      // Two searches in parallel: one for KG/reviews, one for description
+      const [kgResult, descResult] = await Promise.allSettled([
+        serperService.search({
+          query: `${query} reviews opening hours`,
+          limit: 10,
+        }),
+        serperService.search({
+          query: `"${place.name}" about description`,
+          limit: 5,
+        }),
+      ]);
+
+      // Process knowledge graph result
+      const webResult = kgResult.status === 'fulfilled' ? kgResult.value : null;
+      if (webResult?.knowledgeGraph) {
+        const kg = webResult.knowledgeGraph;
+        data.openingHours = kg.attributes?.Hours || kg.attributes?.['Opening Hours'] || null;
+        data.description = kg.description || null;
+        data.website = kg.website || place.website;
+        data.phone = kg.phone || place.phone;
+
+        if (kg.attributes?.['Price range'] || kg.attributes?.Price) {
+          data.priceRange = kg.attributes['Price range'] || kg.attributes.Price;
+        }
+      }
+
+      // Extract review snippets
+      if (webResult?.results) {
+        const reviewSnippets = webResult.results
+          .filter(
+            (r) =>
+              r.content &&
+              r.content.length > 30 &&
+              reviewSources.some((src) => r.url.includes(src))
+          )
+          .slice(0, 5)
+          .map((r) => ({
+            text: r.content,
+            source: r.url,
+            title: r.title,
+          }));
+
+        if (reviewSnippets.length > 0) {
+          data.reviewSnippets = reviewSnippets;
+        }
+      }
+
+      // Build description from dedicated search if KG description is missing or truncated
+      if (!data.description || data.description.length < 80) {
+        const descWeb = descResult.status === 'fulfilled' ? descResult.value : null;
+        const allResults = [
+          ...(descWeb?.results || []),
+          ...(webResult?.results || []),
+        ];
+
+        // Find the longest non-review snippet as description
+        const bestDesc = allResults
+          .filter(
+            (r) =>
+              r.content &&
+              r.content.length > 60 &&
+              !reviewSources.some((src) => r.url.includes(src))
+          )
+          .sort((a, b) => b.content.length - a.content.length)[0];
+
+        if (bestDesc && bestDesc.content.length > (data.description?.length || 0)) {
+          data.description = bestDesc.content;
+        }
+      }
+
+      return Object.keys(data).length > 0 ? data : null;
+    } catch (err) {
+      logger.warn('[Enrichment] Web enrichment failed', {
+        query,
+        error: err.message,
+      });
+      return null;
+    }
+  }
+
+  async #fetchImageEnrichment(query, place) {
+    if (place.photos && place.photos.length >= 5) return null;
+
+    try {
+      const imageResult = await serperService.searchImages({
+        query: `${query} travel photography`,
+        limit: FULL_IMAGE_LIMIT,
+      });
+      if (!imageResult?.images) return null;
+
+      const newPhotos = imageResult.images
+        .filter((img) => img.url && !img.url.includes('logo') && !img.url.includes('icon'))
+        .map((img) => img.url);
+      const allPhotos = [...(place.photos || []), ...newPhotos];
+      return [...new Set(allPhotos)].slice(0, MAX_PHOTOS_PER_PLACE);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Batch full-enrich all places by ID (fire-and-forget safe).
+   * Called when user saves a trip plan.
+   */
+  async enrichPlacesBatch(placeIds) {
+    const unique = [...new Set(placeIds.filter(Boolean))];
+    if (unique.length === 0) return;
+
+    logger.info(`[Enrichment] Batch enriching ${unique.length} places`);
+
+    // Process 3 at a time to avoid rate limits
+    for (let i = 0; i < unique.length; i += 3) {
+      const batch = unique.slice(i, i + 3);
+      await Promise.allSettled(
+        batch.map((id) =>
+          this.enrichPlaceFull(id).catch((err) => {
+            logger.warn('[Enrichment] Batch item failed', {
+              placeId: id,
+              error: err.message,
+            });
+          })
+        )
+      );
+    }
+
+    logger.info(`[Enrichment] Batch enrichment complete`);
   }
 
   /**

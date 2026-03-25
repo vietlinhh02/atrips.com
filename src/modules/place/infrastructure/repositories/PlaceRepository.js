@@ -36,13 +36,19 @@ class PlaceRepository {
   }
 
   async updateEnrichedData(placeId, enrichedData, expiresAt) {
+    const updateData = {
+      enrichedData,
+      lastFetchedAt: new Date(),
+      expiresAt,
+    };
+
+    // Propagate contact info discovered during enrichment
+    if (enrichedData.website) updateData.website = enrichedData.website;
+    if (enrichedData.phone) updateData.phone = enrichedData.phone;
+
     return prisma.cached_places.update({
       where: { id: placeId },
-      data: {
-        enrichedData,
-        lastFetchedAt: new Date(),
-        expiresAt,
-      },
+      data: updateData,
     });
   }
 

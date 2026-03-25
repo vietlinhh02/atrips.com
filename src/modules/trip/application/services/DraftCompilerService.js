@@ -552,11 +552,17 @@ export class DraftCompilerService {
     };
 
     const primaryPhoto = activity.image || activity.imageUrl || activity.thumbnail;
-    if (!primaryPhoto && resolvedPlace.photos?.length) {
-      activity.image = resolvedPlace.photos[0];
-      activity.imageUrl = resolvedPlace.photos[0];
-      activity.thumbnail = resolvedPlace.photos[0];
-      report.imagesEnriched += 1;
+    if (resolvedPlace.photos?.length) {
+      if (!primaryPhoto) {
+        activity.image = resolvedPlace.photos[0];
+        activity.imageUrl = resolvedPlace.photos[0];
+        activity.thumbnail = resolvedPlace.photos[0];
+        report.imagesEnriched += 1;
+      }
+      // Always propagate full photos array for richer display
+      if (!activity.photos || activity.photos.length === 0) {
+        activity.photos = resolvedPlace.photos;
+      }
     }
   }
 

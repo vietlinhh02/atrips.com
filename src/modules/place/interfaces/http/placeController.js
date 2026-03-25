@@ -34,6 +34,28 @@ export const searchPlaces = asyncHandler(async (req, res) => {
   return sendSuccess(res, { places });
 });
 
+export const lookupPlace = asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return sendValidationError(res, errors.array());
+
+  const { name } = req.query;
+
+  const places = await placeEnrichmentService.searchPlaces(name, null, null);
+  if (!places || places.length === 0) {
+    throw AppError.notFound('Place not found');
+  }
+
+  const place = await placeEnrichmentService.enrichPlaceFull(places[0].id);
+  return sendSuccess(res, { place: place || places[0] });
+});
+
+export const lookupPlaceValidation = [
+  query('name')
+    .trim()
+    .isLength({ min: 1 })
+    .withMessage('Name is required'),
+];
+
 export const searchPlacesValidation = [
   query('query')
     .trim()
