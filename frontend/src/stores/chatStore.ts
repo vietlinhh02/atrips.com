@@ -538,6 +538,9 @@ const useChatStore = create<ChatState>()(
             pendingDraftData: null,
             pendingAttachments: [],
             conversationFiles: [],
+            conversationQuota: null,
+            isConversationBlocked: false,
+            conversationSummary: null,
           });
           return conversation.id;
         } catch (error) {
@@ -762,7 +765,7 @@ const useChatStore = create<ChatState>()(
             controller.signal
           );
         } catch {
-          if (!controller.signal.aborted) {
+          if (!controller.signal.aborted && !get().isConversationBlocked) {
             // Mark messages as having error
             set((state) => ({
               messages: state.messages.map((msg) => {
@@ -955,7 +958,7 @@ const useChatStore = create<ChatState>()(
             controller.signal
           );
         } catch {
-          if (!controller.signal.aborted) {
+          if (!controller.signal.aborted && !get().isConversationBlocked) {
             set((state) => ({
               messages: state.messages.map((msg) => {
                 if (msg.id === assistantMessageId) {
