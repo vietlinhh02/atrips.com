@@ -208,10 +208,12 @@ class AIConversationRepository {
       structuredData = null,
       clientMessageId = null,
       sources = null,
-    } = typeof options === 'number' ? { tokensUsed: options } : options; // Backward compatibility
+    } = typeof options === 'number' ? { tokensUsed: options } : options;
 
-    const [message, conversation] = await Promise.all([
-      prisma.ai_messages.create({
+    const isUserMessage = role === 'user';
+
+    const result = await prisma.$transaction(async (tx) => {
+      const message = await tx.ai_messages.create({
         data: {
           conversationId,
           role,
@@ -221,26 +223,37 @@ class AIConversationRepository {
           clientMessageId,
           sources,
         },
-      }),
-      prisma.ai_conversations.update({
+      });
+
+      const updateData = {
+        totalTokensUsed: { increment: tokensUsed },
+        updatedAt: new Date(),
+      };
+
+      if (isUserMessage) {
+        updateData.messageCount = { increment: 1 };
+      }
+
+      const conversation = await tx.ai_conversations.update({
         where: { id: conversationId },
-        data: {
-          totalTokensUsed: { increment: tokensUsed },
-          updatedAt: new Date(),
-        },
+        data: updateData,
         select: {
           userId: true,
+          messageCount: true,
+          totalTokensUsed: true,
         },
-      }),
-    ]);
+      });
+
+      return { message, conversation };
+    });
 
     // Invalidate caches
     await Promise.all([
       cacheService.del(CACHE_KEYS.CONVERSATION_DETAIL(conversationId)),
-      conversation.userId && this.invalidateConversationsListCache(conversation.userId),
+      result.conversation.userId && this.invalidateConversationsListCache(result.conversation.userId),
     ]);
 
-    return message;
+    return result.message;
   }
 
   /**
@@ -295,6 +308,16 @@ class AIConversationRepository {
         cacheService.del(CACHE_KEYS.CONVERSATIONS_LIST(userId, limit, offset))
       )
     );
+  }
+
+  /**
+   * Get fresh conversation counters (messageCount, totalTokensUsed)
+   */
+  async getConversationCounters(conversationId) {
+    return prisma.ai_conversations.findUnique({
+      where: { id: conversationId },
+      select: { messageCount: true, totalTokensUsed: true },
+    });
   }
 
   /**
