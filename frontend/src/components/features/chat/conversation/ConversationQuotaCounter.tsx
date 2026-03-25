@@ -10,8 +10,8 @@ function formatTokens(tokens: number): string {
 function getColorClass(used: number, limit: number): string {
   const remaining = (limit - used) / limit;
   if (remaining <= 0.1) return 'text-red-500';
-  if (remaining <= 0.3) return 'text-yellow-500';
-  return 'text-zinc-400';
+  if (remaining <= 0.3) return 'text-amber-500';
+  return 'text-[var(--neutral-60)]';
 }
 
 export default function ConversationQuotaCounter() {
@@ -33,7 +33,7 @@ export default function ConversationQuotaCounter() {
       <span className={msgColor}>
         {quota.messagesUsed}/{quota.messagesLimit} messages
       </span>
-      <span className="text-zinc-600">&bull;</span>
+      <span className="text-[var(--neutral-40)]">&bull;</span>
       <span className={tokenColor}>
         {formatTokens(quota.tokensUsed)}/
         {formatTokens(quota.tokensLimit)} tokens

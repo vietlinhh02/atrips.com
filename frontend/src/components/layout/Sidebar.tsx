@@ -431,7 +431,7 @@ export default function Sidebar() {
                       <div className="flex items-center gap-1 w-full">
                         <p className="text-neutral-900 truncate font-medium max-w-[120px]">{user?.name || user?.displayName || "User"}</p>
                         {subscription?.tier && subscription.tier !== 'FREE' && (
-                          <span className="shrink-0 rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                          <span className="shrink-0 rounded-full bg-[var(--primary-main)] px-1.5 py-0.5 text-[10px] font-semibold text-white">
                             {subscription.tier}
                           </span>
                         )}
@@ -489,7 +489,7 @@ export default function Sidebar() {
                             <div className="flex items-center gap-1 w-full">
                               <p className="text-neutral-900 truncate font-medium max-w-[120px]">{user?.name || user?.displayName || "User"}</p>
                               {subscription?.tier && subscription.tier !== 'FREE' && (
-                                <span className="shrink-0 rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                                <span className="shrink-0 rounded-full bg-[var(--primary-main)] px-1.5 py-0.5 text-[10px] font-semibold text-white">
                                   {subscription.tier}
                                 </span>
                               )}
@@ -525,7 +525,7 @@ export default function Sidebar() {
                               {user?.name || user?.displayName || "User"}
                             </p>
                             {subscription?.tier && subscription.tier !== 'FREE' && (
-                              <span className="shrink-0 rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                              <span className="shrink-0 rounded-full bg-[var(--primary-main)] px-1.5 py-0.5 text-[10px] font-semibold text-white">
                                 {subscription.tier}
                               </span>
                             )}
@@ -790,7 +790,7 @@ export default function Sidebar() {
                               {user?.name || user?.displayName || "User"}
                             </p>
                             {subscription?.tier && subscription.tier !== 'FREE' && (
-                              <span className="shrink-0 rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                              <span className="shrink-0 rounded-full bg-[var(--primary-main)] px-1.5 py-0.5 text-[10px] font-semibold text-white">
                                 {subscription.tier}
                               </span>
                             )}
