@@ -149,11 +149,28 @@ export const getConversation = asyncHandler(async (req, res) => {
 });
 
 export const createConversation = asyncHandler(async (req, res) => {
-  const { tripId, title } = req.body;
+  const { tripId, title, continueFromId } = req.body;
+
+  if (continueFromId && !req.user) {
+    throw AppError.unauthorized('Authentication required to continue a conversation');
+  }
+
+  let summary = null;
+  if (continueFromId && req.user) {
+    const predecessor = await aiConversationRepository.getConversationById(
+      continueFromId, req.user.id,
+    );
+    if (!predecessor) {
+      throw new AppError('Conversation not found', 404, 'NOT_FOUND');
+    }
+    summary = predecessor.summary || null;
+  }
+
   const conversation = await aiConversationRepository.createConversation(
     req.user?.id || null,
     tripId || null,
     title || null,
+    { continueFromId: continueFromId || null, summary },
   );
   return sendSuccess(res, { conversation }, 'Conversation created successfully', 201);
 });
@@ -232,6 +249,10 @@ export const chat = asyncHandler(async (req, res) => {
     userProfile,
     tripInfo: conversation?.trips || null,
   };
+
+  if (conversation?.continuedFrom?.summary) {
+    enrichedContext.carryOverSummary = conversation.continuedFrom.summary;
+  }
 
   const aiResponse = await aiService.chat(messages, {
     context: enrichedContext,
@@ -432,6 +453,10 @@ export const chatStream = asyncHandler(async (req, res) => {
 
     const userProfile = userId ? await getUserContextForAI(userId) : null;
     const enrichedContext = { ...context, userProfile, tripInfo: conversation?.trips || null };
+
+    if (conversation?.continuedFrom?.summary) {
+      enrichedContext.carryOverSummary = conversation.continuedFrom.summary;
+    }
 
     const stream = aiService.chatStream(messages, {
       context: enrichedContext,

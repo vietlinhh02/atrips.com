@@ -161,6 +161,9 @@ class AIConversationRepository {
             createdAt: true,
           },
         },
+        continuedFrom: {
+          select: { summary: true },
+        },
       },
     });
 
@@ -174,16 +177,18 @@ class AIConversationRepository {
   /**
    * Create conversation
    */
-  async createConversation(userId, tripId = null, title = null) {
+  async createConversation(userId, tripId = null, title = null, options = {}) {
+    const { continueFromId = null } = options;
+
     const conversation = await prisma.ai_conversations.create({
       data: {
         userId,
         tripId,
         title,
+        continuedFromId: continueFromId,
       },
     });
 
-    // Invalidate conversations list cache
     if (userId) {
       await this.invalidateConversationsListCache(userId);
     }

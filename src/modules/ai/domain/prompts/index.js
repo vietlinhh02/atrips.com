@@ -738,7 +738,12 @@ export function buildContextPrompt(context = {}) {
 
   const tripContext = parts.length > 0 ? `\n\n## Current Context\n${parts.join('\n')}` : '';
 
-  return userProfileContext + tripContext;
+  let carryOver = '';
+  if (context.carryOverSummary) {
+    carryOver = `\n\n## Context from Previous Conversation\n${context.carryOverSummary}`;
+  }
+
+  return userProfileContext + tripContext + carryOver;
 }
 
 /**
