@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from '@/src/components/ui/select';
 import useOnboardingStore from '@/src/stores/onboardingStore';
+import useAuthStore from '@/src/stores/authStore';
 
 interface Step1ContentProps {
   options: TravelProfileOptions;
@@ -25,9 +26,38 @@ interface Step1ContentProps {
 
 export default function Step1Content({ options, formData: initialData, onNext }: Step1ContentProps) {
   const updateStep1 = useOnboardingStore((state) => state.updateStep1);
+  const user = useAuthStore((state) => state.user);
   const [formData, setFormData] = useState<TravelProfileStep1>(initialData);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Pre-fill from user registration data and set defaults
+  useEffect(() => {
+    if (!user) return;
+    setFormData(prev => {
+      let changed = false;
+      const next = { ...prev };
+
+      if (!next.firstName && user.name) {
+        const parts = user.name.trim().split(/\s+/);
+        next.firstName = parts[0] || '';
+        next.lastName = parts.slice(1).join(' ') || '';
+        changed = true;
+      }
+
+      if (!next.age || next.age === 0) {
+        next.age = 25;
+        changed = true;
+      }
+
+      if (!next.gender) {
+        next.gender = 'prefer_not_to_say';
+        changed = true;
+      }
+
+      return changed ? next : prev;
+    });
+  }, [user]);
 
   const samplePlaceholders = {
     firstName: 'Viet',

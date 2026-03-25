@@ -33,6 +33,28 @@ export default function Step2Content({ options, formData: initialData, onNext }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData]);
 
+  // Default to middle option when empty (fixes slider not responding at first position)
+  useEffect(() => {
+    setFormData(prev => {
+      let changed = false;
+      const next = { ...prev };
+      if (!next.spendingHabits && options.spendingHabits?.length > 1) {
+        next.spendingHabits = options.spendingHabits[1].value;
+        changed = true;
+      }
+      if (!next.dailyRhythm && options.dailyRhythm?.length > 1) {
+        next.dailyRhythm = options.dailyRhythm[1].value;
+        changed = true;
+      }
+      if (!next.socialPreference && options.socialPreference?.length > 1) {
+        next.socialPreference = options.socialPreference[1].value;
+        changed = true;
+      }
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [options]);
+
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
     const validationMessages = options?.validationMessages || {};

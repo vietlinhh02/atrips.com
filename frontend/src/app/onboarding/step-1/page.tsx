@@ -74,6 +74,34 @@ export default function OnboardingStep1() {
     setFormData(data.step1);
   }, [data.step1]);
 
+  // Pre-fill from user registration data and set defaults
+  useEffect(() => {
+    if (!user) return;
+    setFormData(prev => {
+      let changed = false;
+      const next = { ...prev };
+
+      if (!next.firstName && user.name) {
+        const parts = user.name.trim().split(/\s+/);
+        next.firstName = parts[0] || '';
+        next.lastName = parts.slice(1).join(' ') || '';
+        changed = true;
+      }
+
+      if (!next.age || next.age === 0) {
+        next.age = 25;
+        changed = true;
+      }
+
+      if (!next.gender) {
+        next.gender = 'prefer_not_to_say';
+        changed = true;
+      }
+
+      return changed ? next : prev;
+    });
+  }, [user]);
+
   // Sync formData to store when it changes (debounced to avoid infinite loops)
   useEffect(() => {
     // Only update if formData is different from store

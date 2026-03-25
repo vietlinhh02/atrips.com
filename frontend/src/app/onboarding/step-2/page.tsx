@@ -95,6 +95,25 @@ export default function OnboardingStep2() {
     try {
       const opts = await travelProfileService.getOptions();
       setOptions(opts);
+
+      // Default to middle option when empty (fixes slider not responding at first position)
+      setFormData(prev => {
+        let changed = false;
+        const next = { ...prev };
+        if (!next.spendingHabits && opts.spendingHabits.length > 1) {
+          next.spendingHabits = opts.spendingHabits[1].value;
+          changed = true;
+        }
+        if (!next.dailyRhythm && opts.dailyRhythm.length > 1) {
+          next.dailyRhythm = opts.dailyRhythm[1].value;
+          changed = true;
+        }
+        if (!next.socialPreference && opts.socialPreference.length > 1) {
+          next.socialPreference = opts.socialPreference[1].value;
+          changed = true;
+        }
+        return changed ? next : prev;
+      });
     } catch {
       toast.error('Failed to load options', 'Please try again');
     } finally {

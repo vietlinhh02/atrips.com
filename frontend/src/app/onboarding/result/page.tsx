@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import travelProfileService, {
   type TravelProfile,
@@ -90,7 +90,16 @@ export default function OnboardingResult() {
     }
   };
 
-  const handleSaveAnswers = async () => {
+  const autoSavedRef = useRef(false);
+
+  const sampleAnswers = [
+    'Absolutely, top priority!',
+    "Yes, I'm interested",
+    'Maybe, if time allows',
+    'Not for this trip',
+  ];
+
+  const handleSaveAnswers = useCallback(async () => {
     // Only save if there are answers
     const hasAnswers = Object.keys(answers).some((key) => answers[key]?.trim());
     if (!hasAnswers) {
@@ -117,7 +126,20 @@ export default function OnboardingResult() {
     } finally {
       setSavingAnswers(false);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answers]);
+
+  // Auto-save when all questions have answers
+  useEffect(() => {
+    if (autoSavedRef.current || savingAnswers) return;
+    const questions = editableQuestions.slice(0, 4);
+    if (questions.length === 0) return;
+    const allAnswered = questions.every(q => answers[q]?.trim());
+    if (allAnswered) {
+      autoSavedRef.current = true;
+      handleSaveAnswers();
+    }
+  }, [answers, editableQuestions, savingAnswers, handleSaveAnswers]);
 
   const handleContinue = () => {
     router.push('/');
@@ -213,9 +235,32 @@ export default function OnboardingResult() {
                       <CaretRight size={16} className="text-[var(--neutral-60)]" />
                     </button>
                   )}
+                  <div className="flex flex-wrap gap-2">
+                    {sampleAnswers.map((sample) => (
+                      <button
+                        key={sample}
+                        type="button"
+                        onClick={() => {
+                          autoSavedRef.current = false;
+                          setAnswers((prev) => ({
+                            ...prev,
+                            [question]: prev[question] === sample ? '' : sample,
+                          }));
+                        }}
+                        className={`rounded-full border px-3 py-1 text-xs transition ${
+                          answers[question] === sample
+                            ? 'border-[var(--primary-main)] bg-[var(--primary-main)] text-white'
+                            : 'border-[var(--neutral-40)] text-[var(--neutral-60)] hover:border-[var(--neutral-60)]'
+                        }`}
+                      >
+                        {sample}
+                      </button>
+                    ))}
+                  </div>
                   <textarea
                     value={answers[question] || ''}
                     onChange={(e) => {
+                      autoSavedRef.current = false;
                       setAnswers((prev) => ({
                         ...prev,
                         [question]: e.target.value,
@@ -223,7 +268,7 @@ export default function OnboardingResult() {
                     }}
                     placeholder="Your answer..."
                     className="w-full rounded-[8px] border border-[var(--neutral-30)] bg-[var(--neutral-10)] px-3 py-2 text-sm text-[var(--neutral-100)] placeholder:text-[var(--neutral-60)] outline-none resize-none"
-                    rows={3}
+                    rows={2}
                   />
                 </div>
               ))}
