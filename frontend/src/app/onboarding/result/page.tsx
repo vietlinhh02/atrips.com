@@ -166,7 +166,7 @@ export default function OnboardingResult() {
   );
 
   return (
-      <div className="pt-6">
+      <div className="pt-6 pb-6">
         <div className="space-y-3">
           <h1 className="text-[32px] font-medium leading-[1.2] text-[var(--neutral-100)] lg:text-[40px]">
             {profile.personaTitle || 'Your Travel Persona'}

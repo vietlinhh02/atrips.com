@@ -60,7 +60,7 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
   return (
     <div className="w-full h-dvh bg-white overflow-hidden">
       <div className="grid w-full h-full lg:grid-cols-2">
-        <div className="flex w-full items-center justify-center px-6 py-12 lg:items-start lg:px-[60px] h-full overflow-y-auto">
+        <div className="flex w-full items-start justify-center px-6 py-12 lg:px-[60px] h-full overflow-y-auto">
           <div className="w-full max-w-[620px] lg:max-w-none">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">

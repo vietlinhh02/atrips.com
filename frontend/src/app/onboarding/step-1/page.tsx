@@ -69,38 +69,32 @@ export default function OnboardingStep1() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Load cached data from context
+  // Sync store data and pre-fill from user auth in a single effect
+  // to avoid race condition where store hydration overwrites user pre-fill
   useEffect(() => {
-    setFormData(data.step1);
-  }, [data.step1]);
+    const step1 = data.step1;
+    const next = { ...step1 };
+    let changed = false;
 
-  // Pre-fill from user registration data and set defaults
-  useEffect(() => {
-    if (!user) return;
-    setFormData(prev => {
-      let changed = false;
-      const next = { ...prev };
+    if (!next.firstName && user?.name) {
+      const parts = user.name.trim().split(/\s+/);
+      next.firstName = parts[0] || '';
+      next.lastName = parts.slice(1).join(' ') || '';
+      changed = true;
+    }
 
-      if (!next.firstName && user.name) {
-        const parts = user.name.trim().split(/\s+/);
-        next.firstName = parts[0] || '';
-        next.lastName = parts.slice(1).join(' ') || '';
-        changed = true;
-      }
+    if (!next.age || next.age === 0) {
+      next.age = 25;
+      changed = true;
+    }
 
-      if (!next.age || next.age === 0) {
-        next.age = 25;
-        changed = true;
-      }
+    if (!next.gender) {
+      next.gender = 'prefer_not_to_say';
+      changed = true;
+    }
 
-      if (!next.gender) {
-        next.gender = 'prefer_not_to_say';
-        changed = true;
-      }
-
-      return changed ? next : prev;
-    });
-  }, [user]);
+    setFormData(changed ? next : step1);
+  }, [data.step1, user]);
 
   // Sync formData to store when it changes (debounced to avoid infinite loops)
   useEffect(() => {

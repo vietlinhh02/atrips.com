@@ -38,6 +38,7 @@ export default function Step1Content({ options, formData: initialData, onNext }:
       let changed = false;
       const next = { ...prev };
 
+      // Always pre-fill from auth if form firstName is empty
       if (!next.firstName && user.name) {
         const parts = user.name.trim().split(/\s+/);
         next.firstName = parts[0] || '';
@@ -57,7 +58,7 @@ export default function Step1Content({ options, formData: initialData, onNext }:
 
       return changed ? next : prev;
     });
-  }, [user]);
+  }, [user, initialData]);
 
   const samplePlaceholders = {
     firstName: 'Viet',
