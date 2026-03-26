@@ -51,6 +51,18 @@ export class LoginUseCase {
 
     // Check email verification if required
     if (config.features.emailVerificationRequired && !userRecord.emailVerified) {
+      // Resend OTP so user has a fresh code on the verify page
+      const { otp } = await authService.createEmailVerificationToken(
+        userRecord.email,
+      );
+      const { sendVerificationEmail } = await import(
+        '../../../../shared/utils/email.js'
+      );
+      await sendVerificationEmail(
+        userRecord.email,
+        otp,
+        userRecord.name || '',
+      );
       throw AppError.emailNotVerified();
     }
 

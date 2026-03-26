@@ -79,9 +79,20 @@ export default function SignupForm() {
       router.push(`/verify-email?email=${encodeURIComponent(formData.email)}${redirectParam}`);
     } catch (error: unknown) {
       const data = error && typeof error === 'object' && 'response' in error
-        ? (error as { response?: { data?: { error?: string | { message?: string }; errors?: string[] } } }).response?.data
+        ? (error as { response?: { data?: { error?: string | { message?: string; code?: string }; errors?: string[] } } }).response?.data
         : undefined;
       const rawError = data?.error;
+      const errorCode = typeof rawError === 'object' ? rawError?.code : undefined;
+
+      // Unverified email exists: redirect to OTP verification page
+      if (errorCode === 'EMAIL_NOT_VERIFIED') {
+        const redirect = searchParams.get('redirect');
+        const redirectParam = redirect ? `&redirect=${encodeURIComponent(redirect)}` : '';
+        toast.info('Tài khoản đã tồn tại. Vui lòng xác thực email. Mã OTP đã được gửi lại.');
+        router.push(`/verify-email?email=${encodeURIComponent(formData.email)}${redirectParam}`);
+        return;
+      }
+
       const message = typeof rawError === 'string'
         ? rawError
         : rawError?.message || 'Đăng ký thất bại';

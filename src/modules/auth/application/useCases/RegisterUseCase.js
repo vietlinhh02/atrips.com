@@ -31,8 +31,23 @@ export class RegisterUseCase {
     authService.validatePasswordStrength(password);
 
     // Check if email already exists
-    const existingUser = await userRepository.emailExists(emailVO.value);
+    const existingUser = await userRepository.findByEmail(emailVO.value);
     if (existingUser) {
+      // If user exists but hasn't verified email, resend OTP
+      if (
+        config.features.emailVerificationRequired &&
+        !existingUser.emailVerified
+      ) {
+        const { otp } = await authService.createEmailVerificationToken(
+          existingUser.email,
+        );
+        await sendVerificationEmail(
+          existingUser.email,
+          otp,
+          existingUser.name || '',
+        );
+        throw AppError.emailNotVerified();
+      }
       throw AppError.emailAlreadyExists();
     }
 
