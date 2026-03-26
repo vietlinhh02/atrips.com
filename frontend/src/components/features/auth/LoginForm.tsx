@@ -133,6 +133,11 @@ export default function LoginForm() {
         </p>
       </div>
 
+      <div className="rounded-[10px] border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <p className="font-medium">Lưu ý</p>
+        <p>Hệ thống đang tạm thời không gửi được OTP. Vui lòng đăng nhập bằng Google.</p>
+      </div>
+
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-4">
           <div className="space-y-2">
