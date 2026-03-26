@@ -67,9 +67,9 @@ export class RegisterUseCase {
       const { otp } = await authService.createEmailVerificationToken(
         user.email,
       );
-      sendVerificationEmail(user.email, otp, user.name || '');
+      await sendVerificationEmail(user.email, otp, user.name || '');
     } else {
-      sendWelcomeEmail(user.email, user.name || '');
+      await sendWelcomeEmail(user.email, user.name || '');
     }
 
     return {

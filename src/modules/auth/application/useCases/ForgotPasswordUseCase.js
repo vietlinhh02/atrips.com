@@ -41,7 +41,7 @@ export class ForgotPasswordUseCase {
 
     try {
       const token = await authService.createPasswordResetToken(emailVO.value);
-      sendPasswordResetEmail(user.email, token, user.name || '');
+      await sendPasswordResetEmail(user.email, token, user.name || '');
     } catch (error) {
       console.error('Failed to send password reset email:', error);
     }

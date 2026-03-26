@@ -206,7 +206,7 @@ export const resendVerification = asyncHandler(async (req, res) => {
 
   const { otp } = await authService.createEmailVerificationToken(email);
 
-  sendVerificationEmail(email, otp, user.name || '');
+  await sendVerificationEmail(email, otp, user.name || '');
 
   return sendSuccess(res, null, 'If an account exists, a new code has been sent.');
 });
