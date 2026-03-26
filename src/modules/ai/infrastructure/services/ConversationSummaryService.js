@@ -64,11 +64,6 @@ export async function generateConversationSummary(
       SUMMARY_RATE_LIMIT_WINDOW,
     );
 
-    await prisma.subscriptions.updateMany({
-      where: { userId },
-      data: { aiQuotaUsed: { increment: 1 } },
-    });
-
     logger.info('[Summary] Generated', {
       conversationId,
       length: summary.length,

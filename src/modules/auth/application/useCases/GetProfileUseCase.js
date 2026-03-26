@@ -37,10 +37,22 @@ export class GetProfileUseCase {
         tier: profile.subscriptions.tier,
         status: profile.subscriptions.status,
         usage: {
-          aiQueries: profile.subscriptions.aiQuotaUsed,
-          aiLimit: profile.subscriptions.aiQuotaLimit,
-          trips: profile.subscriptions.tripsCreated,
-          tripsLimit: profile.subscriptions.tripsLimit,
+          aiQuota: {
+            used: profile.subscriptions.aiQuotaUsed,
+            limit: profile.subscriptions.aiQuotaLimit,
+            remaining: Math.max(
+              profile.subscriptions.aiQuotaLimit - profile.subscriptions.aiQuotaUsed,
+              0,
+            ),
+          },
+          trips: {
+            created: profile.subscriptions.tripsCreated,
+            limit: profile.subscriptions.tripsLimit,
+            remaining: Math.max(
+              profile.subscriptions.tripsLimit - profile.subscriptions.tripsCreated,
+              0,
+            ),
+          },
         },
         currentPeriod: {
           start: profile.subscriptions.currentPeriodStart,
@@ -50,10 +62,8 @@ export class GetProfileUseCase {
         tier: 'FREE',
         status: 'TRIAL',
         usage: {
-          aiQueries: 0,
-          aiLimit: 10,
-          trips: 0,
-          tripsLimit: 3,
+          aiQuota: { used: 0, limit: 10, remaining: 10 },
+          trips: { created: 0, limit: 3, remaining: 3 },
         },
         currentPeriod: null,
       },
@@ -91,10 +101,8 @@ export class GetProfileUseCase {
         tier: 'FREE',
         status: 'TRIAL',
         usage: {
-          aiQueries: 0,
-          aiLimit: 10,
-          trips: 0,
-          tripsLimit: 3,
+          aiQuota: { used: 0, limit: 10, remaining: 10 },
+          trips: { created: 0, limit: 3, remaining: 3 },
         },
         limits: this.getTierLimits('FREE'),
         features: this.getTierFeatures('FREE'),
@@ -105,10 +113,22 @@ export class GetProfileUseCase {
       tier: subscription.tier,
       status: subscription.status,
       usage: {
-        aiQueries: subscription.aiQuotaUsed,
-        aiLimit: subscription.aiQuotaLimit,
-        trips: subscription.tripsCreated,
-        tripsLimit: subscription.tripsLimit,
+        aiQuota: {
+          used: subscription.aiQuotaUsed,
+          limit: subscription.aiQuotaLimit,
+          remaining: Math.max(
+            subscription.aiQuotaLimit - subscription.aiQuotaUsed,
+            0,
+          ),
+        },
+        trips: {
+          created: subscription.tripsCreated,
+          limit: subscription.tripsLimit,
+          remaining: Math.max(
+            subscription.tripsLimit - subscription.tripsCreated,
+            0,
+          ),
+        },
       },
       currentPeriod: {
         start: subscription.currentPeriodStart,

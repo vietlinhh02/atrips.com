@@ -376,10 +376,13 @@ export const chatStream = asyncHandler(async (req, res) => {
 
   // SSE headers
   res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders();
+
+  // Disable Nagle's algorithm so each write is sent immediately
+  res.socket?.setNoDelay?.(true);
 
     // Abort signal for client disconnect
     const abortController = new AbortController();
@@ -400,6 +403,7 @@ export const chatStream = asyncHandler(async (req, res) => {
     const sendEvent = (data) => {
       if (!abortController.signal.aborted) {
         res.write(`data: ${JSON.stringify(data)}\n\n`);
+        if (typeof res.flush === 'function') res.flush();
       }
     };
 

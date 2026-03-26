@@ -190,7 +190,14 @@ class AIConversationRepository {
     });
 
     if (userId) {
-      await this.invalidateConversationsListCache(userId);
+      await Promise.all([
+        this.invalidateConversationsListCache(userId),
+        prisma.subscriptions.updateMany({
+          where: { userId },
+          data: { aiQuotaUsed: { increment: 1 } },
+        }),
+        cacheService.del(`user:subscription_full:${userId}`),
+      ]);
     }
 
     return conversation;

@@ -18,6 +18,7 @@ import FileUploadRepository from '../../../upload/infrastructure/repositories/Fi
 import { AppError } from '../../../../shared/errors/AppError.js';
 import prisma from '../../../../config/database.js';
 import { logger } from '../../../../shared/services/LoggerService.js';
+import cacheService from '../../../../shared/services/CacheService.js';
 
 const VALID_BOOKING_TYPES = new Set([
   'HOTEL', 'FLIGHT', 'RESTAURANT', 'TOUR', 'TRANSPORT', 'OTHER',
@@ -171,6 +172,14 @@ export class ApplyAIDraftUseCase {
       logger.info('  tripDataWithPhase1:', JSON.stringify(tripDataWithPhase1, null, 2));
       trip = await tripRepository.createTrip(tripDataWithPhase1, userId);
       logger.info(`  Trip created: ${trip?.id || 'NULL'}`);
+
+      await Promise.all([
+        prisma.subscriptions.updateMany({
+          where: { userId },
+          data: { tripsCreated: { increment: 1 } },
+        }),
+        cacheService.del(`user:subscription_full:${userId}`),
+      ]);
 
       // Phase 1: Create bookings if suggestions exist
       if (phase1Data.bookingSuggestions && phase1Data.bookingSuggestions.length > 0) {
