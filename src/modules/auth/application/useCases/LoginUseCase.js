@@ -55,13 +55,13 @@ export class LoginUseCase {
       const { otp } = await authService.createEmailVerificationToken(
         userRecord.email,
       );
-      const { sendVerificationEmail } = await import(
-        '../../../../shared/utils/email.js'
-      );
-      await sendVerificationEmail(
+      const novuService = (
+        await import('../../../notification/application/NovuService.js')
+      ).default;
+      await novuService.sendVerificationEmail(
+        userRecord.id,
         userRecord.email,
-        otp,
-        userRecord.name || '',
+        { otp, name: userRecord.name || '' },
       );
       throw AppError.emailNotVerified();
     }

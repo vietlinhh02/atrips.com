@@ -9,10 +9,6 @@ import userRepository from '../../infrastructure/repositories/UserRepository.js'
 import authService from '../services/AuthService.js';
 import config from '../../../../config/index.js';
 import novuService from '../../../notification/application/NovuService.js';
-import {
-  sendVerificationEmail,
-  sendWelcomeEmail,
-} from '../../../../shared/utils/email.js';
 
 export class RegisterUseCase {
   /**
@@ -41,10 +37,10 @@ export class RegisterUseCase {
         const { otp } = await authService.createEmailVerificationToken(
           existingUser.email,
         );
-        await sendVerificationEmail(
+        await novuService.sendVerificationEmail(
+          existingUser.id,
           existingUser.email,
-          otp,
-          existingUser.name || '',
+          { otp, name: existingUser.name || '' },
         );
         throw AppError.emailNotVerified();
       }
@@ -82,9 +78,14 @@ export class RegisterUseCase {
       const { otp } = await authService.createEmailVerificationToken(
         user.email,
       );
-      await sendVerificationEmail(user.email, otp, user.name || '');
+      await novuService.sendVerificationEmail(user.id, user.email, {
+        otp,
+        name: user.name || '',
+      });
     } else {
-      await sendWelcomeEmail(user.email, user.name || '');
+      await novuService.sendWelcomeEmail(user.id, user.email, {
+        name: user.name || '',
+      });
     }
 
     return {

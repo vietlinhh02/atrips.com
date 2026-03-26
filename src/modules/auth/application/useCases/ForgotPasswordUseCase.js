@@ -7,7 +7,7 @@ import { Email } from '../../domain/valueObjects/Email.js';
 import userRepository from '../../infrastructure/repositories/UserRepository.js';
 import authService from '../services/AuthService.js';
 import config from '../../../../config/index.js';
-import { sendPasswordResetEmail } from '../../../../shared/utils/email.js';
+import novuService from '../../../notification/application/NovuService.js';
 
 export class ForgotPasswordUseCase {
   /**
@@ -41,7 +41,11 @@ export class ForgotPasswordUseCase {
 
     try {
       const token = await authService.createPasswordResetToken(emailVO.value);
-      await sendPasswordResetEmail(user.email, token, user.name || '');
+      const resetUrl = `${config.frontendUrl}/reset-password?token=${token}`;
+      await novuService.sendPasswordResetEmail(user.id, user.email, {
+        resetUrl,
+        name: user.name || '',
+      });
     } catch (error) {
       console.error('Failed to send password reset email:', error);
     }

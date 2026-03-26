@@ -43,9 +43,3 @@ export {
   TOKEN_TYPES,
 } from './utils/jwt.js';
 
-export {
-  sendEmail,
-  sendVerificationEmail,
-  sendPasswordResetEmail,
-  sendWelcomeEmail,
-} from './utils/email.js';

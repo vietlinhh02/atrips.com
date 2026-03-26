@@ -16,7 +16,7 @@ import resetPasswordUseCase from '../../application/useCases/ResetPasswordUseCas
 import verifyEmailUseCase from '../../application/useCases/VerifyEmailUseCase.js';
 import userRepository from '../../infrastructure/repositories/UserRepository.js';
 import config from '../../../../config/index.js';
-import { sendVerificationEmail } from '../../../../shared/utils/email.js';
+import novuService from '../../../notification/application/NovuService.js';
 
 /**
  * @route POST /api/auth/register
@@ -206,7 +206,10 @@ export const resendVerification = asyncHandler(async (req, res) => {
 
   const { otp } = await authService.createEmailVerificationToken(email);
 
-  await sendVerificationEmail(email, otp, user.name || '');
+  await novuService.sendVerificationEmail(user.id, email, {
+    otp,
+    name: user.name || '',
+  });
 
   return sendSuccess(res, null, 'If an account exists, a new code has been sent.');
 });
