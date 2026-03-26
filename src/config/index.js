@@ -66,7 +66,7 @@ export const config = {
   // Cookie settings
   cookie: {
     secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    sameSite: 'lax',
     httpOnly: true,
     domain: process.env.COOKIE_DOMAIN || undefined,
   },

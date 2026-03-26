@@ -239,10 +239,8 @@ export const googleCallback = asyncHandler(async (req, res) => {
   // Set auth cookies
   setAuthCookies(res, user.tokens);
 
-  // Redirect to frontend
-  const redirectUrl = user.isNewUser
-    ? `${config.frontendUrl}/onboarding`
-    : `${config.frontendUrl}/dashboard`;
+  // Redirect to frontend callback page (handles onboarding check + routing)
+  const redirectUrl = `${config.frontendUrl}/auth/google/callback`;
 
   return res.redirect(redirectUrl);
 });
