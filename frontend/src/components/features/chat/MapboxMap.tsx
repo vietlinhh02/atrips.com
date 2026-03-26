@@ -311,7 +311,7 @@ const RouteLegend: React.FC<RouteLegendProps> = ({
   if (routes.length === 0) return null;
 
   return (
-    <div className="absolute bottom-8 left-3 z-10 bg-[var(--neutral-10)]/95 backdrop-blur-sm rounded-lg shadow-md px-3 py-2 text-xs max-w-[180px]">
+    <div className="absolute bottom-8 right-3 z-10 bg-[var(--neutral-10)]/95 backdrop-blur-sm rounded-lg shadow-md px-3 py-2 text-xs max-w-[180px]">
       <button
         type="button"
         className={`w-full text-left mb-1 px-1.5 py-1 rounded font-medium transition-colors ${
@@ -559,6 +559,13 @@ const MapboxMap: React.FC<MapboxMapProps> = ({
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapRef = React.useRef<any>(null);
+
+  // Resize map when container changes (sidebar toggle)
+  useEffect(() => {
+    const handleResize = () => mapRef.current?.resize();
+    window.addEventListener('map-resize', handleResize);
+    return () => window.removeEventListener('map-resize', handleResize);
+  }, []);
 
   // Fly to user's location when map loads and no itinerary is shown
   useEffect(() => {
