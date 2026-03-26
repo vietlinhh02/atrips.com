@@ -46,6 +46,7 @@ export default function OnboardingStep1() {
     const init = async () => {
       // Check if user email is verified
       if (user && !user.emailVerified) {
+        setLoading(false);
         router.replace(`/verify-email?email=${encodeURIComponent(user.email)}`);
         return;
       }

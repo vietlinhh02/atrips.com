@@ -9,7 +9,8 @@ export default function Step4Redirect() {
   useEffect(() => {
     // Step 4 is the result page, redirect there
     router.replace('/onboarding/result');
-  }, [router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="grid min-h-[300px] place-items-center">
